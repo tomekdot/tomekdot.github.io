@@ -1,0 +1,8 @@
+{
+  "name": "tomekdot — GitHub Portfolio",
+  "description": "An interactive showcase of tomekdot's GitHub repositories, including PyPlanet and Openplanet plugins, Trackmania tools, AI models, and academic projects.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
