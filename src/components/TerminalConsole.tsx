@@ -337,7 +337,7 @@ export default function TerminalConsole({ onSelectCategory, lang, repos = REPOS,
 
       {/* Console frame */}
       {isOpen && (
-        <div id="terminal_console" className="fixed bottom-20 left-4 right-4 sm:left-auto sm:right-6 z-40 w-[calc(100vw-2rem)] sm:w-full sm:max-w-lg h-80 bg-editorial-bg/95 border-2 border-editorial-border rounded-none shadow-2xl overflow-hidden flex flex-col font-mono text-xs select-text">
+        <div id="terminal_console" translate="no" className="fixed bottom-20 left-4 right-4 sm:left-auto sm:right-6 z-40 w-[calc(100vw-2rem)] sm:w-full sm:max-w-lg h-80 bg-editorial-bg/95 border-2 border-editorial-border rounded-none shadow-2xl overflow-hidden flex flex-col font-mono text-xs select-text notranslate">
           {/* Header */}
           <div className="bg-editorial-sidebar-bg px-4 py-2 border-b border-editorial-border flex items-center justify-between text-editorial-muted">
             <div className="flex items-center gap-1.5 uppercase tracking-wider text-[10px]">

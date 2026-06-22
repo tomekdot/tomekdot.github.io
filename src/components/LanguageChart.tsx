@@ -60,7 +60,7 @@ export default function LanguageChart({ repos, lang }: LanguageChartProps) {
       </div>
 
       {/* Grid of details */}
-      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 pt-1">
+      <div translate="no" className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-4 pt-1 notranslate">
         {languageStats.map(stat => (
           <div 
             key={stat.name} 

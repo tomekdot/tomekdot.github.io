@@ -614,7 +614,7 @@ export default function App() {
             alt="tomekdot avatar mini" 
             className="w-7 h-7 rounded-full border border-editorial-border"
           />
-          <span className="font-mono font-bold tracking-tight text-sm text-white">
+          <span translate="no" className="font-mono font-bold tracking-tight text-sm text-white notranslate">
             tomekdot
           </span>
         </div>
@@ -680,7 +680,7 @@ export default function App() {
         </div>
         <div className="flex-grow w-full">
           <div className="flex flex-col md:flex-row justify-between items-start md:items-end gap-4 md:gap-2">
-            <h1 className="text-5xl sm:text-6xl font-black tracking-tight font-mono text-white leading-none">
+            <h1 translate="no" className="text-5xl sm:text-6xl font-black tracking-tight font-mono text-white leading-none notranslate">
               tomekdot
             </h1>
             <div className="flex gap-6">
@@ -802,7 +802,7 @@ export default function App() {
                 <h2 className="text-[10px] uppercase tracking-[0.3em] text-[#8b949e] font-mono font-bold">
                   {appLang === 'en' ? 'Categories' : 'Kategorie'}
                 </h2>
-                <nav className="flex flex-col gap-4 text-base font-bold font-mono">
+                <nav translate="no" className="flex flex-col gap-4 text-base font-bold font-mono notranslate">
                   <button
                     type="button"
                     onClick={() => setSelectedCategory('all')}
@@ -890,7 +890,7 @@ export default function App() {
               <h3 className="text-xs font-bold uppercase font-mono text-editorial-accent">
                 {appLang === 'en' ? 'Developer Stats' : 'Statystyki Twórcy'}
               </h3>
-              <div className="grid grid-cols-2 gap-4">
+              <div translate="no" className="grid grid-cols-2 gap-4 notranslate">
                 <div className="flex flex-col">
                   <span className="text-2xl font-bold font-mono text-white">{stats.total}</span>
                   <span className="text-[9px] font-mono uppercase text-[#8b949e]">Repos</span>
@@ -974,7 +974,8 @@ export default function App() {
                       id="language_filter_select"
                       value={filterLang}
                       onChange={(e) => setFilterLang(e.target.value)}
-                      className="bg-editorial-sidebar-bg border border-editorial-border text-xs text-white font-mono py-2 px-3 rounded-none focus:border-editorial-accent focus:outline-none transition-colors"
+                      translate="no"
+                      className="bg-editorial-sidebar-bg border border-editorial-border text-xs text-white font-mono py-2 px-3 rounded-none focus:border-editorial-accent focus:outline-none transition-colors notranslate"
                     >
                       <option value="all">{appLang === 'en' ? 'ALL LANGUAGES' : 'WSZYSTKIE JĘZYKI'}</option>
                       {allLanguages.map(l => (
