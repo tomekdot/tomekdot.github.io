@@ -52,7 +52,7 @@ export default function RepoCard({ repo, onSelect, lang }: RepoCardProps) {
         {/* Title: Monospace */}
         <h3 className="text-base sm:text-lg font-bold font-mono text-white mb-2 group-hover:text-editorial-accent group-hover:translate-x-0.5 transition-all flex flex-wrap items-center gap-2 break-all">
           <FolderGit2 size={16} className="text-editorial-muted group-hover:text-editorial-accent transition-colors shrink-0" />
-          <span>{repo.name}</span>
+          <span translate="no" className="notranslate">{repo.name}</span>
           {repo.isPrivate && (
             <span className="inline-flex items-center gap-1 bg-[#1F1111] text-rose-500 border border-rose-500/30 px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-wider font-bold shrink-0 whitespace-nowrap">
               <Lock size={9} />
@@ -73,7 +73,7 @@ export default function RepoCard({ repo, onSelect, lang }: RepoCardProps) {
           {repo.lang && (
             <span className="flex items-center gap-1.5 border border-editorial-border px-2 py-0.5 rounded text-[10px] font-medium tracking-wide shrink-0">
               <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: langColor }} />
-              <span className="text-zinc-300">{repo.lang}</span>
+              <span translate="no" className="text-zinc-300 notranslate">{repo.lang}</span>
             </span>
           )}
           {repo.pushedAt && (

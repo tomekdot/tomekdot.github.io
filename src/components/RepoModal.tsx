@@ -941,7 +941,7 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
                   {lang === 'en' ? catSpec.labelEn : catSpec.labelPl}
                 </span>
                 {repo.lang && (
-                  <span className="inline-flex items-center gap-1.5 px-2 py-0.5 border border-editorial-border text-editorial-muted text-[10px] font-mono">
+                  <span translate="no" className="inline-flex items-center gap-1.5 px-2 py-0.5 border border-editorial-border text-editorial-muted text-[10px] font-mono notranslate">
                     <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: langColor }} />
                     {repo.lang}
                   </span>
@@ -949,7 +949,7 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
               </div>
 
               <h2 className="text-xl sm:text-2xl font-bold font-mono text-white flex flex-wrap items-center gap-2 break-all pr-4 font-mono uppercase tracking-wider">
-                <span>{repo.name}</span>
+                <span translate="no" className="notranslate">{repo.name}</span>
                 {repo.isPrivate && (
                   <span className="inline-flex items-center gap-1 bg-[#1F1111] text-rose-500 border border-rose-500/30 px-2 py-0.5 text-[10px] font-mono uppercase tracking-wider font-bold shrink-0 whitespace-nowrap">
                     <Lock size={10} />
@@ -1054,7 +1054,7 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
                     {lang === 'en' ? 'System Metadata' : 'Metadane Systemowe'}
                   </h4>
                   <div className="flex flex-wrap gap-2 text-[10px] font-mono uppercase tracking-wider">
-                    <span className="bg-neutral-900 border border-editorial-border px-2 py-1 rounded-none text-editorial-muted">
+                    <span translate="no" className="bg-neutral-900 border border-editorial-border px-2 py-1 rounded-none text-editorial-muted notranslate">
                       {repo.lang || 'Git Shell'}
                     </span>
                     {repo.pushedAt && (
@@ -1082,10 +1082,10 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
                         code: ({ children, className }) => {
                           const isInline = !className;
                           return isInline ? (
-                            <code className="bg-neutral-900 text-editorial-accent font-mono text-xs px-1 py-0.5 border border-editorial-border">{children}</code>
+                            <code translate="no" className="bg-neutral-900 text-editorial-accent font-mono text-xs px-1 py-0.5 border border-editorial-border notranslate">{children}</code>
                           ) : (
                             <pre className="bg-neutral-950 p-3 border border-editorial-border font-mono text-xs text-emerald-400 overflow-x-auto my-3 leading-relaxed rounded-none max-w-full">
-                              <code>{children}</code>
+                              <code translate="no" className="notranslate">{children}</code>
                             </pre>
                           );
                         },
@@ -1102,11 +1102,11 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
                 ) : repo.codeSnippet ? (
                   <div className="space-y-3 animate-fadeIn">
                     <div className="flex items-center justify-between bg-neutral-900 border border-editorial-border px-4 py-2 font-mono text-xs text-editorial-muted">
-                      <span>{repo.codeSnippet.filename}</span>
-                      <span className="uppercase text-editorial-accent font-bold">{repo.codeSnippet.language}</span>
+                      <span translate="no" className="notranslate">{repo.codeSnippet.filename}</span>
+                      <span translate="no" className="uppercase text-editorial-accent font-bold notranslate">{repo.codeSnippet.language}</span>
                     </div>
                     <pre className="bg-neutral-950 p-4 border border-editorial-border font-mono text-xs text-emerald-400 overflow-x-auto max-h-[38vh] leading-relaxed rounded-none">
-                      <code>{repo.codeSnippet.code}</code>
+                      <code translate="no" className="notranslate">{repo.codeSnippet.code}</code>
                     </pre>
                   </div>
                 ) : (
