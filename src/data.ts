@@ -1626,24 +1626,6 @@ print(f"Total system failures: {errors.count()}")`
     isPrivate: true
   },
   {
-    name: "MIKOsite",
-    desc: "Strona internetowa Matematycznego Internetowego Koła Olimpijskiego",
-    descPl: "Strona internetowa Matematycznego Internetowego Koła Olimpijskiego",
-    lang: "Python",
-    cat: [
-      "other"
-    ],
-    url: "https://github.com/MIKOmath/MIKOsite",
-    stars: 5,
-    forks: 2,
-    commitsCount: 0,
-    createdYear: 2024,
-    longDescEn: "Automatic entry for MIKOsite. This utility has 5 stars and 2 forks on Github.",
-    longDescPl: "Automatyczny wpis dla MIKOsite. To repozytorium posiada 5 gwiazdek i 2 forków.",
-    pushedAt: "2026-05-12T06:58:38Z",
-    isPrivate: false
-  },
-  {
     name: "web-frontend-project",
     desc: "Public archive item fetched from developer repository on GitHub.",
     descPl: "Publiczne repozytorium pobrane dynamicznie z profilu GitHub twórcy.",
