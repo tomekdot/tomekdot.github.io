@@ -67,16 +67,18 @@ export const CATEGORIES: Record<string, CategorySpec> = {
 export const SHOW_PRIVATE_REPOS_TO_PUBLIC = false;
 
 export const REPOS: Repository[] = [
-  // PyPlanet
   {
     name: "pyplanet-clanspirits",
-    desc: "Competitive spirit/team scoring based on local records.",
+    desc: "Clan Spirits plugin for PyPlanet — competitive spirit/team scoring based on local records",
     descPl: "Konkurencja duchów/punktacja zespołowa oparta na rekordach lokalnych.",
     lang: "Python",
-    cat: ["pyplanet", "trackmania"],
+    cat: [
+      "pyplanet",
+      "trackmania"
+    ],
     url: "https://github.com/tomekdot/pyplanet-clanspirits",
-    stars: 14,
-    forks: 3,
+    stars: 0,
+    forks: 0,
     commitsCount: 38,
     createdYear: 2023,
     longDescEn: "Adds competitive team scoring structures, dynamic player ranks and 'clan' allegiance to your TrackMania PyPlanet server. Players can join spirits, earn points based on records, and compete in team rankings.",
@@ -93,17 +95,22 @@ export const REPOS: Repository[] = [
         if rank > 5:
             return 5
         return int(self.base_score * (1.0 / (rank ** self.scale)))`
-    }
+    },
+    isPrivate: false,
+    pushedAt: "2026-06-16T21:10:55Z"
   },
   {
     name: "pyplanet-github-installer",
-    desc: "Install plugins from GitHub with /ghinstall command.",
+    desc: "GitHub Installer plugin for PyPlanet — install plugins from GitHub with /ghinstall",
     descPl: "Instaluj pluginy bezpośrednio z GitHub poleceniem /ghinstall.",
     lang: "Python",
-    cat: ["pyplanet", "trackmania"],
+    cat: [
+      "pyplanet",
+      "trackmania"
+    ],
     url: "https://github.com/tomekdot/pyplanet-github-installer",
-    stars: 12,
-    forks: 2,
+    stars: 0,
+    forks: 0,
     commitsCount: 19,
     createdYear: 2023,
     longDescEn: "A utility plugin allowing TrackMania server managers to install other PyPlanet plugins directly from raw GitHub repositories. Handles download, file unpacking, validation, and auto-registration.",
@@ -119,17 +126,22 @@ async def gh_install_plugin(player, repo_path, **kwargs):
     success = await download_and_extract_plugin(url)
     if success:
         await player.send_chat("Plugin loaded successfully! Restart server to apply.")`
-    }
+    },
+    isPrivate: false,
+    pushedAt: "2026-06-16T20:15:56Z"
   },
   {
     name: "pyplanet-hello-world",
-    desc: "Minimal starter template for creating PyPlanet plugins.",
+    desc: "Hello World example plugin for PyPlanet — minimal starter template",
     descPl: "Minimalny szablon początkowy do budowania wtyczek PyPlanet.",
     lang: "Python",
-    cat: ["pyplanet", "trackmania"],
+    cat: [
+      "pyplanet",
+      "trackmania"
+    ],
     url: "https://github.com/tomekdot/pyplanet-hello-world",
-    stars: 5,
-    forks: 1,
+    stars: 0,
+    forks: 0,
     commitsCount: 8,
     createdYear: 2023,
     longDescEn: "Boilerplate plugin for server developers. Comes configured with setting initializations, event listener interfaces, UI template renderers, and basic chat commands.",
@@ -148,17 +160,22 @@ class HelloWorldConfig(AppConfig):
 
     async def on_start(self):
         self.context.signals.listen('trackmania.player_connect', self.player_connect)`
-    }
+    },
+    isPrivate: false,
+    pushedAt: "2026-06-16T20:18:12Z"
   },
   {
     name: "pomodoro-plugin-dev",
-    desc: "Pomodoro timer for Trackmania with tasks, statistics, and shortcuts.",
+    desc: "A clean, effective Pomodoro timer for Trackmania with tasks, stats, notifications, themes, and hotkeys.",
     descPl: "Licznik Pomodoro dla Trackmanii z zadaniami, statystykami i skrótami.",
     lang: "AngelScript",
-    cat: ["openplanet", "trackmania"],
+    cat: [
+      "openplanet",
+      "trackmania"
+    ],
     url: "https://github.com/tomekdot/pomodoro-plugin-dev",
-    stars: 21,
-    forks: 4,
+    stars: 1,
+    forks: 0,
     commitsCount: 64,
     createdYear: 2024,
     longDescEn: "A high-productivity Pomodoro technique timer integrated right into Trackmania's overlay. Includes task checklists, custom session lengths, progress charts, automated track muting, and keyboard shortcuts.",
@@ -181,17 +198,22 @@ class HelloWorldConfig(AppConfig):
         }
     }
 }`
-    }
+    },
+    isPrivate: false,
+    pushedAt: "2025-08-13T15:34:16Z"
   },
   {
     name: "pursuit-channel-agent",
-    desc: "AI agent that selects ManiaPlanet playlists based on the lunar month.",
+    desc: "This agent logs into ManiaPlanet and selects a playlist based on the lunar month day.",
     descPl: "Agent AI optymalizujący playlisty w ManiaPlanet na bazie kalendarza księżycowego.",
     lang: "Python",
-    cat: ["ai", "trackmania"],
+    cat: [
+      "ai",
+      "trackmania"
+    ],
     url: "https://github.com/tomekdot/pursuit-channel-agent",
-    stars: 8,
-    forks: 1,
+    stars: 1,
+    forks: 0,
     commitsCount: 14,
     createdYear: 2023,
     longDescEn: "Automated agent that logs into server panels, monitors running configurations, and shifts track cycles following lunar fluctuations to balance atmospheric difficulty curves.",
@@ -205,17 +227,21 @@ class HelloWorldConfig(AppConfig):
     elif 14 <= day_of_month <= 16:
         return "FullMoon_HighIntensity_Tracks.xml"
     return "Standard_Rotation.xml"`
-    }
+    },
+    isPrivate: false,
+    pushedAt: "2026-06-22T12:49:57Z"
   },
   {
     name: "pursuit-maps",
-    desc: "ManiaPlanet Feedback S1 E1 TrackMania Pursuit maps dataset.",
+    desc: "TrackMania Pursuit maps dataset - all maps from ManiaPlanet Feedback S1 E1 with UIDs, thumbnails, and scripts",
     descPl: "Zbiór map z cyklu TrackMania Pursuit z unikalnymi metadanymi i skryptami.",
     lang: "Python",
-    cat: ["trackmania"],
+    cat: [
+      "trackmania"
+    ],
     url: "https://github.com/tomekdot/pursuit-maps",
-    stars: 9,
-    forks: 2,
+    stars: 0,
+    forks: 0,
     commitsCount: 22,
     createdYear: 2023,
     longDescEn: "Comprehensive dataset indexing pursuit maps with embedded track validation UIDs, hex headers, high-resolution thumbnail extractions, and original race configurations.",
@@ -228,18 +254,22 @@ class HelloWorldConfig(AppConfig):
     start_idx = hex_data.find(b'<header')
     end_idx = hex_data.find(b'</header>') + 9
     return hex_data[start_idx:end_idx].decode('utf-8', errors='ignore')`
-    }
+    },
+    isPrivate: false,
+    pushedAt: "2026-06-16T23:04:30Z"
   },
-  // Openplanet
   {
     name: "apeiron-galaxy-dev",
-    desc: "13 moon phase calendar plugin overlay for Trackmania.",
+    desc: "Apeiron Galaxy — 13 moon phase calendar plugin for Trackmania (Openplanet).",
     descPl: "Kalendarz 13 cykli księżycowych z nakładką w grze Trackmania.",
     lang: "AngelScript",
-    cat: ["openplanet", "trackmania"],
+    cat: [
+      "openplanet",
+      "trackmania"
+    ],
     url: "https://github.com/tomekdot/apeiron-galaxy-dev",
-    stars: 18,
-    forks: 3,
+    stars: 0,
+    forks: 0,
     commitsCount: 41,
     createdYear: 2024,
     longDescEn: "Immersive astronomical calendar dashboard rendered natively inside Trackmania. Follows the 13-moon system, featuring dynamic star signs, cosmic calculations, and full visual customization.",
@@ -255,17 +285,22 @@ class HelloWorldConfig(AppConfig):
         UI::EndMenu();
     }
 }`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2026-06-19T11:50:00Z"
   },
   {
     name: "vehicle-detector-dev",
-    desc: "Computer vision custom training sample exporter for ManiaPlanet 4.",
+    desc: "Openplanet plugin for MP4 vehicle detection and training sample export.",
     descPl: "Zautomatyzowany eksporter próbek obrazu do trenowania sieci neuronowych.",
     lang: "AngelScript",
-    cat: ["openplanet", "trackmania"],
+    cat: [
+      "openplanet",
+      "trackmania"
+    ],
     url: "https://github.com/tomekdot/vehicle-detector-dev",
-    stars: 15,
-    forks: 4,
+    stars: 0,
+    forks: 0,
     commitsCount: 30,
     createdYear: 2024,
     longDescEn: "A tracking framework extracting bounding boxes and 3D wireframe models of vehicles in real-time. Designed to gather custom dataset screenshots to train convolutional neural networks (YOLO).",
@@ -281,17 +316,22 @@ class HelloWorldConfig(AppConfig):
     }
     return vec3(0, 0, 0);
 }`
-    }
+    },
+    isPrivate: false,
+    pushedAt: "2026-06-02T12:13:53Z"
   },
   {
     name: "event-calendar-dev",
-    desc: "Lightweight upcoming event notifier overlay.",
+    desc: "Lightweight plugin that shows upcoming moon phases and can optionally notify the user.",
     descPl: "Lekka nakładka informująca o nadchodzących wydarzeniach i fazach księżyca.",
     lang: "AngelScript",
-    cat: ["openplanet", "trackmania"],
+    cat: [
+      "openplanet",
+      "trackmania"
+    ],
     url: "https://github.com/tomekdot/event-calendar-dev",
-    stars: 7,
-    forks: 1,
+    stars: 1,
+    forks: 0,
     commitsCount: 11,
     createdYear: 2024,
     longDescEn: "Keeps players aligned with schedules, community championships, and astronomical cycles, launching alerts directly in the corner of their gameplay view.",
@@ -407,18 +447,21 @@ void AutoRefreshCoroutine() {
         sleep(1000); // Check every second
     }
 }`
-    }
+    },
+    isPrivate: false,
+    pushedAt: "2026-06-16T23:26:56Z"
   },
-  // AI / Agents
   {
     name: "trackmania-galaxy",
-    desc: "Community wiki and structural knowledge base engine.",
+    desc: "TrackMania Galaxy Wiki",
     descPl: "Strukturalna encyklopedia wiedzy o uniwersum Trackmania Galaxy.",
     lang: "Ruby",
-    cat: ["trackmania"],
+    cat: [
+      "trackmania"
+    ],
     url: "https://github.com/tomekdot/trackmania-galaxy",
-    stars: 11,
-    forks: 2,
+    stars: 1,
+    forks: 0,
     commitsCount: 45,
     createdYear: 2023,
     longDescEn: "Static site and structured encyclopedic engine documenting advanced modding techniques, lunar servers information, custom maps, and script integrations.",
@@ -430,17 +473,21 @@ void AutoRefreshCoroutine() {
 gem 'jekyll', '~> 4.2'
 gem 'jekyll-sitemap'
 gem 'github-pages', group: :jekyll_plugins`
-    }
+    },
+    isPrivate: false,
+    pushedAt: "2026-06-22T12:50:01Z"
   },
   {
     name: "hermes-skills",
-    desc: "Hermes AI Agent skills and capability workflow expansions.",
+    desc: "Hermes Agent skills by tomekdot",
     descPl: "Zbiór modułów funkcjonalności dla agentów AI z rodziny Hermes.",
     lang: "Python",
-    cat: ["ai"],
+    cat: [
+      "ai"
+    ],
     url: "https://github.com/tomekdot/hermes-skills",
-    stars: 28,
-    forks: 7,
+    stars: 1,
+    forks: 0,
     commitsCount: 74,
     createdYear: 2024,
     longDescEn: "A collection of custom modular skills for Hermes Agent, automating public GitHub workflow deprecated Node.js 20 actions scanning, Vite GitHub Pages deployments, and OpenPlanet/PyPlanet game plugins developer automation.",
@@ -462,17 +509,21 @@ gem 'github-pages', group: :jekyll_plugins`
                     "recommendation": "Upgrade to setup-node@v4 for Node.js 24 compatibility."
                 })
         return {"repo": repo_name, "issues": deprecated}`
-    }
+    },
+    isPrivate: false,
+    pushedAt: "2026-06-20T15:06:15Z"
   },
   {
     name: "MIKObot",
-    desc: "Official chatbot for Mathematical Internet Olympiad Club (MIKO).",
+    desc: "Bot for Matematyczne Internetowe Koło Olimpijskie (MIKO).",
     descPl: "Oficjalny bot ułatwiający naukę i komunikację Internetowego Koła MKO.",
     lang: "Python",
-    cat: ["ai"],
+    cat: [
+      "ai"
+    ],
     url: "https://github.com/tomekdot/MIKObot",
-    stars: 16,
-    forks: 3,
+    stars: 0,
+    forks: 0,
     commitsCount: 33,
     createdYear: 2023,
     longDescEn: "Telegram/Discord bot designed to manage task distributions, verify math puzzle submissions, track leadership schedules, and host mini-competitions.",
@@ -486,17 +537,21 @@ gem 'github-pages', group: :jekyll_plugins`
     expected = database.get_solution(equation.id)
     if parsed_solution == expected:
         await message.reply("Correct answer! +10 MIKO points.")`
-    }
+    },
+    isPrivate: false,
+    pushedAt: "2026-06-22T13:54:44Z"
   },
   {
     name: "re-tuning-432Hz",
-    desc: "Musical signal re-tuning and acoustic frequency explorer.",
+    desc: "Audio retuning tool — convert music to 432Hz reference pitch. Python.",
     descPl: "Eksperymentalny pakiety audio do dostrajania amplitudy do częstotliwości 432 Hz.",
     lang: "Python",
-    cat: ["other"],
+    cat: [
+      "other"
+    ],
     url: "https://github.com/tomekdot/re-tuning-432Hz",
-    stars: 13,
-    forks: 1,
+    stars: 0,
+    forks: 0,
     commitsCount: 16,
     createdYear: 2023,
     longDescEn: "Applies pitch-shifting algorithms (FFT phase vocoder) to digital audio signals to alter tuning frequencies from standard 440 Hz standard pitch to Pythagorean 432 Hz.",
@@ -512,17 +567,20 @@ def shift_pitch(data, rate, target=432, base=440):
     # Resample or run Phase Vocoder
     new_length = int(len(data) / factor)
     return np.interp(np.arange(0, len(data), factor), np.arange(0, len(data)), data)`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2026-03-11T22:34:23Z"
   },
-  // KUL
   {
     name: "KUL-2023-API",
-    desc: "Academic API modeling and verification (KUL 2023).",
+    desc: "Web API project — HTML, JavaScript, TypeScript.",
     descPl: "Akademickie modelowanie interfejsów sieciowych i walidacji API (KUL 2023).",
     lang: "HTML",
-    cat: ["kul"],
+    cat: [
+      "kul"
+    ],
     url: "https://github.com/tomekdot/KUL-2023-API",
-    stars: 4,
+    stars: 0,
     forks: 0,
     commitsCount: 12,
     createdYear: 2023,
@@ -536,16 +594,20 @@ def shift_pitch(data, rate, target=432, base=440):
   <code>/api/v1/students</code>
   <p>Returns a list of student records in JSON format</p>
 </div>`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2026-06-22T12:46:42Z"
   },
   {
     name: "KUL-2023-PUS",
-    desc: "Distributed systems and client-server communication protocols (PUS).",
+    desc: "Python lab exercises for PUS course at KUL, 2023.",
     descPl: "Bezpieczeństwo i programowanie usług sieciowych (KUL 2023).",
     lang: "Python",
-    cat: ["kul"],
+    cat: [
+      "kul"
+    ],
     url: "https://github.com/tomekdot/KUL-2023-PUS",
-    stars: 3,
+    stars: 0,
     forks: 0,
     commitsCount: 15,
     createdYear: 2023,
@@ -561,16 +623,20 @@ while True:
     data, addr = server_sock.recvfrom(1024)
     print(f"Packet received from: {addr}")
     server_sock.sendto(b"ACK_SECURE", addr)`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2026-06-22T13:50:33Z"
   },
   {
     name: "KUL-2023-PO-II",
-    desc: "Advanced Object-Oriented Programming principles in Java (PO-II).",
+    desc: "Java project for OOP II course at KUL, 2023.",
     descPl: "Zaawansowane paradygmaty programowania obiektowego w Javie (PO-II).",
     lang: "Java",
-    cat: ["kul"],
+    cat: [
+      "kul"
+    ],
     url: "https://github.com/tomekdot/KUL-2023-PO-II",
-    stars: 5,
+    stars: 0,
     forks: 0,
     commitsCount: 22,
     createdYear: 2023,
@@ -589,17 +655,21 @@ public class Subject {
         observers.forEach(o -> o.update(msg));
     }
 }`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2026-06-22T13:51:17Z"
   },
   {
     name: "KUL-2023-AWRSP",
-    desc: "Algorithmics and Complexity Analysis (AWRSP).",
+    desc: "Java project for AWRSP course at KUL, 2023.",
     descPl: "Algorytmy i złożoność obliczeniowa — ćwiczenia i struktury danych.",
     lang: "Java",
-    cat: ["kul"],
+    cat: [
+      "kul"
+    ],
     url: "https://github.com/tomekdot/KUL-2023-AWRSP",
-    stars: 6,
-    forks: 1,
+    stars: 0,
+    forks: 0,
     commitsCount: 19,
     createdYear: 2023,
     longDescEn: "Studies of algorithmic complexity, tree traversals (BST, AVL), graph navigation (Dijkstra, Prim/Kruskal), dynamic programming, and search algorithms.",
@@ -616,16 +686,20 @@ public class Subject {
         // check neighbors update...
     }
 }`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2026-06-22T13:50:27Z"
   },
   {
     name: "KUL-2023-AiSD",
-    desc: "Algorithms and Data Structures basic syllabus (AiSD).",
+    desc: "Algorithms and Data Structures course at KUL, 2023. Java and C# implementations.",
     descPl: "Struktury danych i podstawy algorytmiki (AiSD KUL 2023).",
     lang: "Java",
-    cat: ["kul"],
+    cat: [
+      "kul"
+    ],
     url: "https://github.com/tomekdot/KUL-2023-AiSD",
-    stars: 4,
+    stars: 0,
     forks: 0,
     commitsCount: 20,
     createdYear: 2023,
@@ -641,17 +715,21 @@ public class Subject {
         quickSort(arr, pi + 1, high);
     }
 }`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2026-06-22T13:51:24Z"
   },
   {
     name: "KUL-2024-SQL",
-    desc: "Relational database systems design, normalization, and DML (SQL).",
+    desc: "SQL course materials and exercises at KUL, 2024.",
     descPl: "Relacyjne bazy danych, normalizacja, zapytania DML i widoki (SQL).",
     lang: "SQL",
-    cat: ["kul"],
+    cat: [
+      "kul"
+    ],
     url: "https://github.com/tomekdot/KUL-2024-SQL",
-    stars: 6,
-    forks: 1,
+    stars: 0,
+    forks: 0,
     commitsCount: 24,
     createdYear: 2024,
     longDescEn: "Coursework focused on schema architecture, ERD design, complex SQL joins, analytical functions, transactional rollbacks, and views optimization.",
@@ -663,16 +741,20 @@ public class Subject {
        RANK() OVER (PARTITION BY e.department_id ORDER BY e.salary DESC) as salary_rank
 FROM employees e
 INNER JOIN departments d ON e.department_id = d.department_id;`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2026-06-22T13:50:22Z"
   },
   {
     name: "KUL-2024-SQL-II",
-    desc: "Procedural SQL, stored procedures, triggers and constraints (SQL-II).",
+    desc: "SQL course materials and lab exercises (part II) at KUL, 2024.",
     descPl: "Zaawansowany SQL, procedury wbudowane, wyzwalacze i kursory.",
     lang: "PLSQL",
-    cat: ["kul"],
+    cat: [
+      "kul"
+    ],
     url: "https://github.com/tomekdot/KUL-2024-SQL-II",
-    stars: 5,
+    stars: 0,
     forks: 0,
     commitsCount: 18,
     createdYear: 2024,
@@ -688,16 +770,20 @@ BEGIN
     INSERT INTO salary_history(emp_id, old_sal, new_sal, change_date)
     VALUES(:OLD.employee_id, :OLD.salary, :NEW.salary, SYSDATE);
 END;`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2026-06-22T13:50:18Z"
   },
   {
     name: "KUL-2024-Maven",
-    desc: "Java build automation and project lifecycle management (Maven).",
+    desc: "Java/Maven project for a KUL course, 2024.",
     descPl: "Systemy budowania projektów Java i automatyzacja cyklu życia aplikacji.",
     lang: "Java",
-    cat: ["kul"],
+    cat: [
+      "kul"
+    ],
     url: "https://github.com/tomekdot/KUL-2024-Maven",
-    stars: 3,
+    stars: 0,
     forks: 0,
     commitsCount: 10,
     createdYear: 2024,
@@ -712,17 +798,21 @@ END;`
     <version>5.10.0</version>
     <scope>test</scope>
 </dependency>`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2026-06-22T13:50:13Z"
   },
   {
     name: "KUL-2024-AWSJ",
-    desc: "Algorithms and Selected Java Frameworks course (AWSJ).",
+    desc: "Gradle/Java project for AWSJ course at KUL, 2024.",
     descPl: "Wybrane ramy programowania i struktury w Java Web (AWSJ).",
     lang: "Java",
-    cat: ["kul"],
+    cat: [
+      "kul"
+    ],
     url: "https://github.com/tomekdot/KUL-2024-AWSJ",
-    stars: 4,
-    forks: 1,
+    stars: 0,
+    forks: 0,
     commitsCount: 17,
     createdYear: 2024,
     longDescEn: "Projects examining full-stack patterns, integrating ORM layers (Hibernate), database transactions, client interfaces, and reactive design patterns.",
@@ -739,16 +829,20 @@ public class Item {
     @Column(nullable = false)
     private String title;
 }`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2026-06-22T13:49:10Z"
   },
   {
     name: "KUL-SQL-III",
-    desc: "Database tuning, index architecture, query profiling (SQL-III).",
+    desc: "Advanced SQL course materials and lab exercises at KUL. PL/SQL, database design.",
     descPl: "Profilowanie kwerend, optymalizacje indeksów i administracja bazami danych.",
     lang: "PLSQL",
-    cat: ["kul"],
+    cat: [
+      "kul"
+    ],
     url: "https://github.com/tomekdot/KUL-SQL-III",
-    stars: 5,
+    stars: 0,
     forks: 0,
     commitsCount: 14,
     createdYear: 2024,
@@ -760,16 +854,20 @@ public class Item {
       code: `EXPLAIN PLAN FOR
 SELECT * FROM orders WHERE customer_id = 9012 AND total_amount > 500;
 SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2026-06-22T13:48:59Z"
   },
   {
     name: "KUL-ProgrammingWebsites",
-    desc: "Frontend web layout design, accessible colors, fluid layouts.",
+    desc: "Web development course at KUL — CSS, JavaScript, HTML programming.",
     descPl: "Podstawy tworzenia witryn internetowych, przystosowanie dla osób niepełnosprawnych.",
     lang: "CSS",
-    cat: ["kul"],
+    cat: [
+      "kul"
+    ],
     url: "https://github.com/tomekdot/KUL-ProgrammingWebsites",
-    stars: 4,
+    stars: 0,
     forks: 0,
     commitsCount: 11,
     createdYear: 2023,
@@ -784,16 +882,20 @@ SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);`
     transition-duration: 0.01ms !important;
   }
 }`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2025-05-22T15:10:24Z"
   },
   {
     name: "KUL-2025-Gradle-2",
-    desc: "Modern Java / Kotlin build pipeline configurations with Gradle.",
+    desc: "Gradle-based Java project with HTML frontend. Course project at KUL, 2025.",
     descPl: "Budowa nowoczesnych potoków budowania systemów Gradle (Kotlin/Groovy DSL).",
     lang: "Java",
-    cat: ["kul"],
+    cat: [
+      "kul"
+    ],
     url: "https://github.com/tomekdot/KUL-2025-Gradle-2",
-    stars: 4,
+    stars: 0,
     forks: 0,
     commitsCount: 9,
     createdYear: 2025,
@@ -810,17 +912,21 @@ tasks.test {
     useJUnitPlatform()
     testLogging.showStandardStreams = true
 }`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2026-06-22T12:47:25Z"
   },
   {
     name: "KUL-2025-GradeWriterApp",
-    desc: "Mobile academic grade management application written in Kotlin.",
+    desc: "Kotlin/Android grade management app built with Gradle. Course project at KUL, 2025.",
     descPl: "Mobilny dzienniczek ocen studenta napisany w języku Kotlin.",
     lang: "Kotlin",
-    cat: ["kul"],
+    cat: [
+      "kul"
+    ],
     url: "https://github.com/tomekdot/KUL-2025-GradeWriterApp",
-    stars: 7,
-    forks: 1,
+    stars: 0,
+    forks: 0,
     commitsCount: 23,
     createdYear: 2025,
     longDescEn: "A full Android Jetpack Compose utility tracker designed for mobile. Students can create schedules, input midterm results, calculate weighted GPA targets, and store logs in dynamic local files.",
@@ -836,16 +942,20 @@ fun GradeRow(subject: String, grade: Double) {
         Text(text = grade.toString(), color = Color.Green)
     }
 }`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2026-06-22T13:49:03Z"
   },
   {
     name: "KUL-AWSJ-14-01",
-    desc: "Web services integration, REST services mapping, validation (AWSJ).",
+    desc: "AWSJ lab exercise 14.01 at KUL. Java web development.",
     descPl: "Walidacja żądań REST i integracja serwisów internetowych.",
     lang: "HTML",
-    cat: ["kul"],
+    cat: [
+      "kul"
+    ],
     url: "https://github.com/tomekdot/KUL-AWSJ-14-01",
-    stars: 3,
+    stars: 0,
     forks: 0,
     commitsCount: 7,
     createdYear: 2025,
@@ -862,18 +972,21 @@ fun GradeRow(subject: String, grade: Double) {
     });
     return await response.json();
 }`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2026-06-22T13:49:07Z"
   },
-  // Other / Misc
   {
     name: "2023-AI-Project",
-    desc: "Academic machine learning neural networks showcase from 2023.",
+    desc: "Java-based Artificial Intelligence project. Search algorithms, knowledge representation.",
     descPl: "Akademicki projekt badający sieci neuronowe w języku Java (2023).",
     lang: "Java",
-    cat: ["ai"],
+    cat: [
+      "ai"
+    ],
     url: "https://github.com/tomekdot/2023-AI-Project",
-    stars: 8,
-    forks: 2,
+    stars: 0,
+    forks: 0,
     commitsCount: 19,
     createdYear: 2023,
     longDescEn: "Basic multilayer perceptron neural network designed from scratch in core Java without external frameworks. Demonstrates backpropagation, learning rate damping, and bias calculation.",
@@ -890,17 +1003,21 @@ public void train(double[] inputs, double[] targets) {
     double[] outputs = feedForward(inputs);
     adjustWeightsBackprop(outputs, targets);
 }`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2026-06-22T13:51:20Z"
   },
   {
     name: "demo21-06",
-    desc: "Experimental Java GUI visual sandbox and graphic renderer.",
+    desc: "Java/Maven demo project from session 21.06. Course exercise.",
     descPl: "Eksperymentalny silnik renderujący w Java Swing z czerwca 2021 roku.",
     lang: "Java",
-    cat: ["other"],
+    cat: [
+      "other"
+    ],
     url: "https://github.com/tomekdot/demo21-06",
     isPrivate: true,
-    stars: 4,
+    stars: 0,
     forks: 0,
     commitsCount: 10,
     createdYear: 2021,
@@ -916,16 +1033,19 @@ public void train(double[] inputs, double[] targets) {
     g2d.setRenderingHint(RenderingHints.KEY_ANTIALIASING, RenderingHints.VALUE_ANTIALIAS_ON);
     particles.forEach(p -> p.draw(g2d));
 }`
-    }
+    },
+    pushedAt: "2026-06-22T13:49:14Z"
   },
   {
     name: "PAI",
-    desc: "Interactive multimedia and web interfaces (PAI).",
+    desc: "HTML/CSS project for PAI course at KUL.",
     descPl: "Aplikacje i layouty multimedialne przy użyciu czystych technologii webowych.",
     lang: "HTML",
-    cat: ["other"],
+    cat: [
+      "other"
+    ],
     url: "https://github.com/tomekdot/PAI",
-    stars: 2,
+    stars: 0,
     forks: 0,
     commitsCount: 8,
     createdYear: 2022,
@@ -941,16 +1061,20 @@ public void train(double[] inputs, double[] targets) {
   ctx.arc(200, 150, 50, 0, Math.PI * 2);
   ctx.fill();
 </script>`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2026-06-22T13:51:27Z"
   },
   {
     name: "KUL-2022-PO-I",
     desc: "Java object structures, memory allocations, standard schemas (PO-I).",
     descPl: "Paradygmaty obiektowe I — dziedziczenie, interfejsy i pamięć w Javie.",
     lang: "Java",
-    cat: ["kul"],
+    cat: [
+      "kul"
+    ],
     url: "https://github.com/tomekdot/KUL-2022-PO-I",
-    stars: 5,
+    stars: 0,
     forks: 0,
     commitsCount: 16,
     createdYear: 2022,
@@ -970,16 +1094,20 @@ public void train(double[] inputs, double[] targets) {
         return super.getSalary() + bonus;
     }
 }`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2023-02-09T16:06:25Z"
   },
   {
     name: "KUL-2022-SQL",
     desc: "Academic SQL database design, joins, normalization courses (KUL 2022).",
     descPl: "Podstawy inżynierii baz danych i normalizacji trzeciej postaci normalnej.",
     lang: "PLSQL",
-    cat: ["kul"],
+    cat: [
+      "kul"
+    ],
     url: "https://github.com/tomekdot/KUL-2022-SQL",
-    stars: 4,
+    stars: 0,
     forks: 0,
     commitsCount: 12,
     createdYear: 2022,
@@ -993,17 +1121,21 @@ public void train(double[] inputs, double[] targets) {
     username VARCHAR2(50) NOT NULL UNIQUE,
     email VARCHAR2(100) NOT NULL
 );`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2023-01-16T23:31:29Z"
   },
   {
     name: "2022-PAIP-Cpp",
     desc: "C++ advanced algorithmics and procedural memory blocks (PAIP).",
     descPl: "Zaawansowane paradygmaty strukturalne i zarządzanie pamięcią w C++ (PAIP).",
     lang: "C++",
-    cat: ["other"],
+    cat: [
+      "other"
+    ],
     url: "https://github.com/tomekdot/2022-PAIP-Cpp",
-    stars: 5,
-    forks: 1,
+    stars: 0,
+    forks: 0,
     commitsCount: 14,
     createdYear: 2022,
     longDescEn: "Rigorous execution of operations in C++. Focuses on direct heap/stack allocations, pointers navigation, smart reference counters, custom destructors, and algorithmic execution speeds.",
@@ -1024,16 +1156,20 @@ int main() {
     std::unique_ptr<Resource> ptr = std::make_unique<Resource>();
     return 0;
 }`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2022-06-20T21:09:48Z"
   },
   {
     name: "2022-PAIP-Java",
     desc: "Java design structures and desktop swing modules (PAIP).",
     descPl: "Komponenty graficzne i architektury wzorców w Java SE (PAIP).",
     lang: "Java",
-    cat: ["other"],
+    cat: [
+      "other"
+    ],
     url: "https://github.com/tomekdot/2022-PAIP-Java",
-    stars: 4,
+    stars: 0,
     forks: 0,
     commitsCount: 11,
     createdYear: 2022,
@@ -1050,16 +1186,20 @@ int main() {
         setLocationRelativeTo(null);
     }
 }`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2022-06-20T19:03:27Z"
   },
   {
     name: "2022-WWW",
     desc: "Academic responsive static layouts and graphic displays.",
     descPl: "Semantyczne struktury układów interfejsu i podstawy pisania CSS.",
     lang: "HTML",
-    cat: ["other"],
+    cat: [
+      "other"
+    ],
     url: "https://github.com/tomekdot/2022-WWW",
-    stars: 3,
+    stars: 0,
     forks: 0,
     commitsCount: 8,
     createdYear: 2022,
@@ -1076,16 +1216,20 @@ int main() {
     </ul>
   </nav>
 </header>`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2022-06-15T19:58:08Z"
   },
   {
     name: "2022-SO",
     desc: "Operating systems, memory scheduling, pipe scripts.",
     descPl: "Systemy operacyjne — skrypty powłoki, przydzielanie czasu procesora.",
     lang: "",
-    cat: ["other"],
+    cat: [
+      "other"
+    ],
     url: "https://github.com/tomekdot/2022-SO",
-    stars: 5,
+    stars: 0,
     forks: 0,
     commitsCount: 15,
     createdYear: 2022,
@@ -1099,17 +1243,21 @@ int main() {
 processes=(3 8 2 5)
 sorted_jobs=($(for i in "\${processes[@]}"; do echo "$i"; done | sort -n))
 echo "Optimal SJF Execution Order: \${sorted_jobs[*]}"`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2022-06-02T09:57:54Z"
   },
   {
     name: "Pliki",
     desc: "Polish content file formatting and parsing utilities.",
     descPl: "Narzędzia parsujące, analiza i konwersja plików płaskich.",
     lang: "",
-    cat: ["other"],
+    cat: [
+      "other"
+    ],
     url: "https://github.com/tomekdot/Pliki",
     isPrivate: true,
-    stars: 2,
+    stars: 0,
     forks: 0,
     commitsCount: 6,
     createdYear: 2021,
@@ -1125,17 +1273,20 @@ echo "Optimal SJF Execution Order: \${sorted_jobs[*]}"`
         content = content[3:]
     with open(filepath, 'wb') as f:
         f.write(content)`
-    }
+    },
+    pushedAt: "2022-06-01T20:41:30Z"
   },
   {
     name: "2022-Big-Data-VL",
     desc: "Analytical pipelines and cluster file architectures (Big Data).",
     descPl: "Systemy analityki dużych wolumenów danych w chmurze obliczeniowej.",
     lang: "Python",
-    cat: ["other"],
+    cat: [
+      "other"
+    ],
     url: "https://github.com/tomekdot/2022-Big-Data-VL",
-    stars: 7,
-    forks: 2,
+    stars: 0,
+    forks: 0,
     commitsCount: 13,
     createdYear: 2022,
     longDescEn: "Hands-on projects with PySpark, cluster map-reduce computations, query allocations on distributed nodes, and analytics modeling.",
@@ -1149,16 +1300,20 @@ spark = SparkSession.builder.appName("LogCounter").getOrCreate()
 df = spark.read.text("hdfs://cluster/logs/*.log")
 errors = df.filter(df.value.contains("ERROR"))
 print(f"Total system failures: {errors.count()}")`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2022-03-24T07:03:22Z"
   },
   {
     name: "2022-PAIP",
     desc: "Java architectural practices and dynamic multi-threaded threads.",
     descPl: "Struktury algorytmiczne, wielowątkowość i synchronizacja w Java.",
     lang: "Java",
-    cat: ["other"],
+    cat: [
+      "other"
+    ],
     url: "https://github.com/tomekdot/2022-PAIP",
-    stars: 4,
+    stars: 0,
     forks: 0,
     commitsCount: 12,
     createdYear: 2022,
@@ -1174,17 +1329,21 @@ print(f"Total system failures: {errors.count()}")`
     queue.add(item);
     notifyAll();
 }`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2022-03-16T21:18:43Z"
   },
   {
     name: "2021-22-WDI",
     desc: "Introduction to Computer Science algorithms with procedural C++.",
     descPl: "Klasyczne algorytmy strukturalne w C++ (Wstęp do Informatyki).",
     lang: "C++",
-    cat: ["other"],
+    cat: [
+      "other"
+    ],
     url: "https://github.com/tomekdot/2021-22-WDI",
-    stars: 6,
-    forks: 2,
+    stars: 0,
+    forks: 0,
     commitsCount: 18,
     createdYear: 2021,
     longDescEn: "First-year computer science problems solving, including numeral systems converter (binary, octal, hex), prime tests, binary search loops, and matrix rotations.",
@@ -1199,14 +1358,18 @@ print(f"Total system failures: {errors.count()}")`
     }
     return true;
 }`
-    }
+    },
+    isPrivate: true,
+    pushedAt: "2022-02-03T20:52:43Z"
   },
   {
     name: "tomekdot.github.io",
-    desc: "Openplanet Plugins - tomekdot's plugins and projects.",
+    desc: "tomekdot's plugins and projects",
     descPl: "Wtyczki Openplanet - wtyczki i projekty autora tomekdot.",
-    lang: "HTML",
-    cat: ["other"],
+    lang: "TypeScript",
+    cat: [
+      "other"
+    ],
     url: "https://github.com/tomekdot/tomekdot.github.io",
     stars: 0,
     forks: 0,
@@ -1214,7 +1377,7 @@ print(f"Total system failures: {errors.count()}")`
     createdYear: 2026,
     longDescEn: "Personal portfolio and plugin showcase page hosted on GitHub Pages. Serves as central directory for Trackmania tools and active Openplanet scripting projects.",
     longDescPl: "Osobiste portfolio i witryna prezentująca wtyczki hostowana na GitHub Pages. Służy jako centralny katalog narzędzi Trackmania i aktywnych projektów Openplanet.",
-    pushedAt: "2026-06-16T14:40:13Z",
+    pushedAt: "2026-06-20T18:04:36Z",
     codeSnippet: {
       filename: "index.html",
       language: "html",
@@ -1228,14 +1391,17 @@ print(f"Total system failures: {errors.count()}")`
     <p>Welcome to my curated collection of custom Trackmania and PyPlanet extensions.</p>
 </body>
 </html>`
-    }
+    },
+    isPrivate: false
   },
   {
     name: "context-aware-music-recommendation-system",
-    desc: "Context-Aware Music Recommendation System — Master's Thesis (RYM dataset, Apriori, weighted engine)",
+    desc: "Context-Aware Music Recommendation System — Master's Thesis (RYM dataset, Apriori, weighted engine) ",
     descPl: "System rekomendacji muzycznych uwzględniający kontekst — Praca Magisterska (zbiór danych RYM, algorytm Apriori, silnik ważony)",
     lang: "Jupyter Notebook",
-    cat: ["ai"],
+    cat: [
+      "ai"
+    ],
     url: "https://github.com/tomekdot/context-aware-music-recommendation-system",
     isPrivate: true,
     stars: 0,
@@ -1258,7 +1424,242 @@ print(f"Total system failures: {errors.count()}")`
         scored_items.append((item, score))
         
     return sorted(scored_items, key=lambda x: x[1], reverse=True)[:top_n]`
-    }
+    },
+    pushedAt: "2026-06-22T13:12:21Z"
+  },
+  {
+    name: "tomekdot",
+    desc: "README.md page",
+    descPl: "README.md page",
+    lang: "",
+    cat: [
+      "other"
+    ],
+    url: "https://github.com/tomekdot/tomekdot",
+    stars: 0,
+    forks: 0,
+    commitsCount: 0,
+    createdYear: 2023,
+    longDescEn: "Automatic entry for tomekdot. This utility has 0 stars and 0 forks on Github.",
+    longDescPl: "Automatyczny wpis dla tomekdot. To repozytorium posiada 0 gwiazdek i 0 forków.",
+    pushedAt: "2024-01-04T17:49:12Z",
+    isPrivate: false
+  },
+  {
+    name: "DjangoMusicTracker",
+    desc: "Django-based music tracker web application — Python, HTML, CSS.",
+    descPl: "Django-based music tracker web application — Python, HTML, CSS.",
+    lang: "Python",
+    cat: [
+      "other"
+    ],
+    url: "https://github.com/tomekdot/DjangoMusicTracker",
+    stars: 0,
+    forks: 0,
+    commitsCount: 0,
+    createdYear: 2026,
+    longDescEn: "Automatic entry for DjangoMusicTracker. This utility has 0 stars and 0 forks on Github.",
+    longDescPl: "Automatyczny wpis dla DjangoMusicTracker. To repozytorium posiada 0 gwiazdek i 0 forków.",
+    pushedAt: "2026-06-22T12:46:37Z",
+    isPrivate: true
+  },
+  {
+    name: "TMMapGen",
+    desc: "Personal TrackMania map generator. Generates playable .Map.gbx files.",
+    descPl: "Personal TrackMania map generator. Generates playable .Map.gbx files.",
+    lang: "Python",
+    cat: [
+      "trackmania"
+    ],
+    url: "https://github.com/tomekdot/TMMapGen",
+    stars: 0,
+    forks: 0,
+    commitsCount: 0,
+    createdYear: 2026,
+    longDescEn: "Automatic entry for TMMapGen. This utility has 0 stars and 0 forks on Github.",
+    longDescPl: "Automatyczny wpis dla TMMapGen. To repozytorium posiada 0 gwiazdek i 0 forków.",
+    pushedAt: "2026-06-22T12:48:12Z",
+    isPrivate: true
+  },
+  {
+    name: "web-frontend-project",
+    desc: "Web frontend project — JavaScript, CSS, and HTML web application.",
+    descPl: "Web frontend project — JavaScript, CSS, and HTML web application.",
+    lang: "JavaScript",
+    cat: [
+      "other"
+    ],
+    url: "https://github.com/tomekdot/web-frontend-project",
+    stars: 0,
+    forks: 0,
+    commitsCount: 0,
+    createdYear: 2026,
+    longDescEn: "Automatic entry for web-frontend-project. This utility has 0 stars and 0 forks on Github.",
+    longDescPl: "Automatyczny wpis dla web-frontend-project. To repozytorium posiada 0 gwiazdek i 0 forków.",
+    pushedAt: "2026-06-22T12:49:50Z",
+    isPrivate: true
+  },
+  {
+    name: "ContextAwareMusicRecommendationSystem",
+    desc: "Context-Aware Music Recommendation System — RYM dataset, Apriori algorithm, weighted engine.",
+    descPl: "Context-Aware Music Recommendation System — RYM dataset, Apriori algorithm, weighted engine.",
+    lang: "TeX",
+    cat: [
+      "ai"
+    ],
+    url: "https://github.com/tomekdot/ContextAwareMusicRecommendationSystem",
+    stars: 0,
+    forks: 0,
+    commitsCount: 0,
+    createdYear: 2026,
+    longDescEn: "Automatic entry for ContextAwareMusicRecommendationSystem. This utility has 0 stars and 0 forks on Github.",
+    longDescPl: "Automatyczny wpis dla ContextAwareMusicRecommendationSystem. To repozytorium posiada 0 gwiazdek i 0 forków.",
+    pushedAt: "2026-06-22T12:53:59Z",
+    isPrivate: true
+  },
+  {
+    name: "KUL-2024-PP-II",
+    desc: "Gradle/Java project for Programming Project II at KUL, 2024.",
+    descPl: "Gradle/Java project for Programming Project II at KUL, 2024.",
+    lang: "",
+    cat: [
+      "kul"
+    ],
+    url: "https://github.com/tomekdot/KUL-2024-PP-II",
+    stars: 0,
+    forks: 0,
+    commitsCount: 0,
+    createdYear: 2026,
+    longDescEn: "Automatic entry for KUL-2024-PP-II. This utility has 0 stars and 0 forks on Github.",
+    longDescPl: "Automatyczny wpis dla KUL-2024-PP-II. To repozytorium posiada 0 gwiazdek i 0 forków.",
+    pushedAt: "2026-06-22T13:48:04Z",
+    isPrivate: true
+  },
+  {
+    name: "KUL-2024-AWSJ-Fizz",
+    desc: "Gradle Kotlin DSL project for AWSJ course at KUL, 2024. FizzBuzz exercise.",
+    descPl: "Gradle Kotlin DSL project for AWSJ course at KUL, 2024. FizzBuzz exercise.",
+    lang: "Java",
+    cat: [
+      "kul"
+    ],
+    url: "https://github.com/tomekdot/KUL-2024-AWSJ-Fizz",
+    stars: 0,
+    forks: 0,
+    commitsCount: 0,
+    createdYear: 2026,
+    longDescEn: "Automatic entry for KUL-2024-AWSJ-Fizz. This utility has 0 stars and 0 forks on Github.",
+    longDescPl: "Automatyczny wpis dla KUL-2024-AWSJ-Fizz. To repozytorium posiada 0 gwiazdek i 0 forków.",
+    pushedAt: "2026-06-22T13:48:11Z",
+    isPrivate: true
+  },
+  {
+    name: "KUL-2024-AWSJ-Project",
+    desc: "Gradle/Java project for AWSJ course at KUL, 2024.",
+    descPl: "Gradle/Java project for AWSJ course at KUL, 2024.",
+    lang: "Java",
+    cat: [
+      "kul"
+    ],
+    url: "https://github.com/tomekdot/KUL-2024-AWSJ-Project",
+    stars: 0,
+    forks: 0,
+    commitsCount: 0,
+    createdYear: 2026,
+    longDescEn: "Automatic entry for KUL-2024-AWSJ-Project. This utility has 0 stars and 0 forks on Github.",
+    longDescPl: "Automatyczny wpis dla KUL-2024-AWSJ-Project. To repozytorium posiada 0 gwiazdek i 0 forków.",
+    pushedAt: "2026-06-22T13:48:08Z",
+    isPrivate: true
+  },
+  {
+    name: "KUL-2025-Python",
+    desc: "Python programming course exercises at KUL, 2025.",
+    descPl: "Python programming course exercises at KUL, 2025.",
+    lang: "Python",
+    cat: [
+      "kul"
+    ],
+    url: "https://github.com/tomekdot/KUL-2025-Python",
+    stars: 0,
+    forks: 0,
+    commitsCount: 0,
+    createdYear: 2026,
+    longDescEn: "Automatic entry for KUL-2025-Python. This utility has 0 stars and 0 forks on Github.",
+    longDescPl: "Automatyczny wpis dla KUL-2025-Python. To repozytorium posiada 0 gwiazdek i 0 forków.",
+    pushedAt: "2026-06-22T13:47:59Z",
+    isPrivate: true
+  },
+  {
+    name: "KUL-2024-AWSJ-Maven",
+    desc: "Java/Maven project for AWSJ course at KUL, 2024.",
+    descPl: "Java/Maven project for AWSJ course at KUL, 2024.",
+    lang: "Java",
+    cat: [
+      "kul"
+    ],
+    url: "https://github.com/tomekdot/KUL-2024-AWSJ-Maven",
+    stars: 0,
+    forks: 0,
+    commitsCount: 0,
+    createdYear: 2026,
+    longDescEn: "Automatic entry for KUL-2024-AWSJ-Maven. This utility has 0 stars and 0 forks on Github.",
+    longDescPl: "Automatyczny wpis dla KUL-2024-AWSJ-Maven. To repozytorium posiada 0 gwiazdek i 0 forków.",
+    pushedAt: "2026-06-22T13:47:54Z",
+    isPrivate: true
+  },
+  {
+    name: "KUL-2025-R",
+    desc: "Data Analysis in R — KUL 2025 course labs and projects. R scripts, data processing, visualization, and Python vs R ML comparison.",
+    descPl: "Data Analysis in R — KUL 2025 course labs and projects. R scripts, data processing, visualization, and Python vs R ML comparison.",
+    lang: "HTML",
+    cat: [
+      "kul"
+    ],
+    url: "https://github.com/tomekdot/KUL-2025-R",
+    stars: 0,
+    forks: 0,
+    commitsCount: 0,
+    createdYear: 2026,
+    longDescEn: "Automatic entry for KUL-2025-R. This utility has 0 stars and 0 forks on Github.",
+    longDescPl: "Automatyczny wpis dla KUL-2025-R. To repozytorium posiada 0 gwiazdek i 0 forków.",
+    pushedAt: "2026-06-22T13:13:29Z",
+    isPrivate: true
+  },
+  {
+    name: "MIKOsite",
+    desc: "Strona internetowa Matematycznego Internetowego Koła Olimpijskiego",
+    descPl: "Strona internetowa Matematycznego Internetowego Koła Olimpijskiego",
+    lang: "Python",
+    cat: [
+      "other"
+    ],
+    url: "https://github.com/MIKOmath/MIKOsite",
+    stars: 5,
+    forks: 2,
+    commitsCount: 0,
+    createdYear: 2024,
+    longDescEn: "Automatic entry for MIKOsite. This utility has 5 stars and 2 forks on Github.",
+    longDescPl: "Automatyczny wpis dla MIKOsite. To repozytorium posiada 5 gwiazdek i 2 forków.",
+    pushedAt: "2026-05-12T06:58:38Z",
+    isPrivate: false
+  },
+  {
+    name: "web-frontend-project",
+    desc: "Public archive item fetched from developer repository on GitHub.",
+    descPl: "Publiczne repozytorium pobrane dynamicznie z profilu GitHub twórcy.",
+    lang: "JavaScript",
+    cat: [
+      "other"
+    ],
+    url: "https://github.com/ipetrom/web-frontend-project",
+    stars: 0,
+    forks: 0,
+    commitsCount: 0,
+    createdYear: 2025,
+    longDescEn: "Automatic entry for web-frontend-project. This utility has 0 stars and 0 forks on Github.",
+    longDescPl: "Automatyczny wpis dla web-frontend-project. To repozytorium posiada 0 gwiazdek i 0 forków.",
+    pushedAt: "2025-05-28T16:35:06Z",
+    isPrivate: true
   }
 ];
 
@@ -1274,7 +1675,9 @@ export const LANG_COLORS: Record<string, string> = {
   Kotlin: "#8b5cf6",    // Violet
   PLSQL: "#d97706",     // Amber
   SQL: "#ca8a04",       // Darker Yellow
-  AngelScript: "#ffffff" // White
+  AngelScript: "#ffffff", // White
+  "Jupyter Notebook": "#da5b0b", // Warm Orange for Jup
+  TeX: "#3d6117" // Greenish LaTeX
 };
 
 export const BLOG_POSTS: BlogPost[] = [
@@ -1337,7 +1740,7 @@ Wtyczka wyróżnia się prostotą i efektywnością działania. Oto najważniejs
 
 ### Specjalne wsparcie dla Pursuit Channel
 
-Dla wielu graczy społeczność wokół ManiaPlanet i Pursuit Channel to podstawa. Dlatego wtyczka kładzie szczególny nacisk na integrację z tym kanałem. **Event Calendar** śledzi harmonogramy i pozwala ustawić powiadomienia, które zagwarantują, że nie ominie Cię żaden stream ani event. To kluczowa funkcja, która czyni ten dodatek niezbędnym narzędziem każdego fana ManiaPlanet.
+Dla wielu graczy społeczność wokół ManiaPlanet i Pursuit Channel to podstawa. Dlatego wtyczka kładzie szczególnyncisk na integrację z tym kanałem. **Event Calendar** śledzi harmonogramy i pozwala ustawić powiadomienia, które zagwarantują, że nie ominie Cię żaden stream ani event. To kluczowa funkcja, która czyni ten dodatek niezbędnym narzędziem każdego fana ManiaPlanet.
 
 ### Możliwość rozszerzania i współpraca ze społecznością
 
@@ -1527,4 +1930,3 @@ Co łączy te zróżnicowane dziedziny w ramach jednego środowiska agentycznego
 Zastąpienie chaotycznego generowania kodu z góry określonymi, ustrukturyzowanymi granicami funkcjonalnymi gwarantuje determinizm, bezpieczeństwo działania i błyskawiczne pętle wykonawcze procesów wytwórczych.`
   }
 ];
-
