@@ -1,0 +1,14 @@
+0000000000000000000000000000000000000000 a7d6b306cc68c36b83552bc5cb657fd45a33de72 tomekdot <tomaszkaczak@protonmail.com> 1781966291 +0200	commit (initial): Sync with GitHub repo
+a7d6b306cc68c36b83552bc5cb657fd45a33de72 0000000000000000000000000000000000000000 tomekdot <tomaszkaczak@protonmail.com> 1781966303 +0200	Branch: renamed refs/heads/master to refs/heads/main
+0000000000000000000000000000000000000000 a7d6b306cc68c36b83552bc5cb657fd45a33de72 tomekdot <tomaszkaczak@protonmail.com> 1781966303 +0200	Branch: renamed refs/heads/master to refs/heads/main
+a7d6b306cc68c36b83552bc5cb657fd45a33de72 24807c6bae7ecb9a59269bdd107d64245992bb50 tomekdot <tomaszkaczak@protonmail.com> 1781966462 +0200	commit: Remove unused vite-env.d.ts file
+24807c6bae7ecb9a59269bdd107d64245992bb50 24807c6bae7ecb9a59269bdd107d64245992bb50 tomekdot <tomaszkaczak@protonmail.com> 1781966476 +0200	checkout: moving from main to main
+24807c6bae7ecb9a59269bdd107d64245992bb50 ae721ae5bf00b72b4a62f941d3c51cf047a3777b tomekdot <tomaszkaczak@protonmail.com> 1781969979 +0200	commit: Add GitHub token sync with Bearer auth, auto-show private repos, sync stats panel
+ae721ae5bf00b72b4a62f941d3c51cf047a3777b bfa8bf020e44e17cbafff6b093c915713bb23106 tomekdot <tomaszkaczak@protonmail.com> 1781971622 +0200	commit: Add GitHub token pagination, auto-show private repos, improved AI/KUL category detection, token scope warning
+bfa8bf020e44e17cbafff6b093c915713bb23106 0c567cf221ac8d20d6478c496afe081d0befb45d tomekdot <tomaszkaczak@protonmail.com> 1781972622 +0200	commit: Add GitHub token verification, direct fetch fallback for private repos, auth status cards
+0c567cf221ac8d20d6478c496afe081d0befb45d e4f12107c7cb83d14bb9ec246065eefd63aeb7b9 tomekdot <tomaszkaczak@protonmail.com> 1781973346 +0200	commit: Fix Private badge wrapping - no truncation, flex-wrap for long names
+e4f12107c7cb83d14bb9ec246065eefd63aeb7b9 0d42dd589696f45064c1b6e791bbdad86644a508 tomekdot <tomaszkaczak@protonmail.com> 1781973816 +0200	commit: Add owner verification - only tomekdot can sync private repos
+0d42dd589696f45064c1b6e791bbdad86644a508 ce7d24d4934ba86fe788b776a352dab7b020673e tomekdot <tomaszkaczak@protonmail.com> 1781974772 +0200	commit: Add context-aware-music-recommendation-system to data.ts (visible to all)
+ce7d24d4934ba86fe788b776a352dab7b020673e bb1dcc5ae9f6b6ce57f27851adeffd91d45d0d7b tomekdot <tomaszkaczak@protonmail.com> 1781975652 +0200	commit: Add SHOW_PRIVATE_REPOS_TO_PUBLIC config and ?show_private=true URL support
+bb1dcc5ae9f6b6ce57f27851adeffd91d45d0d7b f822856047720530a434d0330978115eca973840 tomekdot <tomaszkaczak@protonmail.com> 1781977252 +0200	commit: Deploy full App.tsx from AI Studio - all features integrated
+f822856047720530a434d0330978115eca973840 6693de04e77903a8c40cffa846408bad36113579 tomekdot <tomaszkaczak@protonmail.com> 1781978671 +0200	commit: Deploy optimized token modal with scroll, collapsible details, and owner toolbox
