@@ -2085,16 +2085,17 @@ int main() {
     pushedAt: "2022-06-15T19:58:08Z"
   },
   {
-    name: "2022-SO",
-    desc: "Operating systems, memory scheduling, pipe scripts.",
-    descPl: "Systemy operacyjne — skrypty powłoki, przydzielanie czasu procesora.",
+    name: "KUL-SO",
+    desc: "Operating Systems (SO) coursework at KUL, 2022 - Linux console, processes, shell scripts and PowerShell.",
+    descPl: "Systemy operacyjne (SO) na KUL, 2022 — konsola Linux, procesy, skrypty powłoki i PowerShell.",
     lang: "Shell",
     cat: [
-      "other"
+      "kul"
     ],
-    url: "https://github.com/tomekdot/2022-SO",
+    url: "https://github.com/tomekdot/KUL-SO",
     stars: 0,
     forks: 0,
+    createdYear: 2022,
     longDescEn: "UNIX script automations with Bash, scheduling simulation charts (FIFO, SJF, Round Robin), multi-process forks, and IPC memory queues.",
     longDescPl: "Skrypty powłoki BASH, symulatory przydziałów procesora (SJF, rotacyjny) i mechanizmy synchronizacji procesów za pomocą potoków.",
     codeSnippet: {
@@ -2107,7 +2108,7 @@ sorted_jobs=($(for i in "\${processes[@]}"; do echo "$i"; done | sort -n))
 echo "Optimal SJF Execution Order: \${sorted_jobs[*]}"`
     },
     isPrivate: true,
-    pushedAt: "2022-06-02T09:57:54Z"
+    pushedAt: "2026-10-22T10:23:48Z"
   },
   {
     name: "Pliki",
@@ -2163,16 +2164,17 @@ print(f"Total system failures: {errors.count()}")`
     pushedAt: "2022-03-24T07:03:22Z"
   },
   {
-    name: "2022-PAIP",
-    desc: "Java architectural practices and dynamic multi-threaded threads.",
-    descPl: "Struktury algorytmiczne, wielowątkowość i synchronizacja w Java.",
+    name: "KUL-PAIP",
+    desc: "Java lab exercises for PAIP at KUL, 2022 - lab1, lab2 and lab4.",
+    descPl: "Laboratoria Java z PAIP na KUL, 2022 — lab1, lab2 i lab4.",
     lang: "Java",
     cat: [
-      "other"
+      "kul"
     ],
-    url: "https://github.com/tomekdot/2022-PAIP",
+    url: "https://github.com/tomekdot/KUL-PAIP",
     stars: 0,
     forks: 0,
+    createdYear: 2022,
     longDescEn: "Concurreny pipelines implemented using classic concepts: thread sleep, thread waits/notify, reentrant locks, and atomic variables.",
     longDescPl: "Projekty rozwiązań problemu producenta-konsumenta z wykorzystaniem monitorów języka Java, wątków systemowych oraz klas blokujących.",
     codeSnippet: {
@@ -2187,19 +2189,20 @@ print(f"Total system failures: {errors.count()}")`
 }`
     },
     isPrivate: true,
-    pushedAt: "2022-03-16T21:18:43Z"
+    pushedAt: "2026-10-22T09:30:45Z"
   },
   {
-    name: "2021-22-WDI",
-    desc: "Introduction to Computer Science algorithms with procedural C++.",
-    descPl: "Klasyczne algorytmy strukturalne w C++ (Wstęp do Informatyki).",
+    name: "KUL-WDI",
+    desc: "C++ lab exercises and exam solutions for WDI (Wstęp do Informatyki), KUL 2021/2022 — basics, variables, loops, arrays, functions, classes and pointers.",
+    descPl: "Ćwiczenia i zaliczenia z WDI (Wstęp do Informatyki) na KUL 2021/2022 — podstawy, zmienne, pętle, tablice, funkcje, klasy i wskaźniki.",
     lang: "C++",
     cat: [
-      "other"
+      "kul"
     ],
-    url: "https://github.com/tomekdot/2021-22-WDI",
+    url: "https://github.com/tomekdot/KUL-WDI",
     stars: 0,
     forks: 0,
+    createdYear: 2021,
     longDescEn: "First-year computer science problems solving, including numeral systems converter (binary, octal, hex), prime tests, binary search loops, and matrix rotations.",
     longDescPl: "Projekty z pierwszego semestru studiów WDI. Konwertery systemów liczbowych, algorytm Euklidesa, sita Erastotenesa i wyszukiwanie binarne.",
     codeSnippet: {
@@ -2214,7 +2217,7 @@ print(f"Total system failures: {errors.count()}")`
 }`
     },
     isPrivate: true,
-    pushedAt: "2022-02-03T20:52:43Z"
+    pushedAt: "2026-10-21T21:35:06Z"
   },
   {
     name: "tomekdot.github.io",
@@ -2294,22 +2297,6 @@ print(f"Total system failures: {errors.count()}")`
     isPrivate: false
   },
   {
-    name: "DjangoMusicTracker",
-    desc: "Django-based music tracker web application — Python, HTML, CSS.",
-    descPl: "Django-based music tracker web application — Python, HTML, CSS.",
-    lang: "Python",
-    cat: [
-      "other"
-    ],
-    url: "https://github.com/tomekdot/DjangoMusicTracker",
-    stars: 0,
-    forks: 0,
-    longDescEn: "Automatic entry for DjangoMusicTracker. This utility has 0 stars and 0 forks on Github.",
-    longDescPl: "Automatyczny wpis dla DjangoMusicTracker. To repozytorium posiada 0 gwiazdek i 0 forków.",
-    pushedAt: "2026-06-22T12:46:37Z",
-    isPrivate: true
-  },
-  {
     name: "TMMapGen",
     desc: "Personal TrackMania map generator. Generates playable .Map.gbx files.",
     descPl: "Personal TrackMania map generator. Generates playable .Map.gbx files.",
@@ -2323,22 +2310,6 @@ print(f"Total system failures: {errors.count()}")`
     longDescEn: "Automatic entry for TMMapGen. This utility has 0 stars and 0 forks on Github.",
     longDescPl: "Automatyczny wpis dla TMMapGen. To repozytorium posiada 0 gwiazdek i 0 forków.",
     pushedAt: "2026-06-22T12:48:12Z",
-    isPrivate: true
-  },
-  {
-    name: "ContextAwareMusicRecommendationSystem",
-    desc: "Context-Aware Music Recommendation System — RYM dataset, Apriori algorithm, weighted engine.",
-    descPl: "Context-Aware Music Recommendation System — RYM dataset, Apriori algorithm, weighted engine.",
-    lang: "TeX",
-    cat: [
-      "ai"
-    ],
-    url: "https://github.com/tomekdot/ContextAwareMusicRecommendationSystem",
-    stars: 0,
-    forks: 0,
-    longDescEn: "Automatic entry for ContextAwareMusicRecommendationSystem. This utility has 0 stars and 0 forks on Github.",
-    longDescPl: "Automatyczny wpis dla ContextAwareMusicRecommendationSystem. To repozytorium posiada 0 gwiazdek i 0 forków.",
-    pushedAt: "2026-06-22T12:53:59Z",
     isPrivate: true
   },
   {
@@ -2521,6 +2492,127 @@ print(f"Total system failures: {errors.count()}")`
     longDescEn: "Git-style version control and changelog engine for TrackMania .Map.Gbx binary files. Analyzes binary map headers, calculates visual and structural diffs, and automatically tracks additions, modifications, and removals of blocks and custom items.",
     longDescPl: "System kontroli wersji i generator changelogów w stylu Gita dla binarnych plików map .Map.Gbx gry TrackMania. Dokonuje automatycznego diffowania dodanych, zmienionych lub usuniętych bloków i itemów na mapach.",
     pushedAt: "2026-08-10T09:00:00Z"
+  },
+  {
+    name: "hermes-my-github-plugin",
+    desc: "Hermes Agent dashboard plugin: list and open your GitHub repos via the gh CLI",
+    descPl: "Wtyczka panelu Hermes Agent: lista i otwieranie repozytoriów GitHub przez gh CLI.",
+    lang: "JavaScript",
+    cat: [
+      "ai"
+    ],
+    url: "https://github.com/tomekdot/hermes-my-github-plugin",
+    stars: 1,
+    forks: 0,
+    createdYear: 2026,
+    isPrivate: false,
+    longDescEn: "Hermes Agent dashboard plugin that lists and opens your GitHub repositories via the gh CLI. Provides fast access to every repo from inside the agent UI without leaving the terminal.",
+    longDescPl: "Wtyczka panelu Hermes Agent, która wyświetla i otwiera Twoje repozytorium GitHub za pomocą gh CLI. Szybki dostęp do wszystkich repozytoriów prosto z interfejsu agenta.",
+    codeSnippet: {
+      filename: "plugin.js",
+      language: "javascript",
+      code: `export async function listRepos() {
+  // Delegate to the gh CLI for authenticated repo access
+  const { stdout } = await execa('gh', ['repo', 'list', '--limit', '100', '--json', 'name,description']);
+  return JSON.parse(stdout);
+}`
+    },
+    pushedAt: "2026-10-09T14:02:19Z"
+  },
+  {
+    name: "data-visualization-app",
+    desc: "PyQt6 data visualization app (charts from CSV)",
+    descPl: "Aplikacja do wizualizacji danych w PyQt6 (wykresy z plików CSV).",
+    lang: "Python",
+    cat: [
+      "other"
+    ],
+    url: "https://github.com/tomekdot/data-visualization-app",
+    stars: 0,
+    forks: 0,
+    createdYear: 2026,
+    isPrivate: true,
+    longDescEn: "Desktop application built with PyQt6 that loads CSV datasets and renders interactive charts. Covers bar, line and pie visualizations with configurable axes, legends, and export to image.",
+    longDescPl: "Aplikacja desktopowa stworzona w PyQt6, która wczytuje zbiory danych CSV i renderuje interaktywne wykresy. Obsługuje wykresy słupkowe, liniowe i kołowe z konfigurowalnymi osiami, legendami i eksportem do obrazu.",
+    codeSnippet: {
+      filename: "charts.py",
+      language: "python",
+      code: `import pandas as pd
+from PyQt6.QtCharts import QChart, QBarSeries
+
+def load_csv(path: str) -> pd.DataFrame:
+    return pd.read_csv(path)
+
+def render_bar_chart(frame: pd.DataFrame, x_col: str, y_col: str) -> QChart:
+    series = QBarSeries()
+    for _, row in frame.iterrows():
+        series.append(row[x_col], row[y_col])
+    chart = QChart()
+    chart.addSeries(series)
+    return chart`
+    },
+    pushedAt: "2026-08-07T09:56:34Z"
+  },
+  {
+    name: "KUL-2025-Gradle",
+    desc: "IoT Connectivity Inspector - Java CLI app",
+    descPl: "IoT Connectivity Inspector — aplikacja konsolowa w Javie.",
+    lang: "Java",
+    cat: [
+      "kul"
+    ],
+    url: "https://github.com/tomekdot/KUL-2025-Gradle",
+    stars: 0,
+    forks: 0,
+    createdYear: 2026,
+    isPrivate: true,
+    longDescEn: "Java CLI application that inspects IoT device connectivity. Gathers reachability metrics, reports latency and status per device, and aggregates results into a structured summary.",
+    longDescPl: "Aplikacja konsolowa w Javie badająca łączność urządzeń IoT. Zbiera metryki osiągalności, raportuje opóźnienia i statusy urządzeń oraz tworzy ustrukturyzowane podsumowanie wyników.",
+    codeSnippet: {
+      filename: "Inspector.java",
+      language: "java",
+      code: `public class Inspector {
+    public static void main(String[] args) {
+        for (String device : args) {
+            long start = System.currentTimeMillis();
+            boolean reachable = InetAddress.getByName(device).isReachable(2000);
+            System.out.printf("%s | %s | %d ms%n",
+                device, reachable ? "UP" : "DOWN", System.currentTimeMillis() - start);
+        }
+    }
+}`
+    },
+    pushedAt: "2026-06-28T19:43:23Z"
+  },
+  {
+    name: "skills-arena",
+    desc: "Streamlit training platform for authoring, validating and scoring agent skills",
+    descPl: "Platforma Streamlit do tworzenia, walidacji i oceniania umiejętności agentów.",
+    lang: "Python",
+    cat: [
+      "ai"
+    ],
+    url: "https://github.com/tomekdot/skills-arena",
+    stars: 0,
+    forks: 0,
+    createdYear: 2026,
+    isPrivate: true,
+    longDescEn: "Streamlit training platform for authoring and validating agent skills. Registers categories dynamically, runs validation gates over skill-bank JSON, and scores submissions.",
+    longDescPl: "Platforma Streamlit do tworzenia i walidacji umiejętności agentów. Rejestruje kategorie dynamicznie, uruchamia walidację plików skill-bank JSON i ocenia zgłoszenia.",
+    codeSnippet: {
+      filename: "app.py",
+      language: "python",
+      code: `import streamlit as st
+from skill_registry import registry
+
+st.title("Skills Arena")
+category = st.sidebar.selectbox("Category", registry.categories())
+
+for skill in registry.by_category(category):
+    with st.expander(skill.name):
+        st.code(skill.body, language="markdown")`
+    },
+    pushedAt: "2026-10-22T10:54:39Z"
   }
 ];
 
