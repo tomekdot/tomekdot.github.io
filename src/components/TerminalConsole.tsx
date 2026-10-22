@@ -4,9 +4,19 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Terminal, X, CornerDownRight, Play, Square, RefreshCw } from 'lucide-react';
-import { REPOS } from '../data';
+import { Terminal, X, CornerDownRight, Play, Square, RefreshCw, Key } from 'lucide-react';
+import { REPOS, SHOW_PRIVATE_REPOS_TO_PUBLIC } from '../data';
 import { Repository } from '../types';
+import { 
+  detectAIProvider, 
+  getLocalAIKey, 
+  setLocalAIKey, 
+  clearLocalAIKey, 
+  getLocalAIModel,
+  getLocalAIBaseUrl,
+  getLocalAIProvider,
+  PROVIDERS_CONFIG
+} from '../lib/apiKeyStorage';
 
 interface CommandOutput {
   text: string;
@@ -22,14 +32,45 @@ interface TerminalConsoleProps {
 
 export default function TerminalConsole({ onSelectCategory, lang, repos = REPOS, isModalOpen }: TerminalConsoleProps) {
   const [isOpen, setIsOpen] = useState(false);
+  const [isAtBottom, setIsAtBottom] = useState(false);
   const [history, setHistory] = useState<CommandOutput[]>([
     { text: lang === 'en' 
-        ? "tomekdot System v1.4.2 initialized. Type 'help' to review commands." 
-        : "System tomekdot v1.4.2 zainicjalizowany. Wpisz 'help', aby zobaczyć listę komend.", 
+        ? "tomekdot System v1.0.0 initialized. Type 'help' to review commands." 
+        : "System tomekdot v1.0.0 zainicjalizowany. Wpisz 'help', aby zobaczyć listę komend.", 
       type: 'comment' 
     }
   ]);
   const [inputVal, setInputVal] = useState('');
+
+  useEffect(() => {
+    const handleScroll = () => {
+      // Check window scroll
+      const winBottom = (window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - 60);
+
+      // Check main workspace section scroll
+      const sec = document.querySelector('section');
+      const secBottom = sec 
+        ? (sec.scrollHeight > sec.clientHeight && (sec.scrollTop + sec.clientHeight >= sec.scrollHeight - 50)) 
+        : false;
+
+      // Check sidebar scroll
+      const asd = document.querySelector('aside');
+      const asdBottom = asd 
+        ? (asd.scrollHeight > asd.clientHeight && (asd.scrollTop + asd.clientHeight >= asd.scrollHeight - 50)) 
+        : false;
+
+      setIsAtBottom(winBottom || secBottom || asdBottom);
+    };
+
+    window.addEventListener('scroll', handleScroll, true);
+    window.addEventListener('resize', handleScroll);
+    handleScroll();
+
+    return () => {
+      window.removeEventListener('scroll', handleScroll, true);
+      window.removeEventListener('resize', handleScroll);
+    };
+  }, []);
   
   // Pomodoro dynamic tracking
   const [pomodoroState, setPomodoroState] = useState<{
@@ -93,6 +134,7 @@ export default function TerminalConsole({ onSelectCategory, lang, repos = REPOS,
           addOutput("  pomodoro start/stop- Starts or stops an active 25-min focus tracker");
           addOutput("  pyplanet-simulate  - Compiles and runs a simulated PyPlanet plugin log");
           addOutput("  git <cmd> [args]   - Git commands: status, remote, log, clone <repo>, search <query>, open [repo-name]");
+          addOutput("  ai <prompt|repo>   - Ask Gemini AI about any repository, plugin, or architecture");
           addOutput("  clear              - Clears terminal output logs");
         } else {
           addOutput("Dostępne komendy terminala:", "comment");
@@ -103,6 +145,7 @@ export default function TerminalConsole({ onSelectCategory, lang, repos = REPOS,
           addOutput("  pomodoro start/stop- Uruchamia/zatrzymuje licznik skupienia Pomodoro 25 min");
           addOutput("  pyplanet-simulate  - Symuluje kompilację i start modułu PyPlanet");
           addOutput("  git <cmd> [args]   - Komendy Git: status, remote, log, clone <repo>, search <fraza>, open [nazwa-repo]");
+          addOutput("  ai <pytanie|repo>  - Zapytaj Gemini AI o dowolne repozytorium, plugin lub architekturę");
           addOutput("  clear              - Czyści logi konsoli");
         }
         break;
@@ -120,14 +163,31 @@ export default function TerminalConsole({ onSelectCategory, lang, repos = REPOS,
 
         if (subAction === 'status') {
           if (lang === 'en') {
-            addOutput("On branch main\nYour branch is up to date with 'origin/main'.\nnothing to commit, working tree clean", "success");
+            addOutput(`On branch main
+Your branch is up to date with 'origin/main'.
+
+[data.ts status]
+  • SHOW_PRIVATE_REPOS_TO_PUBLIC: ${SHOW_PRIVATE_REPOS_TO_PUBLIC ? 'ENABLED (VISIBLE)' : 'DISABLED (HIDDEN)'}
+  • Cached Repositories Count: ${repos.length}
+
+nothing to commit, working tree clean`, "success");
           } else {
-            addOutput("Na gałęzi main\nTwój oddział jest aktualny z 'origin/main'.\nnie ma nic do zatwierdzenia, drzewo robocze czyste", "success");
+            addOutput(`Na gałęzi main
+Twój oddział jest aktualny z 'origin/main'.
+
+[Status pliku data.ts]
+  • SHOW_PRIVATE_REPOS_TO_PUBLIC: ${SHOW_PRIVATE_REPOS_TO_PUBLIC ? 'WŁĄCZONA (WIDOCZNE)' : 'WYŁĄCZONA (UKRYTE)'}
+  • Liczba zapisanych repozytoriów: ${repos.length}
+
+nie ma nic do zatwierdzenia, drzewo robocze czyste`, "success");
           }
         } else if (subAction === 'remote') {
           addOutput("origin  https://github.com/tomekdot (fetch)\norigin  https://github.com/tomekdot (push)", "success");
         } else if (subAction === 'log') {
-          addOutput("commit a47c92b (HEAD -> main, origin/main)\nAuthor: tomekdot <tomaszkaczak.private@gmail.com>\nDate:   2026-06-16\n\n    Initial archival index sync of Trackmania plugins and academic files", "comment");
+          const logMsg = lang === 'en'
+            ? "commit f82d9a3 (HEAD -> main, origin/main)\nAuthor: tomekdot <tomekdot@users.noreply.github.com>\nDate:   2026-06-20\n\n    feat: add SHOW_PRIVATE_REPOS_TO_PUBLIC toggle & owner toolbox panel\n\ncommit a47c92b\nAuthor: tomekdot <tomekdot@users.noreply.github.com>\nDate:   2026-06-16\n\n    Initial archival index sync of Trackmania plugins"
+            : "commit f82d9a3 (HEAD -> main, origin/main)\nAuthor: tomekdot <tomekdot@users.noreply.github.com>\nDate:   2026-06-20\n\n    feat: dodano opcję SHOW_PRIVATE_REPOS_TO_PUBLIC i panel narzędzi właściciela\n\ncommit a47c92b\nAuthor: tomekdot <tomekdot@users.noreply.github.com>\nDate:   2026-06-16\n\n    Initial archival index sync of Trackmania plugins";
+          addOutput(logMsg, "comment");
         } else if (subAction === 'clone') {
           const repoArg = parts[2];
           if (!repoArg) {
@@ -281,6 +341,129 @@ export default function TerminalConsole({ onSelectCategory, lang, repos = REPOS,
         break;
       }
 
+      case 'ai': {
+        const query = parts.slice(1).join(' ').trim();
+        if (!query) {
+          if (lang === 'en') {
+            addOutput("Usage: ai <question | explain <repo-name> | key <set <key> | clear | status>>", "comment");
+            addOutput("Example: ai explain pyplanet-clan-spirits", "comment");
+            addOutput("API Key: ai key set AIzaSy... (Google Gemini) or select Local PC engine (Ollama / LM Studio)", "comment");
+          } else {
+            addOutput("Sposób użycia: ai <pytanie | explain <nazwa-repo> | key <set <klucz> | clear | status>>", "comment");
+            addOutput("Przykład: ai explain pyplanet-clan-spirits", "comment");
+            addOutput("Klucz API: ai key set AIzaSy... (Google Gemini) lub wybierz silnik lokalny PC (Ollama / LM Studio)", "comment");
+          }
+          break;
+        }
+
+        if (parts[1]?.toLowerCase() === 'key') {
+          const sub = parts[2]?.toLowerCase();
+          if (sub === 'set' && parts[3]) {
+            const newKey = parts.slice(3).join(' ').trim();
+            const detected = detectAIProvider(newKey);
+            setLocalAIKey(newKey, false, detected.defaultModel, detected.id);
+            addOutput(lang === 'en' 
+              ? `✅ ${detected.nameEn} API key detected and saved strictly to your browser's local storage. Never stored on server.`
+              : `✅ Wykryto dostawcę: ${detected.namePl}. Klucz API zapisany wyłącznie w pamięci Twojej przeglądarki.`, "success");
+          } else if (sub === 'clear' || sub === 'remove' || sub === 'delete') {
+            clearLocalAIKey();
+            addOutput(lang === 'en'
+              ? "🗑️ Custom AI API key cleared from browser storage."
+              : "🗑️ Twój klucz API został usunięty z pamięci przeglądarki.", "comment");
+          } else {
+            const localKey = getLocalAIKey();
+            if (localKey) {
+              const provider = detectAIProvider(localKey);
+              const model = getLocalAIModel() || provider.defaultModel;
+              addOutput(lang === 'en'
+                ? `[AI KEY STATUS]: 🟢 Custom key active: ${provider.nameEn} (${model})`
+                : `[STATUS KLUCZA AI]: 🟢 Własny klucz aktywny: ${provider.namePl} (${model})`, "success");
+            } else {
+              addOutput(lang === 'en'
+                ? "[AI KEY STATUS]: 🔵 Using Google Gemini / local engine mode"
+                : "[STATUS KLUCZA AI]: 🔵 Używasz Google Gemini / trybu lokalnego", "comment");
+            }
+            addOutput(lang === 'en'
+              ? "Commands: 'ai key set <API_KEY>' or 'ai key clear' (Google Gemini AI Studio & Local PC Engines)"
+              : "Komendy: 'ai key set <TWÓJ_KLUCZ>' lub 'ai key clear' (Google Gemini AI Studio i Silniki Lokalne PC)", "comment");
+          }
+          break;
+        }
+
+        const targetRepo = repos.find(r => query.toLowerCase().includes(r.name.toLowerCase()));
+        const repoName = targetRepo ? targetRepo.name : (repos[0]?.name || 'tomekdot-suite');
+        const repoDesc = targetRepo ? (targetRepo.desc || targetRepo.descPl) : 'Portfolio tomekdot';
+        const repoLang = targetRepo ? targetRepo.lang : 'Python/TypeScript';
+        const customApiKey = getLocalAIKey();
+        const customModel = getLocalAIModel();
+        const customBaseUrl = getLocalAIBaseUrl();
+        const customProvider = getLocalAIProvider();
+        const detectedProvider = detectAIProvider(customApiKey);
+        const activeProviderName = (customProvider && PROVIDERS_CONFIG[customProvider])
+          ? PROVIDERS_CONFIG[customProvider].name
+          : detectedProvider.name;
+
+        addOutput(
+          lang === 'en'
+            ? `[AI-AGENT] >> Initializing AI query (${activeProviderName}) for repository: ${repoName}...`
+            : `[AI-AGENT] >> Inicjowanie zapytania AI (${activeProviderName}) dla repozytorium: ${repoName}...`, 
+            "comment"
+        );
+
+        // Async fetch
+        fetch('/api/ai/chat-repo', {
+          method: 'POST',
+          headers: { 
+            'Content-Type': 'application/json',
+            'x-ai-api-key': customApiKey,
+            'x-gemini-api-key': customApiKey,
+            'x-ai-base-url': customBaseUrl || '',
+            'x-ai-provider': customProvider || '',
+            'x-ai-model': customModel || '',
+          },
+          body: JSON.stringify({
+            repoName,
+            description: repoDesc,
+            lang: repoLang,
+            userMessage: query,
+            category: targetRepo?.cat?.join(', ') || 'Trackmania/AI',
+            customApiKey,
+            customModel: customModel || detectedProvider.defaultModel,
+            customBaseUrl,
+            customProvider,
+            siteLang: lang,
+          }),
+        })
+          .then(res => res.json())
+          .then(data => {
+            const sourceLabel = data.provider || (data.source === 'gemini' 
+              ? 'GEMINI 2.5 FLASH' 
+              : (lang === 'en' ? 'KNOWLEDGE BASE / OFFLINE' : 'BAZA WIEDZY / OFFLINE'));
+            setHistory(prev => [
+              ...prev,
+              { text: `🤖 [AI // ${sourceLabel}]:\n${data.reply || (lang === 'en' ? 'No response.' : 'Brak odpowiedzi.')}`, type: 'success' },
+            ]);
+            if (data.sourcesUsed && Array.isArray(data.sourcesUsed)) {
+              setHistory(prev => [
+                ...prev,
+                { text: `🔍 [${lang === 'en' ? 'Knowledge Sources Used' : 'Użyte źródła wiedzy'}]: ${data.sourcesUsed.join(' • ')}`, type: 'comment' },
+              ]);
+            }
+          })
+          .catch(err => {
+            setHistory(prev => [
+              ...prev,
+              { 
+                text: lang === 'en'
+                  ? `⚠️ [AI ERROR]: ${err.message || 'Error communicating with AI service.'}`
+                  : `⚠️ [BŁĄD AI]: ${err.message || 'Błąd komunikacji z modelem.'}`, 
+                type: 'error' 
+              },
+            ]);
+          });
+        break;
+      }
+
       default:
         addOutput(`Command not recognized: '${primary}'. Type 'help' for instructions.`, 'error');
         break;
@@ -319,25 +502,27 @@ export default function TerminalConsole({ onSelectCategory, lang, repos = REPOS,
         </div>
       )}
 
-      {/* Toggle button */}
-      <div className="fixed bottom-6 right-6 z-40">
+      {/* Toggle button - Always visible, pulses when reaching the end of the page */}
+      <div className="fixed bottom-4 sm:bottom-6 right-4 sm:right-6 z-40 flex flex-col items-end gap-1.5 transition-all duration-300 opacity-100 translate-y-0 pointer-events-auto">
         <button
           type="button"
           id="toggle_terminal_btn"
           onClick={() => setIsOpen(!isOpen)}
-          className={`flex items-center gap-2 px-4 py-3 rounded-none border shadow-2xl transition-all duration-300 font-mono text-xs font-semibold uppercase tracking-wider
+          className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-none border transition-colors duration-200 font-mono text-xs font-semibold uppercase tracking-wider cursor-pointer select-none
             ${isOpen 
-              ? 'bg-red-950/40 text-red-400 border-red-500/30 hover:bg-red-950/70' 
-              : 'bg-editorial-sidebar-bg text-editorial-accent border-editorial-border hover:bg-neutral-900 hover:border-editorial-accent'}`}
+              ? 'bg-red-950/90 text-red-300 border-red-500/60 hover:bg-red-900' 
+              : isAtBottom
+                ? 'bg-[#0E0E0E] text-editorial-accent border-editorial-accent animate-border-pulse font-bold'
+                : 'bg-[#0E0E0E] text-editorial-accent border-editorial-border hover:border-editorial-accent font-bold'}`}
         >
-          <Terminal size={14} className={isOpen ? 'animate-none' : 'animate-pulse'} />
+          <Terminal size={14} className="shrink-0" />
           {isOpen ? (lang === 'en' ? 'Close Console' : 'Zamknij Konsolę') : (lang === 'en' ? 'Developer Terminal' : 'Terminal Dewelopera')}
         </button>
       </div>
 
       {/* Console frame */}
       {isOpen && (
-        <div id="terminal_console" translate="no" className="fixed bottom-20 left-4 right-4 sm:left-auto sm:right-6 z-40 w-[calc(100vw-2rem)] sm:w-full sm:max-w-lg h-80 bg-editorial-bg/95 border-2 border-editorial-border rounded-none shadow-2xl overflow-hidden flex flex-col font-mono text-xs select-text notranslate">
+        <div id="terminal_console" translate="no" className="fixed bottom-16 sm:bottom-20 left-3 sm:left-auto right-3 sm:right-6 z-40 w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-lg h-80 bg-[#0A0A0A]/95 backdrop-blur-md border-2 border-editorial-border rounded-none shadow-2xl overflow-hidden flex flex-col font-mono text-xs select-text notranslate">
           {/* Header */}
           <div className="bg-editorial-sidebar-bg px-4 py-2 border-b border-editorial-border flex items-center justify-between text-editorial-muted">
             <div className="flex items-center gap-1.5 uppercase tracking-wider text-[10px]">
@@ -350,14 +535,14 @@ export default function TerminalConsole({ onSelectCategory, lang, repos = REPOS,
               type="button"
               id="close_terminal_top_btn"
               onClick={() => setIsOpen(false)} 
-              className="text-editorial-muted hover:text-white transition-colors"
+              className="text-editorial-muted hover:text-white transition-colors cursor-pointer p-0.5"
             >
               <X size={14} />
             </button>
           </div>
 
           {/* Logs */}
-          <div className="flex-1 overflow-y-auto p-4 space-y-2 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+          <div className="flex-1 overflow-y-auto p-4 pb-3 space-y-2 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
             {(() => {
               const renderLogText = (text: string) => {
                 const urlRegex = /(https?:\/\/[^\s]+)/g;

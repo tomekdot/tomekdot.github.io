@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-export type CategoryKey = 'pyplanet' | 'openplanet' | 'trackmania' | 'ai' | 'kul' | 'other';
+export type CategoryKey = 'pyplanet' | 'openplanet' | 'trackmania' | 'ai' | 'discord' | 'kul' | 'web' | 'tools' | 'other';
 
 export interface CategorySpec {
   key: CategoryKey;
@@ -24,17 +24,24 @@ export interface Repository {
   url: string;
   stars: number;
   forks: number;
-  commitsCount: number;
-  createdYear: number;
+  commitsCount?: number;
+  createdYear?: number;
   longDescEn?: string;
   longDescPl?: string;
+  featuresEn?: string[];
+  featuresPl?: string[];
+  capabilities?: string[];
   codeSnippet?: {
     filename: string;
     language: string;
     code: string;
   };
+  readme?: string;
   pushedAt?: string;
   isPrivate?: boolean;
+  isFork?: boolean;
+  isContributed?: boolean;
+  forkParent?: string;
 }
 
 export interface BlogPost {
@@ -46,9 +53,15 @@ export interface BlogPost {
   contentEn: string;
   contentPl: string;
   date: string;
-  readingTimeEn: string;
-  readingTimePl: string;
+  readingTimeEn?: string;
+  readingTimePl?: string;
   tags: string[];
+  aiVersionNote?: string;
+  aiVersionNoteEn?: string;
+  aiVersionNotePl?: string;
+  draftVersionContent?: string;
+  draftVersionContentEn?: string;
+  draftVersionContentPl?: string;
 }
 
 export interface LanguageStat {

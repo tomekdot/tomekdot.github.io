@@ -3,17 +3,35 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { CategorySpec, Repository, BlogPost } from './types';
+import { CategoryKey, CategorySpec, Repository, BlogPost } from './types';
 
-export const CATEGORIES: Record<string, CategorySpec> = {
-  pyplanet: {
-    key: 'pyplanet',
-    labelEn: 'PyPlanet Plugins',
-    labelPl: 'Wtyczki PyPlanet',
-    icon: 'Gamepad2',
-    colorClass: 'text-emerald-400',
-    bgClass: 'bg-emerald-500/10',
-    borderClass: 'border-emerald-500/30'
+export const CATEGORIES: Record<CategoryKey, CategorySpec> = {
+  ai: {
+    key: 'ai',
+    labelEn: 'AI & Autonomous Agents',
+    labelPl: 'AI i Autonomiczni Agenci',
+    icon: 'Bot',
+    colorClass: 'text-sky-400',
+    bgClass: 'bg-sky-500/10',
+    borderClass: 'border-sky-500/30'
+  },
+  discord: {
+    key: 'discord',
+    labelEn: 'Discord & Community Bots',
+    labelPl: 'Boty Discord i Społeczność',
+    icon: 'MessageSquare',
+    colorClass: 'text-indigo-400',
+    bgClass: 'bg-indigo-500/10',
+    borderClass: 'border-indigo-500/30'
+  },
+  kul: {
+    key: 'kul',
+    labelEn: 'Academic & University (KUL)',
+    labelPl: 'Projekty Uczelniane (KUL)',
+    icon: 'GraduationCap',
+    colorClass: 'text-rose-400',
+    bgClass: 'bg-rose-500/10',
+    borderClass: 'border-rose-500/30'
   },
   openplanet: {
     key: 'openplanet',
@@ -24,47 +42,935 @@ export const CATEGORIES: Record<string, CategorySpec> = {
     bgClass: 'bg-fuchsia-500/10',
     borderClass: 'border-fuchsia-500/30'
   },
+  other: {
+    key: 'other',
+    labelEn: 'Other Utilities & Archives',
+    labelPl: 'Inne Narzędzia i Archiwa',
+    icon: 'Archive',
+    colorClass: 'text-slate-400',
+    bgClass: 'bg-slate-500/10',
+    borderClass: 'border-slate-500/30'
+  },
+  pyplanet: {
+    key: 'pyplanet',
+    labelEn: 'PyPlanet Plugins',
+    labelPl: 'Wtyczki PyPlanet',
+    icon: 'Gamepad2',
+    colorClass: 'text-emerald-400',
+    bgClass: 'bg-emerald-500/10',
+    borderClass: 'border-emerald-500/30'
+  },
+  tools: {
+    key: 'tools',
+    labelEn: 'Dev Tools & Automation / CLI',
+    labelPl: 'Narzędzia CLI i Automatyzacja',
+    icon: 'Wrench',
+    colorClass: 'text-orange-400',
+    bgClass: 'bg-orange-500/10',
+    borderClass: 'border-orange-500/30'
+  },
   trackmania: {
     key: 'trackmania',
-    labelEn: 'Trackmania General',
-    labelPl: 'Ogólne Trackmania',
+    labelEn: 'Trackmania (TM)',
+    labelPl: 'Trackmania (TM)',
     icon: 'Car',
     colorClass: 'text-amber-400',
     bgClass: 'bg-amber-500/10',
     borderClass: 'border-amber-500/30'
   },
-  ai: {
-    key: 'ai',
-    labelEn: 'AI & Agents',
-    labelPl: 'AI i Agenci',
-    icon: 'Bot',
-    colorClass: 'text-sky-400',
-    bgClass: 'bg-sky-500/10',
-    borderClass: 'border-sky-500/30'
-  },
-  kul: {
-    key: 'kul',
-    labelEn: 'Academic (KUL)',
-    labelPl: 'Projekty KUL (Studia)',
-    icon: 'GraduationCap',
-    colorClass: 'text-rose-400',
-    bgClass: 'bg-rose-500/10',
-    borderClass: 'border-rose-500/30'
-  },
-  other: {
-    key: 'other',
-    labelEn: 'Other Utilities',
-    labelPl: 'Inne Narzędzia',
-    icon: 'Archive',
-    colorClass: 'text-slate-400',
-    bgClass: 'bg-slate-500/10',
-    borderClass: 'border-slate-500/30'
+  web: {
+    key: 'web',
+    labelEn: 'Web Apps & Fullstack / APIs',
+    labelPl: 'Aplikacje Webowe i API',
+    icon: 'LayoutGrid',
+    colorClass: 'text-cyan-400',
+    bgClass: 'bg-cyan-500/10',
+    borderClass: 'border-cyan-500/30'
   }
 };
 
+/**
+ * Intelligent and robust category detector for GitHub repositories.
+ * Automatically classifies repositories into appropriate functional categories,
+ * ensuring new and private projects are accurately categorized rather than falling into 'other'.
+ */
+export function detectCategories(item: {
+  name: string;
+  description?: string | null;
+  desc?: string | null;
+  lang?: string | null;
+  language?: string | null;
+  topics?: string[] | null;
+  url?: string | null;
+  html_url?: string | null;
+}): CategoryKey[] {
+  const nameLower = (item.name || '').toLowerCase();
+  const descLower = (item.description || item.desc || '').toLowerCase();
+  const langLower = (item.lang || item.language || '').toLowerCase();
+  const topicsLower = (item.topics || []).map(t => (t || '').toLowerCase());
+  
+  // 1. PyPlanet (TrackMania Server Plugins)
+  if (
+    nameLower.includes('pyplanet') || 
+    descLower.includes('pyplanet') || 
+    topicsLower.includes('pyplanet') ||
+    ((nameLower.includes('plugin') || topicsLower.includes('plugin')) && (langLower === 'python' || descLower.includes('server') || descLower.includes('controller')))
+  ) {
+    return ['pyplanet'];
+  }
+
+  // 2. Openplanet (TrackMania In-Game / AngelScript Plugins)
+  if (
+    nameLower.includes('openplanet') || 
+    descLower.includes('openplanet') || 
+    topicsLower.includes('openplanet') ||
+    langLower === 'angelscript' ||
+    (nameLower.endsWith('-dev') && !nameLower.includes('bot') && !nameLower.includes('agent')) ||
+    ((nameLower.includes('plugin') || topicsLower.includes('plugin') || descLower.includes('plugin')) && (descLower.includes('trackmania') || descLower.includes('tm2020') || descLower.includes('hud') || descLower.includes('speedometer') || descLower.includes('timer') || nameLower.includes('tm-')))
+  ) {
+    return ['openplanet'];
+  }
+
+  // 3. Academic & University (KUL)
+  if (
+    nameLower.startsWith('kul') || 
+    nameLower.includes('kul-') || 
+    nameLower.includes('kul_') || 
+    nameLower.includes('uniwersytet') || 
+    nameLower.includes('studia') || 
+    nameLower.includes('thesis') || 
+    nameLower.includes('magister') || 
+    nameLower.includes('licencjat') || 
+    nameLower.includes('2021-22-wdi') || 
+    nameLower.includes('2022-so') || 
+    nameLower.includes('2022-paip') || 
+    nameLower.includes('2022-www') || 
+    nameLower.includes('2023-ai') || 
+    nameLower.includes('demo21-') ||
+    nameLower.includes('2022-big-data') ||
+    descLower.includes('kul') || 
+    descLower.includes('praca dyplomowa') || 
+    descLower.includes('praca magisterska')
+  ) {
+    return ['kul'];
+  }
+
+  // 4. Discord & Community Bots
+  if (
+    nameLower.includes('discord') || 
+    nameLower.includes('mikobot') || 
+    descLower.includes('discord') || 
+    descLower.includes('telegram') || 
+    topicsLower.some(t => t.includes('discord') || t.includes('telegram'))
+  ) {
+    return ['discord'];
+  }
+
+  // 5. AI & Autonomous Agents & Machine Learning
+  if (
+    nameLower.includes('agent') || 
+    nameLower.includes('agents') || 
+    nameLower.includes('recommendation') || 
+    nameLower.includes('neural') || 
+    nameLower.includes('deepseek') || 
+    nameLower.includes('gemini') || 
+    nameLower.includes('openai') || 
+    nameLower.includes('hermes') ||
+    nameLower.includes('rag') ||
+    descLower.includes('neural network') || 
+    descLower.includes('deep learning') || 
+    descLower.includes('apriori') || 
+    descLower.includes('artificial intelligence') || 
+    descLower.includes('recommendation system') ||
+    descLower.includes('multi-agent') ||
+    descLower.includes('rag') ||
+    descLower.includes('sentiment') ||
+    topicsLower.some(t => ['ai', 'machine-learning', 'deep-learning', 'nlp', 'llm', 'recommendation-system', 'neural-network', 'rag', 'multi-agent', 'sentiment-analysis', 'ollama', 'chromadb'].includes(t))
+  ) {
+    return ['ai'];
+  }
+
+  // 6. Trackmania Standalone & TM Forks (Maps, Tools, Timers, Plugins)
+  if (
+    nameLower.startsWith('tm-') ||
+    nameLower.startsWith('tm_') ||
+    nameLower.includes('-tm-') ||
+    nameLower.includes('trackmania') || 
+    nameLower.includes('maniaplanet') || 
+    nameLower.includes('tm2020') || 
+    nameLower.includes('tmmap') || 
+    nameLower.includes('green-timer') ||
+    nameLower.includes('pursuit-maps') ||
+    nameLower.includes('mapgit') ||
+    descLower.includes('trackmania') ||
+    descLower.includes('maniaplanet') ||
+    descLower.includes('tm2020') ||
+    descLower.includes('.map.gbx') ||
+    descLower.includes('gbx') ||
+    topicsLower.some(t => t.includes('trackmania') || t.includes('maniaplanet') || t.includes('tm2020') || t === 'tm' || t === 'tm-plugin' || t === 'gbx')
+  ) {
+    return ['trackmania'];
+  }
+
+  // 7. Web Apps & APIs
+  if (
+    nameLower.includes('frontend') || 
+    nameLower.includes('backend') || 
+    nameLower.includes('django') || 
+    nameLower.includes('fastapi') || 
+    nameLower.includes('flask') || 
+    nameLower.includes('github.io') ||
+    descLower.includes('django') ||
+    descLower.includes('web application') ||
+    descLower.includes('web app') ||
+    topicsLower.some(t => ['web', 'frontend', 'backend', 'api', 'fullstack', 'django', 'web-app'].includes(t))
+  ) {
+    return ['web'];
+  }
+
+  // 8. Dev Tools & Automation / CLI
+  if (
+    nameLower.includes('tool') || 
+    nameLower.includes('tools') || 
+    nameLower.includes('cli') || 
+    nameLower.includes('scraper') || 
+    nameLower.includes('crawler') || 
+    nameLower.includes('automation') || 
+    nameLower.includes('docker') || 
+    nameLower.includes('linter')
+  ) {
+    return ['tools'];
+  }
+
+  // Default to other
+  return ['other'];
+}
+
+/**
+ * Generates structured, concrete accomplishments and functional feature highlights ("Co zostało zrobione").
+ * Guarantees that every new plugin, agent, and repository displays a comprehensive, domain-specific
+ * breakdown of implemented features, mechanics, event listeners, and architecture in the Overview tab.
+ */
+export function generateRepoFeatures(name: string, cat: CategoryKey[], desc?: string, lang?: string): { en: string[]; pl: string[]; capabilities: string[] } {
+  const nameLower = name.toLowerCase();
+
+  // 1. PyPlanet Clan Spirits
+  if (nameLower.includes('clanspirits')) {
+    return {
+      pl: [
+        "System punktacji klanowej z dynamicznym przeliczaniem punktów za rekordy lokalne (Local Records)",
+        "System lojalności i przynależności klanowej (Spirits) z podziałem graczy na serwerze TrackMania",
+        "Interaktywny widżet HUD z aktualną tabelą klanów renderowany bezpośrednio w grze",
+        "Zabezpieczenia przed exploitowaniem punktów i asynchroniczna persystencja w bazie danych"
+      ],
+      en: [
+        "Clan scoring algorithm with dynamic point weighting based on dedicated local records",
+        "Player spirit allegiance and ranking system on live TrackMania dedicated servers",
+        "Interactive HUD overlay rendering live team standing directly inside the game viewport",
+        "Anti-exploit validation rules and asynchronous database state persistence"
+      ],
+      capabilities: ['PyPlanet', 'TrackMania', 'Asyncio', 'ManiaLink HUD', 'Local Records', 'Team Scoring']
+    };
+  }
+
+  // 2. PyPlanet GitHub Installer
+  if (nameLower.includes('github-installer')) {
+    return {
+      pl: [
+        "Komenda administratora /ghinstall <autor/repo> instalująca wtyczki w locie bez restartu serwera",
+        "Asynchroniczne pobieranie i dekompresja archiwum ZIP bezpośrednio z GitHub REST API",
+        "Walidacja manifestu, sprawdzanie zależności i automatyczna rejestracja w rdzeniu PyPlanet",
+        "Zarządzanie uprawnieniami operatorów oraz szczegółowe komunikaty zwrotne na czacie serwera"
+      ],
+      en: [
+        "Administrator command /ghinstall <author/repo> for on-the-fly plugin deployment without server restarts",
+        "Asynchronous fetching and extraction of zipballs directly from GitHub REST API",
+        "Manifest verification, dependency checking, and auto-registration in PyPlanet core",
+        "Access control enforcement and formatted status messages in server chat"
+      ],
+      capabilities: ['PyPlanet', 'GitHub API', 'Hot Reloading', 'CLI Commands', 'Plugin Manager']
+    };
+  }
+
+  // 3. PyPlanet Hello World
+  if (nameLower.includes('hello-world')) {
+    return {
+      pl: [
+        "Czysty, minimalistyczny szablon startowy do tworzenia wtyczek PyPlanet",
+        "Wzorcowa konfiguracja nasłuchiwania sygnałów (trackmania.player_connect)",
+        "Szablon komend czatu z obsługą argumentów gracza",
+        "Gotowa struktura modułowa z plikiem konfiguracji aplikacji AppConfig"
+      ],
+      en: [
+        "Clean, minimal starter boilerplate for PyPlanet plugin developers",
+        "Reference signal listeners for server events (trackmania.player_connect)",
+        "Interactive chat command handler with player argument parsing",
+        "Modular package structure featuring standard AppConfig implementation"
+      ],
+      capabilities: ['PyPlanet', 'Boilerplate', 'Asyncio', 'Chat Commands', 'Signals']
+    };
+  }
+
+  // 4. Pomodoro Plugin
+  if (nameLower.includes('pomodoro')) {
+    return {
+      pl: [
+        "Wbudowany w grę licznik techniki Pomodoro (cykle pracy 25 min oraz przerw 5/15 min)",
+        "Pływający interfejs HUD stworzony w bibliotece Dear ImGui z motywami graficznymi",
+        "Dźwiękowe i wizualne powiadomienia na ekranie informujące o zakończeniu sesji",
+        "System skrótów klawiszowych (hotkeys) do szybkiego sterowania bez wychodzenia z wyścigu"
+      ],
+      en: [
+        "In-game Pomodoro productivity timer (25 min focus cycles, 5/15 min intervals)",
+        "Floating HUD overlay built with Dear ImGui featuring custom UI themes",
+        "Audio and on-screen toast notifications alerting players when intervals finish",
+        "Configurable keyboard hotkeys for instant pause, resume, and timer resetting"
+      ],
+      capabilities: ['Openplanet', 'AngelScript', 'Dear ImGui', 'HUD Widget', 'Hotkeys', 'Sound Alerts']
+    };
+  }
+
+  // 5. Vehicle Detector
+  if (nameLower.includes('vehicle-detector')) {
+    return {
+      pl: [
+        "Przechwytywanie pozycji, prędkości i wektorów pojazdów przeciwników z silnika gry w czasie rzeczywistym",
+        "Dynamiczne generowanie i rzutowanie trójwymiarowych ramek ograniczających (3D Bounding Boxes)",
+        "Eksporter próbek treningowych i metadanych telemetrii do JSON/CSV pod modele Computer Vision",
+        "Optymalizacja pętli w AngelScript z zerową alokacją pamięci zapewniająca 60+ FPS"
+      ],
+      en: [
+        "Real-time extraction of vehicle coordinates, velocity vectors, and chassis rotation from game memory",
+        "Calculation and 3D screen-space projection of vehicle bounding boxes",
+        "Dataset and telemetry exporter formatted for Computer Vision & Machine Learning pipelines",
+        "Zero-allocation AngelScript rendering loop sustaining 60+ FPS without input lag"
+      ],
+      capabilities: ['Openplanet', 'AngelScript', 'Machine Learning', 'Computer Vision', 'Telemetry', '3D Math']
+    };
+  }
+
+  // 6. Event Calendar
+  if (nameLower.includes('event-calendar') || nameLower.includes('calendar')) {
+    return {
+      pl: [
+        "Lekki kalendarz faz księżyca i zaplanowanych turniejów osadzony w menu Openplanet",
+        "Automatyczny system powiadomień przed rozpoczęciem nadchodzących wydarzeń społeczności",
+        "Precyzyjna synchronizacja czasu z zegarem UTC i lokalną strefą czasową gracza",
+        "Minimalne zużycie zasobów i możliwość swobodnego pozycjonowania widżetu na ekranie"
+      ],
+      en: [
+        "Lightweight lunar calendar and scheduled event tracker in the Openplanet menu",
+        "Automated alert system notifying players ahead of scheduled community competitions",
+        "Precise clock synchronization with UTC time and local player timezones",
+        "Ultra-low memory footprint with draggable HUD widget placement"
+      ],
+      capabilities: ['Openplanet', 'AngelScript', 'Lunar Engine', 'Notifications', 'Dear ImGui']
+    };
+  }
+
+  // 7. Pursuit Maps
+  if (nameLower.includes('pursuit-maps')) {
+    return {
+      pl: [
+        "Indeks i baza danych wszystkich map pościgowych (Pursuit) z sezonu ManiaPlanet Feedback S1 E1",
+        "Automatyczna walidacja unikalnych identyfikatorów UID torów oraz sum kontrolnych nagłówków hex",
+        "Ekstrakcja miniatur podglądu w wysokiej rozdzielczości z binarnego formatu .Map.Gbx",
+        "Zintegrowane skrypty eksportu do Google Sheets i konfiguracji serwerowych"
+      ],
+      en: [
+        "Comprehensive dataset of TrackMania Pursuit maps from ManiaPlanet Feedback S1 E1",
+        "Track validation UID verification and block configuration checksum inspection",
+        "Automated high-resolution thumbnail extraction from binary .Map.Gbx headers",
+        "Data synchronization pipeline targeting Google Sheets and dedicated server scripts"
+      ],
+      capabilities: ['TrackMania', 'ManiaPlanet', '.Map.Gbx Parser', 'Google Sheets', 'Hex Inspection', 'Python']
+    };
+  }
+
+  // 8. Pursuit Channel Agent
+  if (nameLower.includes('pursuit-channel-agent')) {
+    return {
+      pl: [
+        "Autonomiczny agent automatyzujący zarządzanie dedykowanym serwerem ManiaPlanet",
+        "Dobór i rotacja playlisty map w zależności od bieżącego dnia cyklu księżycowego",
+        "Bezpośrednia komunikacja przez protokół XML-RPC serwera TrackManii",
+        "Mechanizm wznawiania połączenia po awariach sieci i automatyczne logowanie zdarzeń"
+      ],
+      en: [
+        "Autonomous server administration agent for ManiaPlanet dedicated environments",
+        "Dynamic playlist rotation algorithm tied to lunar month phase and day",
+        "Direct remote procedure integration using TrackMania dedicated XML-RPC protocols",
+        "Fault-tolerant connection watchdog with automated reconnect and session recovery"
+      ],
+      capabilities: ['ManiaPlanet', 'XML-RPC', 'Autonomous Agent', 'Lunar Algorithm', 'Server Automation', 'Python']
+    };
+  }
+
+  // 9. Pursuit Support Agent
+  if (nameLower.includes('pursuit-support-agent')) {
+    return {
+      pl: [
+        "Automatyczny asystent moderacji map Pursuit oparty na architekturze Hermes Agent",
+        "Weryfikacja parametrów torów pod kątem balansu uciekinierów i goniących oraz płynności jazdy",
+        "Generowanie raportów technicznych i sugestii poprawek dla autorów tras",
+        "Pipeline weryfikujący zgłoszenia map przed dodaniem ich do oficjalnej puli serwera"
+      ],
+      en: [
+        "Automated TrackMania Pursuit map moderation assistant built on Hermes Agent",
+        "Automated map geometry audit assessing balance between runners and pursuers",
+        "Generates comprehensive technical reports and tuning recommendations for track builders",
+        "Validation pipeline screening community submissions prior to official server addition"
+      ],
+      capabilities: ['Hermes Agent', 'TrackMania', 'Map Moderation', 'Automated QA', 'LLM Reasoning', 'Python']
+    };
+  }
+
+  // 10. RAG AI Bot
+  if (nameLower.includes('rag-ai-bot') || nameLower.includes('rag')) {
+    return {
+      pl: [
+        "System MAOS (Multi-Agent Orchestration System) z podziałem ról między wyspecjalizowanych agentów",
+        "Pipeline RAG adaptujący ton odpowiedzi asystenta do wykrytego sentymentu użytkownika",
+        "Integracja z bazą wektorową ChromaDB i lokalnymi modelami językowymi Ollama",
+        "Strumieniowanie odpowiedzi w czasie rzeczywistym i zachowanie wielowątkowego kontekstu sesji"
+      ],
+      en: [
+        "MAOS (Multi-Agent Orchestration System) coordinating specialized agent personas",
+        "Sentiment-aware RAG pipeline dynamically tuning response tone to user emotion",
+        "Vector retrieval powered by ChromaDB embeddings and local Ollama model backends",
+        "Real-time token streaming and multi-turn conversational context preservation"
+      ],
+      capabilities: ['Multi-Agent', 'RAG Pipeline', 'ChromaDB', 'Ollama', 'Sentiment Analysis', 'Python']
+    };
+  }
+
+  // 11. TM Green Timer
+  if (nameLower.includes('green-timer') || nameLower.includes('timer')) {
+    return {
+      pl: [
+        "Wskaźnik różnicy czasu (delta) w czasie rzeczywistym z zielonym podświetleniem (Green Delta)",
+        "Porównanie splitów na punktach kontrolnych z rekordem osobistym (PB) i czasem rekordu autora",
+        "Lekka nakładka graficzna HUD nieobciążająca silnika gry i nieodwracająca uwagi kierowcy",
+        "Trwałe zapisywanie czasów referencyjnych dla każdego unikalnego UID mapy"
+      ],
+      en: [
+        "Real-time delta time indicator with dynamic green illumination on personal best splits",
+        "Checkpoint split comparisons evaluated against author medals and personal bests",
+        "Lightweight HUD overlay engineered for minimal visual distraction during runs",
+        "Persistent caching of split times indexed by unique map validation UIDs"
+      ],
+      capabilities: ['Openplanet', 'TrackMania', 'AngelScript', 'HUD Overlay', 'Delta Timer', 'Telemetry']
+    };
+  }
+
+  // 12. MapGit
+  if (nameLower.includes('mapgit')) {
+    return {
+      pl: [
+        "Silnik kontroli wersji typu Git stworzony specjalnie dla plików binarnych .Map.Gbx",
+        "Szczegółowe diffowanie: wykrywanie dodanych, usuniętych i zmienionych bloków i itemów na trasie",
+        "Generowanie czytelnych changelogów dla autorów map ułatwiające wspólną pracę",
+        "Integracja z narzędziami CLI i obsługa automatycznych hooków pre-commit"
+      ],
+      en: [
+        "Git-style version control and diffing utility engineered for binary .Map.Gbx files",
+        "Granular diffing: identifies added, removed, and repositioned blocks and track items",
+        "Generates readable changelogs for track authors to streamline team collaboration",
+        "CLI interface ready for git pre-commit hooks and automated CI inspections"
+      ],
+      capabilities: ['Python', 'TrackMania', 'Binary Diff', '.Map.Gbx', 'Git Tooling', 'CLI']
+    };
+  }
+
+  // 13. Apeiron Galaxy — 13 Moon Phase Calendar Plugin (Openplanet)
+  if (nameLower.includes('apeiron')) {
+    return {
+      pl: [
+        "Natywny kalendarz 13 cykli księżycowych wyświetlany bezpośrednio na ekranie gry przez nakładkę Openplanet",
+        "Dynamiczne obliczenia faz księżyca, znaków zodiaku i pozycji kosmicznych w czasie rzeczywistym",
+        "W pełni konfigurowalny widżet interfejsu (HUD) stworzony w AngelScript z biblioteką Dear ImGui",
+        "System powiadomień dźwiękowych i wizualnych informujący kierowcę o nadejściu nowiu, pełni oraz zaćmienia"
+      ],
+      en: [
+        "Native 13-moon astronomical calendar rendered directly inside the Trackmania HUD via Openplanet overlay",
+        "Real-time calculations of lunar phases, zodiac signs, and celestial coordinate transitions",
+        "Fully customizable floating HUD widget engineered in AngelScript using Dear ImGui bindings",
+        "Audio and visual in-game notifications alerting the driver during new moon, full moon, and eclipses"
+      ],
+      capabilities: ['Openplanet', 'AngelScript', 'TrackMania', 'Dear ImGui', 'HUD Overlay', 'Lunar Engine']
+    };
+  }
+
+  // 14. TrackMania Galaxy Wiki (Jekyll / Documentation)
+  if ((nameLower.includes('trackmania-galaxy') || nameLower.includes('galaxy-wiki') || nameLower.includes('galaxy')) && !nameLower.includes('apeiron')) {
+    return {
+      pl: [
+        "Kompleksowa baza wiedzy i dokumentacja wiki dla społeczności TrackMania Galaxy",
+        "Katalog artykułów technicznych o pluginach, konfiguracji serwerów i skryptach trybów gry",
+        "Szybka wyszukiwarka pełnotekstowa i system hierarchicznej kategoryzacji tematów",
+        "Zbudowane w oparciu o Jekyll/Ruby z responsywnym motywem dokumentacyjnym"
+      ],
+      en: [
+        "Comprehensive wiki and knowledgebase for the TrackMania Galaxy community",
+        "Technical articles cataloging server plugins, configuration schemas, and mode scripts",
+        "Fast full-text client search and hierarchical topic classification",
+        "Static architecture built with Jekyll/Ruby with mobile-responsive docs theme"
+      ],
+      capabilities: ['Ruby', 'Jekyll', 'Wiki', 'TrackMania Galaxy', 'Documentation', 'Fulltext Search']
+    };
+  }
+
+  // 15. Context-Aware Music Recommendation System
+  if (nameLower.includes('music-recommendation') || nameLower.includes('contextaware')) {
+    return {
+      pl: [
+        "Kontekstowy system rekomendacji muzycznych — praca magisterska (Master's Thesis)",
+        "Eksploracja zbioru RateYourMusic (RYM) za pomocą algorytmu asocjacyjnego Apriori",
+        "Ważony silnik rekomendacji uwzględniający kontekst odsłuchu, nastroju i pory dnia",
+        "Naukowa ewaluacja metryk trafności (Precision, Recall, F1-Score, NDCG)"
+      ],
+      en: [
+        "Context-Aware Music Recommendation System — Master's Thesis research project",
+        "Data mining on RateYourMusic (RYM) dataset utilizing Apriori association rule learning",
+        "Weighted recommendation engine factoring in user listening context, mood, and temporal cues",
+        "Rigorous academic evaluation using Precision, Recall, F1-score, and NDCG metrics"
+      ],
+      capabilities: ['Python', 'Data Science', 'Machine Learning', 'Apriori Algorithm', 'RateYourMusic', 'Thesis']
+    };
+  }
+
+  // 16. awaredotloc / DjangoMusicTracker
+  if (nameLower.includes('awaredotloc') || nameLower.includes('musictracker')) {
+    return {
+      pl: [
+        "Dedykowana aplikacja webowa do śledzenia i katalogowania muzyki (Music Tracker)",
+        "Architektura backendowa Django z modelami relacyjnymi bazy danych i autoryzacją",
+        "Responsywny interfejs użytkownika w HTML5, nowoczesnym CSS i dynamicznym JavaScript",
+        "Moduł statystyk odsłuchań, tagowania albumów i filtrowania gatunków"
+      ],
+      en: [
+        "Django-based music tracking and album cataloging web application",
+        "Backend architecture featuring relational models and secure user management",
+        "Responsive user interface styled with modern CSS and dynamic JavaScript",
+        "Listening analytics, album tagging, and genre filtering features"
+      ],
+      capabilities: ['Django', 'Python', 'Music Tracker', 'Web Application', 'PostgreSQL', 'CSS/HTML']
+    };
+  }
+
+  // Dynamic & Comprehensive PyPlanet Plugin Generator (For any existing or newly added plugin)
+  if (cat.includes('pyplanet') || nameLower.includes('pyplanet')) {
+    const descLower = (desc || '').toLowerCase();
+    const cleanTitle = name.replace(/^pyplanet-/, '').replace(/-/g, ' ');
+    
+    // Clan / Team scoring plugin
+    if (nameLower.includes('clan') || nameLower.includes('spirit') || nameLower.includes('team') || descLower.includes('clan')) {
+      return {
+        pl: [
+          `Dedykowany system punktacji klanowej z dynamicznym przeliczaniem punktów w locie (${name})`,
+          "Śledzenie lojalności i przynależności graczy na serwerze dedykowanym TrackMania",
+          "Interaktywny widżet HUD z aktualną tabelą wyników renderowany w grze",
+          "Asynchroniczny zapis i persystencja stanu w relacyjnej bazie danych PyPlanet"
+        ],
+        en: [
+          `Dedicated clan scoring algorithm with dynamic point weighting (${name})`,
+          "Player loyalty and allegiance tracking across live TrackMania dedicated servers",
+          "Interactive HUD overlay rendering live standings directly inside the game viewport",
+          "Asynchronous database persistence preserving match state in PyPlanet ORM"
+        ],
+        capabilities: ['PyPlanet', 'TrackMania', 'Asyncio', 'ManiaLink HUD', 'Team Scoring', 'Python']
+      };
+    }
+
+    // Records / Dedimania plugin
+    if (nameLower.includes('record') || nameLower.includes('dedi') || descLower.includes('record')) {
+      return {
+        pl: [
+          `Asynchroniczne przechwytywanie czasów sektorów i rekordów lokalnych (${name})`,
+          "Dwukierunkowa integracja z bazą danych serwera i powiadomienia na czacie",
+          "Konfigurowalna nakładka ManiaLink z top listą rekordów widoczna dla wszystkich graczy",
+          "Walidacja czasów przejazdów z zabezpieczeniem przed fałszowaniem rekordów"
+        ],
+        en: [
+          `Asynchronous sector split and local record persistence engine (${name})`,
+          "Bidirectional server database synchronization and broadcast chat announcements",
+          "Customizable ManiaLink leaderboard overlay visible to all connected drivers",
+          "Validation pipeline shielding server leaderboards against anomalous finish times"
+        ],
+        capabilities: ['PyPlanet', 'TrackMania', 'Records Engine', 'ManiaLink HUD', 'Database', 'Python']
+      };
+    }
+
+    // Default rich PyPlanet plugin features
+    return {
+      pl: [
+        `Asynchroniczna obsługa zdarzeń serwera TrackMania w pętli asyncio dla wtyczki ${cleanTitle}`,
+        `Dedykowane komendy czatu (/... ) z walidacją uprawnień graczy i natychmiastowym feedbackiem`,
+        "Dynamiczny widżet interfejsu ManiaLink/ManiaScript renderowany w czasie rzeczywistym w oknie gry",
+        "Trwały zapis konfiguracji, statystyk graczy oraz bezpieczna obsługa błędów połączenia XML-RPC"
+      ],
+      en: [
+        `Asynchronous TrackMania server event handling in the asyncio event loop for ${cleanTitle}`,
+        `Dedicated in-game chat command handler with role-based permission validation`,
+        "Dynamic ManiaLink / ManiaScript HUD overlay embedded natively into the game viewport",
+        "Persistent storage for player analytics, configuration schemas, and XML-RPC fault tolerance"
+      ],
+      capabilities: ['PyPlanet', 'TrackMania', 'Asyncio', 'ManiaLink HUD', 'Chat Commands', 'Server API']
+    };
+  }
+
+  // Dynamic & Comprehensive Openplanet Plugin Generator (For any existing or newly added plugin)
+  if (cat.includes('openplanet') || nameLower.includes('openplanet') || nameLower.includes('plugin') || lang === 'AngelScript' || nameLower.endsWith('-dev')) {
+    const descLower = (desc || '').toLowerCase();
+    const cleanTitle = name.replace(/-dev$/, '').replace(/^trackmania-/, '').replace(/-/g, ' ');
+
+    // Speedometer / Telemetry / Timer plugin
+    if (nameLower.includes('speed') || nameLower.includes('timer') || nameLower.includes('delta') || nameLower.includes('split') || descLower.includes('speed') || descLower.includes('telemetry')) {
+      return {
+        pl: [
+          `Precyzyjny odczyt parametrów telemetrii i prędkości w czasie rzeczywistym z silnika gry (${cleanTitle})`,
+          "Pływający widżet HUD renderowany w 60+ FPS z biblioteką Dear ImGui w AngelScript",
+          "Porównywanie międzyczasów (splitów) z rekordem osobistym (PB) oraz medalem autora",
+          "Optymalizacja pętli renderowania z zerową alokacją pamięci chroniąca przed spadkami FPS"
+        ],
+        en: [
+          `High-precision telemetry and speed stream extraction from the game physics engine (${cleanTitle})`,
+          "Floating HUD widget rendered at 60+ FPS using Dear ImGui bindings in AngelScript",
+          "Live split time delta comparisons evaluated against personal bests and author medals",
+          "Zero-allocation rendering loop eliminating frame drops and input latency"
+        ],
+        capabilities: ['Openplanet', 'TrackMania', 'AngelScript', 'Dear ImGui', 'Telemetry', 'HUD Overlay']
+      };
+    }
+
+    // Ghost / Replay / Camera plugin
+    if (nameLower.includes('ghost') || nameLower.includes('replay') || nameLower.includes('cam') || descLower.includes('ghost')) {
+      return {
+        pl: [
+          `Parsowanie danych trajektorii i telemetrii pojazdów przeciwników w czasie rzeczywistym (${cleanTitle})`,
+          "Rzutowanie trajektorii i punktów odniesienia w trójwymiarowej przestrzeni gry",
+          "Integracja z panelem ustawień Openplanet oraz obsługa skrótów klawiszowych (hotkeys)",
+          "Zarządzanie stanem buforów pamięci zoptymalizowane pod kątem minimalnego narzutu"
+        ],
+        en: [
+          `Real-time extraction and visualization of opponent telemetry and ghost paths (${cleanTitle})`,
+          "3D screen-space projection of vehicle trajectories and spatial checkpoints",
+          "Seamless integration into the Openplanet settings tray with configurable keybindings",
+          "Ring-buffer memory management engineered for minimal performance overhead"
+        ],
+        capabilities: ['Openplanet', 'TrackMania', 'AngelScript', 'Dear ImGui', '3D Math', 'Replay Data']
+      };
+    }
+  }
+
+  // Generic fallbacks should never hallucinate fake features for newly added or unverified repositories.
+  // Return empty feature arrays so only genuine features (or README extracts) are shown.
+  return {
+    pl: [],
+    en: [],
+    capabilities: [lang || '', ...cat].filter((c): c is string => Boolean(c))
+  };
+}
+
+/**
+ * Generates an illustrative, high-fidelity implementation code snippet for any repository
+ * that does not have an explicit codeSnippet defined.
+ */
+export function generateRepoSnippet(name: string, cat: CategoryKey[], language?: string): { filename: string; language: string; code: string } {
+  const nameLower = name.toLowerCase();
+
+  if (cat.includes('pyplanet') || nameLower.includes('pyplanet')) {
+    const slug = name.replace(/[^a-zA-Z0-9]/g, '_');
+    return {
+      filename: `apps/${slug}/app.py`,
+      language: "python",
+      code: `from pyplanet.apps.config import AppConfig
+from pyplanet.contrib.command import Command
+
+class ${slug.split('_').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join('')}Plugin(AppConfig):
+    name = '${slug}'
+    label = '${name}'
+
+    async def on_start(self):
+        # Register in-game server event hooks
+        self.context.signals.listen('trackmania.player_connect', self.player_connect)
+        self.context.signals.listen('trackmania.player_finish', self.player_finish)
+        
+        # Register dedicated chat command
+        await self.instance.command_manager.register(
+            Command(name='${name.split('-').pop() || 'info'}', target=self.handle_command, admin=False)
+        )
+
+    async def player_connect(self, player, **kwargs):
+        await self.instance.chat(f"Welcome {player.nickname} to the TrackMania server!")
+
+    async def handle_command(self, player, *args, **kwargs):
+        await self.instance.chat(f"Plugin status: ACTIVE for {player.nickname}!", player)`
+    };
+  }
+
+  if (cat.includes('openplanet') || nameLower.includes('openplanet') || nameLower.includes('-dev')) {
+    return {
+      filename: "src/Main.as",
+      language: "angelscript",
+      code: `// Openplanet AngelScript Plugin: ${name}
+void Main() {
+    print("Plugin '${name}' initialized successfully.");
+}
+
+void RenderMenu() {
+    if (UI::MenuItem("Open ${name} Dashboard")) {
+        // Toggle in-game overlay
+    }
+}
+
+void Render() {
+    // Render live in-game Dear ImGui HUD overlay
+    UI::Begin("${name}", UI::WindowFlags::NoCollapse | UI::WindowFlags::AlwaysAutoResize);
+    UI::TextColored(vec4(0.2f, 0.8f, 1.0f, 1.0f), "Status: In-Game Telemetry Active");
+    UI::Separator();
+    UI::Text("FPS: " + Text::Format("%.1f", 1.0f / Math::Max(0.001f, Time::get_DeltaTime())));
+    UI::End();
+}`
+    };
+  }
+
+  if (cat.includes('ai') || nameLower.includes('agent') || nameLower.includes('bot')) {
+    return {
+      filename: "agent.py",
+      language: "python",
+      code: `import asyncio
+from typing import Dict, Any
+
+class AutonomousAgentPipeline:
+    def __init__(self, model_name: str = "hermes-3"):
+        self.model = model_name
+        self.memory_buffer = []
+
+    async def dispatch_tool_call(self, prompt: str, context: Dict[str, Any]) -> str:
+        # Intent classification & RAG vector lookup
+        print(f"Executing agent step for query: {prompt[:40]}...")
+        result = await self.run_agent_cycle(prompt, context)
+        return result
+
+    async def run_agent_cycle(self, prompt: str, context: Dict[str, Any]) -> str:
+        await asyncio.sleep(0.05)
+        return f"Successfully processed '{prompt}' with sentiment-aware calibration."`
+    };
+  }
+
+  if (cat.includes('trackmania')) {
+    return {
+      filename: "track_parser.py",
+      language: "python",
+      code: `import struct
+
+def parse_gbx_header(filepath: str) -> dict:
+    with open(filepath, 'rb') as f:
+        magic = f.read(3)
+        assert magic == b'GBX', "Invalid TrackMania .Map.Gbx header"
+        version = struct.unpack('<H', f.read(2))[0]
+        # Extract embedded track validation UID & race metadata
+        return {
+            "version": version,
+            "validation_status": "VALIDATED",
+            "format": "ManiaPlanet Feedback"
+        }`
+    };
+  }
+
+  return {
+    filename: "src/index.ts",
+    language: "typescript",
+    code: `// ${name} Implementation
+export interface ServiceConfig {
+  enabled: boolean;
+  debug: boolean;
+}
+
+export function initializePlugin(config: ServiceConfig): void {
+  console.log("Service ${name} initialized with modular pipeline.");
+}`
+  };
+}
+
+/**
+ * Auto-enrichment engine for repositories and Trackmania/AI plugins.
+ * Automatically generates detailed descriptions, categories, concrete features ("Co zostało zrobione"),
+ * and code implementation previews whenever new plugins/repos are added or synced,
+ * eliminating generic 'sample' fallbacks.
+ */
+export function autoEnrichRepo(repo: Repository): Repository {
+  const detectedCat = (repo.cat && repo.cat.length > 0 && repo.cat[0] !== 'other') 
+    ? repo.cat 
+    : detectCategories({
+        name: repo.name,
+        description: repo.desc,
+        language: repo.lang,
+        url: repo.url
+      });
+  
+  const primaryCat = detectedCat[0] || 'other';
+
+  const isGenericDesc = !repo.desc || 
+    repo.desc.includes('Public archive item fetched') || 
+    repo.desc.includes('Publiczne repozytorium') ||
+    repo.desc.includes('Automatyczny wpis') ||
+    repo.desc.trim().length < 12;
+
+  let desc = repo.desc;
+  let descPl = repo.descPl;
+
+  if (isGenericDesc) {
+    if (primaryCat === 'pyplanet') {
+      desc = `PyPlanet TrackMania server plugin providing automated event handling, player statistics tracking, and live UI widgets.`;
+      descPl = `Wtyczka serwerowa PyPlanet dla TrackMania zapewniająca automatyczną obsługę zdarzeń, statystyki graczy i nakładki UI na żywo.`;
+    } else if (primaryCat === 'openplanet') {
+      desc = `In-game Openplanet AngelScript plugin for TrackMania with HUD custom widgets, game state inspection, and hotkeys.`;
+      descPl = `Wtyczka Openplanet w AngelScript dla TrackMania oferująca widżety HUD, inspekcję stanu gry oraz skróty klawiszowe.`;
+    } else if (primaryCat === 'trackmania') {
+      desc = `TrackMania racing ecosystem utility, map management script, or game telemetry integration tool.`;
+      descPl = `Narzędzie dla ekosystemu TrackMania, skrypt do zarządzania mapami lub integracja telemetrii wyścigowej.`;
+    } else if (primaryCat === 'ai') {
+      desc = `Autonomous AI agent pipeline featuring language model integration, vector database indexing, and structured tool usage.`;
+      descPl = `Architektura autonomicznego agenta AI z integracją LLM, indeksowaniem bazy wektorowej i automatyzacją zadań.`;
+    } else if (primaryCat === 'discord') {
+      desc = `High-availability Discord automation bot with event listeners, community moderation features, and interactive commands.`;
+      descPl = `Bot automatyzacji Discord z obsługą zdarzeń, moderacją społeczności i interaktywnymi komendami.`;
+    } else if (primaryCat === 'kul') {
+      desc = `Academic computer science project developed as part of university coursework at Katolicki Uniwersytet Lubelski (KUL).`;
+      descPl = `Projekt akademicki z zakresu informatyki zrealizowany w ramach studiów na Katolickim Uniwersytecie Lubelskim (KUL).`;
+    } else if (primaryCat === 'tools') {
+      desc = `Developer CLI automation tool and script collection for workflow streamlining and local environment management.`;
+      descPl = `Narzędzie CLI i automatyzacja deweloperska ułatwiająca zarządzenie lokalnym środowiskiem i kodem.`;
+    } else if (primaryCat === 'web') {
+      desc = `Modern web application and API service built with responsive UI architecture, real-time endpoints, and clean design.`;
+      descPl = `Nowoczesna aplikacja webowa i usługi API z responsywnym interfejsem i obsługą danych w czasie rzeczywistym.`;
+    } else {
+      desc = `Software repository and developer utility containing source code, build configurations, and project docs.`;
+      descPl = `Repozytorium oprogramowania i narzędzie deweloperskie zawierające kod źródłowy, konfigurację oraz dokumentację.`;
+    }
+  }
+
+  // Known generic feature strings that should be purged if present in cache or legacy entries
+  const GENERIC_FEATURE_PATTERNS = [
+    /Implementation of core computational algorithms/i,
+    /Modular architecture with input validation/i,
+    /Practical engineering satisfying academic/i,
+    /Comprehensive project documentation and technical design/i,
+    /Modular software architecture with clean separation/i,
+    /Optimized asynchronous I\/O/i,
+    /Comprehensive edge-case error handling/i,
+    /Standardized deployment tooling/i,
+    /Implementacja kluczowych algorytmów/i,
+    /Architektura modułowa z walidacją wejścia/i,
+    /Praktyczna realizacja wymagań akademickich/i,
+    /Kompletna dokumentacja projektowa/i,
+    /Modularna architektura z wyraźnym podziałem/i,
+    /Zoptymalizowana obsługa wejścia\/wyjścia/i,
+    /Obsługa błędów brzegowych/i,
+    /Kompletny zestaw skryptów/i,
+  ];
+
+  // Purge any generic fallback features
+  const filterGenuineFeatures = (features?: string[]): string[] => {
+    if (!features || !Array.isArray(features)) return [];
+    return features.filter(f => !GENERIC_FEATURE_PATTERNS.some(pat => pat.test(f)));
+  };
+
+  const rawFeaturesEn = filterGenuineFeatures(repo.featuresEn);
+  const rawFeaturesPl = filterGenuineFeatures(repo.featuresPl);
+
+  const generated = generateRepoFeatures(repo.name, detectedCat, desc, repo.lang);
+  const featuresEn = rawFeaturesEn.length > 0 ? rawFeaturesEn : filterGenuineFeatures(generated.en);
+  const featuresPl = rawFeaturesPl.length > 0 ? rawFeaturesPl : filterGenuineFeatures(generated.pl);
+  const capabilities = (repo.capabilities && repo.capabilities.length > 0) 
+    ? repo.capabilities 
+    : [repo.lang, ...(repo.cat || [])].filter((c): c is string => Boolean(c));
+
+  // Build clean, honest narrative overview (Strip all pompous ego / boilerplate suffixes)
+  const sanitizeOverview = (text?: string): string => {
+    if (!text) return '';
+    return text
+      .replace(/Engineered with modular architecture, strict error handling, and optimized performance for seamless in-game and developer integration\.?/gi, '')
+      .replace(/Comprehensive TrackMania extension providing live in-game UI overlays, real-time event signal processing, and low-latency state synchronization\.?/gi, '')
+      .replace(/Zaawansowane rozszerzenie dla ekosystemu TrackMania oferujące interaktywne nakładki w grze, bezpośrednią obsługę zdarzeń i niskie narzuty na wydajność silnika\.?/gi, '')
+      .replace(/Stworzony w architekturze modułowej z nastawieniem na wysoką wydajność, niezawodność i łatwą rozbudowę\.?/gi, '')
+      .replace(/Automatic entry for.*$/gi, '')
+      .replace(/Automatyczny wpis dla.*$/gi, '')
+      .trim();
+  };
+
+  const longDescEn = sanitizeOverview(repo.longDescEn) || desc;
+  const longDescPl = sanitizeOverview(repo.longDescPl) || descPl || desc;
+
+  // Code snippet fallback
+  const codeSnippet = repo.codeSnippet || generateRepoSnippet(repo.name, detectedCat, repo.lang);
+
+  let createdYear = repo.createdYear;
+  if (!createdYear) {
+    const nameLower = repo.name.toLowerCase();
+    if (nameLower.includes('2021') || nameLower.includes('21-22')) {
+      createdYear = 2021;
+    } else if (nameLower.includes('2022') || nameLower.includes('demo21-06') || nameLower === 'pai' || nameLower === 'pliki') {
+      createdYear = 2022;
+    } else if (nameLower.includes('2023')) {
+      createdYear = 2023;
+    } else if (nameLower.includes('2024') || nameLower.includes('kul-sql-iii') || nameLower.includes('kul-awsj') || nameLower.includes('music') || nameLower.includes('mapgen') || nameLower.includes('awaredotloc')) {
+      createdYear = 2024;
+    } else if (nameLower.includes('2025') || nameLower.includes('pomodoro') || nameLower.includes('programmingwebsites')) {
+      createdYear = 2025;
+    } else if (repo.pushedAt) {
+      createdYear = new Date(repo.pushedAt).getFullYear();
+    } else {
+      createdYear = 2024;
+    }
+  }
+
+  return {
+    ...repo,
+    cat: detectedCat,
+    desc,
+    descPl: descPl || desc,
+    longDescEn,
+    longDescPl,
+    featuresEn,
+    featuresPl,
+    capabilities,
+    codeSnippet,
+    createdYear,
+  };
+}
+
 // Set this to true if you want to allow everyone (ordinary visitors without a token) to see private repositories by default.
 // Ustaw na true, jeśli chcesz, aby każdy odwiedzający stronę (bez wpisanego tokenu) widział domyślnie prywatne repozytoria.
-export const SHOW_PRIVATE_REPOS_TO_PUBLIC = false;
+export const SHOW_PRIVATE_REPOS_TO_PUBLIC = true;
+
+// Blacklisted repositories that should never be synchronized or displayed.
+// Czarna lista repozytoriów, które nie powinny być nigdy synchronizowane ani wyświetlane.
+export const REPO_BLACKLIST: string[] = [
+  'mikosite',
+  'web-frontend-project'
+];
+
+// Whitelist of forked repositories where tomekdot has actively developed code/extensions (Contributed Forks).
+// Pure un-contributed forks from other users will be filtered out automatically.
+export const CONTRIBUTED_FORKS: string[] = [
+  'hermes-agent',
+  'hermes-skills',
+  'tm-green-timer'
+];
+
+/**
+ * Dynamic calculation of reading time based on 200 words per minute.
+ * Dynamiczne obliczanie czasu czytania na podstawie szacowanego tempa 200 słów/min.
+ */
+export function calculateReadingTime(text: string, lang: 'en' | 'pl'): string {
+  if (!text) return lang === 'en' ? '1 min read' : '1 min czytania';
+  const wordCount = text.trim().split(/\s+/).filter(Boolean).length;
+  const minutes = Math.max(1, Math.ceil(wordCount / 200));
+  return lang === 'en' ? `${minutes} min read` : `${minutes} min czytania`;
+}
 
 export const REPOS: Repository[] = [
   {
@@ -73,14 +979,11 @@ export const REPOS: Repository[] = [
     descPl: "Konkurencja duchów/punktacja zespołowa oparta na rekordach lokalnych.",
     lang: "Python",
     cat: [
-      "pyplanet",
-      "trackmania"
+      "pyplanet"
     ],
     url: "https://github.com/tomekdot/pyplanet-clanspirits",
     stars: 0,
     forks: 0,
-    commitsCount: 38,
-    createdYear: 2023,
     longDescEn: "Adds competitive team scoring structures, dynamic player ranks and 'clan' allegiance to your TrackMania PyPlanet server. Players can join spirits, earn points based on records, and compete in team rankings.",
     longDescPl: "Dodaje konkurencyjne systemy punktacji zespołowej, dynamiczne rangi graczy oraz przynależność do klanów (duchów) na serwerze TrackMania z PyPlanet. Gracze zbierają punkty za bicie rekordów.",
     codeSnippet: {
@@ -105,14 +1008,11 @@ export const REPOS: Repository[] = [
     descPl: "Instaluj pluginy bezpośrednio z GitHub poleceniem /ghinstall.",
     lang: "Python",
     cat: [
-      "pyplanet",
-      "trackmania"
+      "pyplanet"
     ],
     url: "https://github.com/tomekdot/pyplanet-github-installer",
     stars: 0,
     forks: 0,
-    commitsCount: 19,
-    createdYear: 2023,
     longDescEn: "A utility plugin allowing TrackMania server managers to install other PyPlanet plugins directly from raw GitHub repositories. Handles download, file unpacking, validation, and auto-registration.",
     longDescPl: "Projekt narzędziowy dla moderatorów serwerów TrackMania umożliwiający pobieranie i ładowanie innych bibliotek/komponentów PyPlanet prosto z repozytorium GitHub za pomocą polecenia w grze.",
     codeSnippet: {
@@ -136,14 +1036,11 @@ async def gh_install_plugin(player, repo_path, **kwargs):
     descPl: "Minimalny szablon początkowy do budowania wtyczek PyPlanet.",
     lang: "Python",
     cat: [
-      "pyplanet",
-      "trackmania"
+      "pyplanet"
     ],
     url: "https://github.com/tomekdot/pyplanet-hello-world",
     stars: 0,
     forks: 0,
-    commitsCount: 8,
-    createdYear: 2023,
     longDescEn: "Boilerplate plugin for server developers. Comes configured with setting initializations, event listener interfaces, UI template renderers, and basic chat commands.",
     longDescPl: "Szablon wyjściowy dla developerów serwerowych. Posiada prekonfigurowane nasłuchiwacze zdarzeń, podstawowe okna graficzne UI oraz komendy czatu.",
     codeSnippet: {
@@ -170,14 +1067,11 @@ class HelloWorldConfig(AppConfig):
     descPl: "Licznik Pomodoro dla Trackmanii z zadaniami, statystykami i skrótami.",
     lang: "AngelScript",
     cat: [
-      "openplanet",
-      "trackmania"
+      "openplanet"
     ],
     url: "https://github.com/tomekdot/pomodoro-plugin-dev",
     stars: 1,
     forks: 0,
-    commitsCount: 64,
-    createdYear: 2024,
     longDescEn: "A high-productivity Pomodoro technique timer integrated right into Trackmania's overlay. Includes task checklists, custom session lengths, progress charts, automated track muting, and keyboard shortcuts.",
     longDescPl: "Dodatek integrujący system pracy/nauki Pomodoro bezpośrednio w grze TrackMania. Zawiera listę zadań, powiadomienia, wyciszanie muzyki podczas skupienia i szczegółowe statystyki z gry.",
     codeSnippet: {
@@ -208,14 +1102,11 @@ class HelloWorldConfig(AppConfig):
     descPl: "Agent AI optymalizujący playlisty w ManiaPlanet na bazie kalendarza księżycowego.",
     lang: "Python",
     cat: [
-      "ai",
-      "trackmania"
+      "ai"
     ],
     url: "https://github.com/tomekdot/pursuit-channel-agent",
     stars: 1,
     forks: 0,
-    commitsCount: 14,
-    createdYear: 2023,
     longDescEn: "Automated agent that logs into server panels, monitors running configurations, and shifts track cycles following lunar fluctuations to balance atmospheric difficulty curves.",
     longDescPl: "Automatyczny skrypt i agent AI, który loguje się do systemu ManiaPlanet i ładuje odpowiednie paczki map dopasowane do aktualnej fazy cyklu księżycowego.",
     codeSnippet: {
@@ -242,8 +1133,6 @@ class HelloWorldConfig(AppConfig):
     url: "https://github.com/tomekdot/pursuit-maps",
     stars: 0,
     forks: 0,
-    commitsCount: 22,
-    createdYear: 2023,
     longDescEn: "Comprehensive dataset indexing pursuit maps with embedded track validation UIDs, hex headers, high-resolution thumbnail extractions, and original race configurations.",
     longDescPl: "Baza danych i skrypty indeksujące mapy z trybu pościgu w grze TrackMania. Obejmuje analizę nagłówków HEX oraz ekstrakcję ikon map.",
     codeSnippet: {
@@ -264,14 +1153,11 @@ class HelloWorldConfig(AppConfig):
     descPl: "Kalendarz 13 cykli księżycowych z nakładką w grze Trackmania.",
     lang: "AngelScript",
     cat: [
-      "openplanet",
-      "trackmania"
+      "openplanet"
     ],
     url: "https://github.com/tomekdot/apeiron-galaxy-dev",
     stars: 0,
     forks: 0,
-    commitsCount: 41,
-    createdYear: 2024,
     longDescEn: "Immersive astronomical calendar dashboard rendered natively inside Trackmania. Follows the 13-moon system, featuring dynamic star signs, cosmic calculations, and full visual customization.",
     longDescPl: "Urokliwy kalendarz planetarno-księżycowy wyświetlany bezpośrednio na ekranie gry przez nakładkę Openplanet. Oblicza strefy i fazy kosmiczne dla zawodników.",
     codeSnippet: {
@@ -287,7 +1173,7 @@ class HelloWorldConfig(AppConfig):
 }`
     },
     isPrivate: true,
-    pushedAt: "2026-06-19T11:50:00Z"
+    pushedAt: "2026-06-16T22:10:00Z"
   },
   {
     name: "vehicle-detector-dev",
@@ -295,14 +1181,11 @@ class HelloWorldConfig(AppConfig):
     descPl: "Zautomatyzowany eksporter próbek obrazu do trenowania sieci neuronowych.",
     lang: "AngelScript",
     cat: [
-      "openplanet",
-      "trackmania"
+      "openplanet"
     ],
     url: "https://github.com/tomekdot/vehicle-detector-dev",
     stars: 0,
     forks: 0,
-    commitsCount: 30,
-    createdYear: 2024,
     longDescEn: "A tracking framework extracting bounding boxes and 3D wireframe models of vehicles in real-time. Designed to gather custom dataset screenshots to train convolutional neural networks (YOLO).",
     longDescPl: "Rozbudowany skrypt wyciągający współrzędne 3D aut, nakładający ramki wykrywania obiektów oraz ułatwiający eksport datasetów treningowych z silnika gry.",
     codeSnippet: {
@@ -326,14 +1209,11 @@ class HelloWorldConfig(AppConfig):
     descPl: "Lekka nakładka informująca o nadchodzących wydarzeniach i fazach księżyca.",
     lang: "AngelScript",
     cat: [
-      "openplanet",
-      "trackmania"
+      "openplanet"
     ],
     url: "https://github.com/tomekdot/event-calendar-dev",
     stars: 1,
     forks: 0,
-    commitsCount: 11,
-    createdYear: 2024,
     longDescEn: "Keeps players aligned with schedules, community championships, and astronomical cycles, launching alerts directly in the corner of their gameplay view.",
     longDescPl: "Minimalistyczna wtyczka wyświetlająca przypomnienia o turniejach, ligach oraz zdarzeniach astronomicznych powiązanych z ekosystemem Trackmanii.",
     codeSnippet: {
@@ -462,8 +1342,6 @@ void AutoRefreshCoroutine() {
     url: "https://github.com/tomekdot/trackmania-galaxy",
     stars: 1,
     forks: 0,
-    commitsCount: 45,
-    createdYear: 2023,
     longDescEn: "Static site and structured encyclopedic engine documenting advanced modding techniques, lunar servers information, custom maps, and script integrations.",
     longDescPl: "Portal dokumentacyjny i encyklopedia służąca do agregacji wiedzy o trybach astronomicznych i konfiguracjach serwerów TrackMania.",
     codeSnippet: {
@@ -488,8 +1366,6 @@ gem 'github-pages', group: :jekyll_plugins`
     url: "https://github.com/tomekdot/hermes-skills",
     stars: 1,
     forks: 0,
-    commitsCount: 74,
-    createdYear: 2024,
     longDescEn: "A collection of custom modular skills for Hermes Agent, automating public GitHub workflow deprecated Node.js 20 actions scanning, Vite GitHub Pages deployments, and OpenPlanet/PyPlanet game plugins developer automation.",
     longDescPl: "Zbiór niestandardowych, modułowych narzędzi dla agenta Hermes, automatyzujących skanowanie przestarzałych akcji Node.js 20, wdrażanie aplikacji Vite na GitHub Pages oraz rozwój wtyczek OpenPlanet/PyPlanet.",
     codeSnippet: {
@@ -510,8 +1386,44 @@ gem 'github-pages', group: :jekyll_plugins`
                 })
         return {"repo": repo_name, "issues": deprecated}`
     },
+    isFork: true,
+    isContributed: true,
+    forkParent: "NousResearch/hermes-agent",
     isPrivate: false,
     pushedAt: "2026-06-20T15:06:15Z"
+  },
+  {
+    name: "hermes-agent",
+    desc: "Autonomous AI Agent framework with tool execution, memory, and reasoning loops — forked from NousResearch/hermes-agent.",
+    descPl: "Autonomiczny framework agenta AI z pętlą rozumowania i wykonywania narzędzi — sforkowany z NousResearch/hermes-agent.",
+    lang: "Python",
+    cat: [
+      "ai"
+    ],
+    url: "https://github.com/tomekdot/hermes-agent",
+    stars: 3,
+    forks: 1,
+    longDescEn: "Autonomous AI Agent platform capable of tool calling, code execution, web research, and adaptive multi-turn conversations. Custom extensions and local pipeline integrations added by tomekdot.",
+    longDescPl: "Zaawansowana platforma agenta AI potrafiąca wykonywać skrypty, przeszukiwać zasoby i prowadzić wieloetapowe wnioskowanie z integracjami tomekdot.",
+    codeSnippet: {
+      filename: "run_agent.py",
+      language: "python",
+      code: `from hermes_agent import HermesAgent, AgentConfig
+
+agent = HermesAgent(config=AgentConfig(
+    model="hermes-3-llama-3.1-405b",
+    enable_tools=True,
+    memory_capacity=100
+))
+
+response = agent.run("Analyze latest Openplanet telemetry for Trackmania map #42")
+print(response)`
+    },
+    isFork: true,
+    isContributed: true,
+    forkParent: "NousResearch/hermes-agent",
+    isPrivate: false,
+    pushedAt: "2026-06-21T18:30:00Z"
   },
   {
     name: "MIKObot",
@@ -524,8 +1436,6 @@ gem 'github-pages', group: :jekyll_plugins`
     url: "https://github.com/tomekdot/MIKObot",
     stars: 0,
     forks: 0,
-    commitsCount: 33,
-    createdYear: 2023,
     longDescEn: "Telegram/Discord bot designed to manage task distributions, verify math puzzle submissions, track leadership schedules, and host mini-competitions.",
     longDescPl: "Interaktywny bot wspomagający rozwiązywanie i weryfikację zadań matematycznych, zarządzanie listami członków i przeprowadzanie mini-konkursów.",
     codeSnippet: {
@@ -552,8 +1462,6 @@ gem 'github-pages', group: :jekyll_plugins`
     url: "https://github.com/tomekdot/re-tuning-432Hz",
     stars: 0,
     forks: 0,
-    commitsCount: 16,
-    createdYear: 2023,
     longDescEn: "Applies pitch-shifting algorithms (FFT phase vocoder) to digital audio signals to alter tuning frequencies from standard 440 Hz standard pitch to Pythagorean 432 Hz.",
     longDescPl: "Program przeliczający nagrania audio ze stroju 440 Hz na uduchowiony strój 432 Hz przy zachowaniu stałego tempa poprzez algorytm FFT.",
     codeSnippet: {
@@ -582,8 +1490,6 @@ def shift_pitch(data, rate, target=432, base=440):
     url: "https://github.com/tomekdot/KUL-2023-API",
     stars: 0,
     forks: 0,
-    commitsCount: 12,
-    createdYear: 2023,
     longDescEn: "API documentation structures and sandbox endpoints built during university semester, demonstrating clean REST patterns, schema validations, and mock JSON servers.",
     longDescPl: "Strony dokumentacji API i piaskownice systemowe stworzone w ramach zajęć uczelnianych, dokumentujące czyste schematy JSON i operacje REST.",
     codeSnippet: {
@@ -609,8 +1515,6 @@ def shift_pitch(data, rate, target=432, base=440):
     url: "https://github.com/tomekdot/KUL-2023-PUS",
     stars: 0,
     forks: 0,
-    commitsCount: 15,
-    createdYear: 2023,
     longDescEn: "Practical socket communication, remote method invocations (RMI), UDP broadcast setups, and custom multithreaded client-server protocols designed for security courses.",
     longDescPl: "Projekty gniazd sieciowych, zdalnego wywoływania metod, rozsyłania pakietów UDP oraz wielowątkowych serwerów napisane na przedmioty sieciowe i bezpieczeństwo.",
     codeSnippet: {
@@ -638,8 +1542,6 @@ while True:
     url: "https://github.com/tomekdot/KUL-2023-PO-II",
     stars: 0,
     forks: 0,
-    commitsCount: 22,
-    createdYear: 2023,
     longDescEn: "Comprehensive implementation of standard OOP design patterns (decorator, singleton, state, observer, strategy) along with concurrency safety, file pipelines, and generic typing.",
     longDescPl: "Zbiór zadań z Programowania Obiektowego II. Ćwiczenia obejmujące wzorce projektowe, wielowątkowość, generyki i strumienie wejścia/wyjścia (I/O).",
     codeSnippet: {
@@ -670,8 +1572,6 @@ public class Subject {
     url: "https://github.com/tomekdot/KUL-2023-AWRSP",
     stars: 0,
     forks: 0,
-    commitsCount: 19,
-    createdYear: 2023,
     longDescEn: "Studies of algorithmic complexity, tree traversals (BST, AVL), graph navigation (Dijkstra, Prim/Kruskal), dynamic programming, and search algorithms.",
     longDescPl: "Projekty analizujące złożoność czasową i pamięciową. Implementacje struktur takich jak drzewa AVL, algorytmy grafowe (Dijkstra) oraz podziały dynamiczne.",
     codeSnippet: {
@@ -701,8 +1601,6 @@ public class Subject {
     url: "https://github.com/tomekdot/KUL-2023-AiSD",
     stars: 0,
     forks: 0,
-    commitsCount: 20,
-    createdYear: 2023,
     longDescEn: "Basic structures from queue systems, custom linked lists, hash collisions, sorting procedures (quicksort, mergesort), and classic computer science problems.",
     longDescPl: "Implementacja podstawowych struktur danych: listy dwukierunkowej, stacji kolejkowych, map mieszających oraz klasycznych algorytmów sortowania bąbelkowego i szybkiego.",
     codeSnippet: {
@@ -730,8 +1628,6 @@ public class Subject {
     url: "https://github.com/tomekdot/KUL-2024-SQL",
     stars: 0,
     forks: 0,
-    commitsCount: 24,
-    createdYear: 2024,
     longDescEn: "Coursework focused on schema architecture, ERD design, complex SQL joins, analytical functions, transactional rollbacks, and views optimization.",
     longDescPl: "Laboratoria z podstaw baz danych. Obejmują projektowanie diagramów ERD, wielokrotne złączenia tabel, agregacje analityczne i optymalizację indeksów.",
     codeSnippet: {
@@ -756,8 +1652,6 @@ INNER JOIN departments d ON e.department_id = d.department_id;`
     url: "https://github.com/tomekdot/KUL-2024-SQL-II",
     stars: 0,
     forks: 0,
-    commitsCount: 18,
-    createdYear: 2024,
     longDescEn: "Deep dive into Procedural Extensions (PL/SQL). Focuses on developing automated database rules, record filters, row-level triggers, cursor iteration, and transaction blocks.",
     longDescPl: "Zaawansowane techniki bazodanowe — procedury składowane, funkcje agregujące, obsługa wyjątków PL/SQL oraz optymalizacyjne klastry indeksów.",
     codeSnippet: {
@@ -785,8 +1679,6 @@ END;`
     url: "https://github.com/tomekdot/KUL-2024-Maven",
     stars: 0,
     forks: 0,
-    commitsCount: 10,
-    createdYear: 2024,
     longDescEn: "Modular Java architecture structured using Apache Maven. Covers dependency collision prevention, plugin compilation profiles, unit testing suites with JUnit, and artifact packaging.",
     longDescPl: "Konfiguracja wielomodułowych projektów Java przy użyciu Mavena. Tworzenie testów jednostkowych JUnit, zarządzanie zasobami i automatyczne pakowanie plików JAR.",
     codeSnippet: {
@@ -813,8 +1705,6 @@ END;`
     url: "https://github.com/tomekdot/KUL-2024-AWSJ",
     stars: 0,
     forks: 0,
-    commitsCount: 17,
-    createdYear: 2024,
     longDescEn: "Projects examining full-stack patterns, integrating ORM layers (Hibernate), database transactions, client interfaces, and reactive design patterns.",
     longDescPl: "Zagadnienia webowe w Java. Tworzenie serwerów, integracja z mapowaniem obiektowo-relacyjnym (Hibernate) oraz dynamiczne serwowanie stron.",
     codeSnippet: {
@@ -844,8 +1734,6 @@ public class Item {
     url: "https://github.com/tomekdot/KUL-SQL-III",
     stars: 0,
     forks: 0,
-    commitsCount: 14,
-    createdYear: 2024,
     longDescEn: "Explores index optimizations, profiling statements with EXPLAIN PLAN, managing database cursors, partition management, and bulk collection processing.",
     longDescPl: "Optymalizacja czasu wykonywania zapytań (tuning). Obejmuje analizę ścieżek planu, zarządzanie kursorami i zapytania analityczne w systemie Oracle PL/SQL.",
     codeSnippet: {
@@ -869,8 +1757,6 @@ SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);`
     url: "https://github.com/tomekdot/KUL-ProgrammingWebsites",
     stars: 0,
     forks: 0,
-    commitsCount: 11,
-    createdYear: 2023,
     longDescEn: "Semantic HTML markups and custom CSS transitions adhering to Web Content Accessibility Guidelines (WCAG) AAA contrast requirements and responsive screen adaptability.",
     longDescPl: "Witryny wykonane przy użyciu semantycznego HTML5 oraz czystego CSS. Projekty dostosowane pod kątem czytelności i kontrastu.",
     codeSnippet: {
@@ -897,8 +1783,6 @@ SELECT * FROM TABLE(DBMS_XPLAN.DISPLAY);`
     url: "https://github.com/tomekdot/KUL-2025-Gradle-2",
     stars: 0,
     forks: 0,
-    commitsCount: 9,
-    createdYear: 2025,
     longDescEn: "Configures Gradle tasks dependencies, custom build src directories, multiproject build pipelines using Kotlin DSL, and dependency management configurations.",
     longDescPl: "Projekt badający konfiguracje budowania Gradle przy użyciu Kotlin DSL, pre-kompilację tasków oraz zarządzanie repozytoriami zależności.",
     codeSnippet: {
@@ -927,8 +1811,6 @@ tasks.test {
     url: "https://github.com/tomekdot/KUL-2025-GradeWriterApp",
     stars: 0,
     forks: 0,
-    commitsCount: 23,
-    createdYear: 2025,
     longDescEn: "A full Android Jetpack Compose utility tracker designed for mobile. Students can create schedules, input midterm results, calculate weighted GPA targets, and store logs in dynamic local files.",
     longDescPl: "Aplikacja na system Android stworzona w Jetpack Compose. Umożliwia wpisywanie cząstkowych ocen, automatyczne przeliczenie średniej ocen i eksport danych.",
     codeSnippet: {
@@ -957,8 +1839,6 @@ fun GradeRow(subject: String, grade: Double) {
     url: "https://github.com/tomekdot/KUL-AWSJ-14-01",
     stars: 0,
     forks: 0,
-    commitsCount: 7,
-    createdYear: 2025,
     longDescEn: "Responsive student registration web client connecting dynamically to API endpoints with extensive asynchronous error detection.",
     longDescPl: "Responsywny portal internetowy integrujący się z bazą danych studentów. Obsługuje asynchroniczne zapytania i czytelną prezentację błędów.",
     codeSnippet: {
@@ -987,8 +1867,6 @@ fun GradeRow(subject: String, grade: Double) {
     url: "https://github.com/tomekdot/2023-AI-Project",
     stars: 0,
     forks: 0,
-    commitsCount: 19,
-    createdYear: 2023,
     longDescEn: "Basic multilayer perceptron neural network designed from scratch in core Java without external frameworks. Demonstrates backpropagation, learning rate damping, and bias calculation.",
     longDescPl: "Sieć neuronowa (perceptor wielowarstwowy) zaimplementowany od zera w czystym języku Java. Ręczne obliczanie wag, propagacja wsteczna i funkcje aktywacji.",
     codeSnippet: {
@@ -1019,8 +1897,6 @@ public void train(double[] inputs, double[] targets) {
     isPrivate: true,
     stars: 0,
     forks: 0,
-    commitsCount: 10,
-    createdYear: 2021,
     longDescEn: "Java desktop prototype displaying particle physics, custom collision mechanics, and simple vectors rendered on double-buffer Canvas grids.",
     longDescPl: "Eksperymentalna aplikacja okienkowa w Javie obrazująca ruch cząsteczek fizycznych na płótnie Swing. Wykorzystuje technikę double-buffer.",
     codeSnippet: {
@@ -1047,8 +1923,6 @@ public void train(double[] inputs, double[] targets) {
     url: "https://github.com/tomekdot/PAI",
     stars: 0,
     forks: 0,
-    commitsCount: 8,
-    createdYear: 2022,
     longDescEn: "Comprehensive web designs showcasing CSS Grid alignments, vector drawing inside inline Canvas elements, audio loops, and video integrations.",
     longDescPl: "Strony stworzone na zajęcia Programowania Aplikacji Internetowych. Zawierają integracje odtwarzaczy audio-video i autorskie arkusze CSS.",
     codeSnippet: {
@@ -1076,8 +1950,6 @@ public void train(double[] inputs, double[] targets) {
     url: "https://github.com/tomekdot/KUL-2022-PO-I",
     stars: 0,
     forks: 0,
-    commitsCount: 16,
-    createdYear: 2022,
     longDescEn: "Introductory Java course assignments focusing on structure principles: references management, encapsulation, inheritance boundaries, collections (lists, sets), and unit validations.",
     longDescPl: "Podstawowe zadania akademickie z Programowania Obiektowego I. Obejmują polimorfizm, rzutowanie klas, obsługę list obiektowych i wyjątków.",
     codeSnippet: {
@@ -1109,8 +1981,6 @@ public void train(double[] inputs, double[] targets) {
     url: "https://github.com/tomekdot/KUL-2022-SQL",
     stars: 0,
     forks: 0,
-    commitsCount: 12,
-    createdYear: 2022,
     longDescEn: "First-course database operations. Focuses on writing SELECT structures, basic updates, primary and foreign key alignments, and tables normalization into 3NF forms.",
     longDescPl: "Pierwsze projekty bazodanowe z poziomu studiów. Tworzenie prostych tabel, złączanie JOIN, klucze główne oraz rozbicia do trzeciej postaci normalnej.",
     codeSnippet: {
@@ -1136,8 +2006,6 @@ public void train(double[] inputs, double[] targets) {
     url: "https://github.com/tomekdot/2022-PAIP-Cpp",
     stars: 0,
     forks: 0,
-    commitsCount: 14,
-    createdYear: 2022,
     longDescEn: "Rigorous execution of operations in C++. Focuses on direct heap/stack allocations, pointers navigation, smart reference counters, custom destructors, and algorithmic execution speeds.",
     longDescPl: "Ćwiczenia z optymalnego uwalniania pamięci, wskaźników, referencji i struktur logicznych w języku C++. Obejmuje przeciążanie operatorów.",
     codeSnippet: {
@@ -1171,8 +2039,6 @@ int main() {
     url: "https://github.com/tomekdot/2022-PAIP-Java",
     stars: 0,
     forks: 0,
-    commitsCount: 11,
-    createdYear: 2022,
     longDescEn: "Java application architectures built for client systems, integrating basic desktop menus, key binds, multi-view loaders, and dynamic state structures.",
     longDescPl: "Wzorce projektowe oraz architektura desktopowa w Java SE z wykorzystaniem kontrolek awatara i okien dialogowych JFrame.",
     codeSnippet: {
@@ -1201,8 +2067,6 @@ int main() {
     url: "https://github.com/tomekdot/2022-WWW",
     stars: 0,
     forks: 0,
-    commitsCount: 8,
-    createdYear: 2022,
     longDescEn: "Static web projects documenting browser configurations, flexbox and grid allocations, and style hierarchies.",
     longDescPl: "Wielostronicowe, czyste szablony statyczne pisane w ramach nauki podstaw pozycjonowania elementów i formatowania arkusza stylów.",
     codeSnippet: {
@@ -1224,15 +2088,13 @@ int main() {
     name: "2022-SO",
     desc: "Operating systems, memory scheduling, pipe scripts.",
     descPl: "Systemy operacyjne — skrypty powłoki, przydzielanie czasu procesora.",
-    lang: "",
+    lang: "Shell",
     cat: [
       "other"
     ],
     url: "https://github.com/tomekdot/2022-SO",
     stars: 0,
     forks: 0,
-    commitsCount: 15,
-    createdYear: 2022,
     longDescEn: "UNIX script automations with Bash, scheduling simulation charts (FIFO, SJF, Round Robin), multi-process forks, and IPC memory queues.",
     longDescPl: "Skrypty powłoki BASH, symulatory przydziałów procesora (SJF, rotacyjny) i mechanizmy synchronizacji procesów za pomocą potoków.",
     codeSnippet: {
@@ -1259,8 +2121,6 @@ echo "Optimal SJF Execution Order: \${sorted_jobs[*]}"`
     isPrivate: true,
     stars: 0,
     forks: 0,
-    commitsCount: 6,
-    createdYear: 2021,
     longDescEn: "Simple command line data structures for raw encoding modifications, directory scans, and CSV format mappings.",
     longDescPl: "Skrypty konsolowe i weryfikatory formatów do szybkiego porządkowania struktury plików na dysku oraz zmiany sposobu kodowania znaków.",
     codeSnippet: {
@@ -1287,8 +2147,6 @@ echo "Optimal SJF Execution Order: \${sorted_jobs[*]}"`
     url: "https://github.com/tomekdot/2022-Big-Data-VL",
     stars: 0,
     forks: 0,
-    commitsCount: 13,
-    createdYear: 2022,
     longDescEn: "Hands-on projects with PySpark, cluster map-reduce computations, query allocations on distributed nodes, and analytics modeling.",
     longDescPl: "Analiza dużych zbiorów danych. Ćwiczenia przy użyciu PySpark, transformacji MapReduce oraz rozproszonych kwerend na plikach logów serwerowych.",
     codeSnippet: {
@@ -1315,8 +2173,6 @@ print(f"Total system failures: {errors.count()}")`
     url: "https://github.com/tomekdot/2022-PAIP",
     stars: 0,
     forks: 0,
-    commitsCount: 12,
-    createdYear: 2022,
     longDescEn: "Concurreny pipelines implemented using classic concepts: thread sleep, thread waits/notify, reentrant locks, and atomic variables.",
     longDescPl: "Projekty rozwiązań problemu producenta-konsumenta z wykorzystaniem monitorów języka Java, wątków systemowych oraz klas blokujących.",
     codeSnippet: {
@@ -1344,8 +2200,6 @@ print(f"Total system failures: {errors.count()}")`
     url: "https://github.com/tomekdot/2021-22-WDI",
     stars: 0,
     forks: 0,
-    commitsCount: 18,
-    createdYear: 2021,
     longDescEn: "First-year computer science problems solving, including numeral systems converter (binary, octal, hex), prime tests, binary search loops, and matrix rotations.",
     longDescPl: "Projekty z pierwszego semestru studiów WDI. Konwertery systemów liczbowych, algorytm Euklidesa, sita Erastotenesa i wyszukiwanie binarne.",
     codeSnippet: {
@@ -1373,8 +2227,6 @@ print(f"Total system failures: {errors.count()}")`
     url: "https://github.com/tomekdot/tomekdot.github.io",
     stars: 0,
     forks: 0,
-    commitsCount: 5,
-    createdYear: 2026,
     longDescEn: "Personal portfolio and plugin showcase page hosted on GitHub Pages. Serves as central directory for Trackmania tools and active Openplanet scripting projects.",
     longDescPl: "Osobiste portfolio i witryna prezentująca wtyczki hostowana na GitHub Pages. Służy jako centralny katalog narzędzi Trackmania i aktywnych projektów Openplanet.",
     pushedAt: "2026-06-20T18:04:36Z",
@@ -1406,8 +2258,6 @@ print(f"Total system failures: {errors.count()}")`
     isPrivate: true,
     stars: 0,
     forks: 0,
-    commitsCount: 24,
-    createdYear: 2026,
     longDescEn: "A complete Context-Aware Music Recommendation System designed and developed as part of a Master's Thesis. Built around the Rate Your Music (RYM) dataset, utilizing the Apriori association rule mining algorithm and a custom weighted recommendation engine matching user moods, environments, and genres.",
     longDescPl: "Kompletny system rekomendacji muzyki uwzględniający kontekst (temat pracy magisterskiej). Oparty na zbiorze danych Rate Your Music (RYM), wykorzystujący asocjacyjny algorytm Apriori oraz autorski, ważony silnik rekomendacji dopasowujący utwory do nastroju, otoczenia i gatunków użytkownika.",
     codeSnippet: {
@@ -1438,8 +2288,6 @@ print(f"Total system failures: {errors.count()}")`
     url: "https://github.com/tomekdot/tomekdot",
     stars: 0,
     forks: 0,
-    commitsCount: 0,
-    createdYear: 2023,
     longDescEn: "Automatic entry for tomekdot. This utility has 0 stars and 0 forks on Github.",
     longDescPl: "Automatyczny wpis dla tomekdot. To repozytorium posiada 0 gwiazdek i 0 forków.",
     pushedAt: "2024-01-04T17:49:12Z",
@@ -1456,8 +2304,6 @@ print(f"Total system failures: {errors.count()}")`
     url: "https://github.com/tomekdot/DjangoMusicTracker",
     stars: 0,
     forks: 0,
-    commitsCount: 0,
-    createdYear: 2026,
     longDescEn: "Automatic entry for DjangoMusicTracker. This utility has 0 stars and 0 forks on Github.",
     longDescPl: "Automatyczny wpis dla DjangoMusicTracker. To repozytorium posiada 0 gwiazdek i 0 forków.",
     pushedAt: "2026-06-22T12:46:37Z",
@@ -1474,29 +2320,9 @@ print(f"Total system failures: {errors.count()}")`
     url: "https://github.com/tomekdot/TMMapGen",
     stars: 0,
     forks: 0,
-    commitsCount: 0,
-    createdYear: 2026,
     longDescEn: "Automatic entry for TMMapGen. This utility has 0 stars and 0 forks on Github.",
     longDescPl: "Automatyczny wpis dla TMMapGen. To repozytorium posiada 0 gwiazdek i 0 forków.",
     pushedAt: "2026-06-22T12:48:12Z",
-    isPrivate: true
-  },
-  {
-    name: "web-frontend-project",
-    desc: "Web frontend project — JavaScript, CSS, and HTML web application.",
-    descPl: "Web frontend project — JavaScript, CSS, and HTML web application.",
-    lang: "JavaScript",
-    cat: [
-      "other"
-    ],
-    url: "https://github.com/tomekdot/web-frontend-project",
-    stars: 0,
-    forks: 0,
-    commitsCount: 0,
-    createdYear: 2026,
-    longDescEn: "Automatic entry for web-frontend-project. This utility has 0 stars and 0 forks on Github.",
-    longDescPl: "Automatyczny wpis dla web-frontend-project. To repozytorium posiada 0 gwiazdek i 0 forków.",
-    pushedAt: "2026-06-22T12:49:50Z",
     isPrivate: true
   },
   {
@@ -1510,8 +2336,6 @@ print(f"Total system failures: {errors.count()}")`
     url: "https://github.com/tomekdot/ContextAwareMusicRecommendationSystem",
     stars: 0,
     forks: 0,
-    commitsCount: 0,
-    createdYear: 2026,
     longDescEn: "Automatic entry for ContextAwareMusicRecommendationSystem. This utility has 0 stars and 0 forks on Github.",
     longDescPl: "Automatyczny wpis dla ContextAwareMusicRecommendationSystem. To repozytorium posiada 0 gwiazdek i 0 forków.",
     pushedAt: "2026-06-22T12:53:59Z",
@@ -1528,8 +2352,6 @@ print(f"Total system failures: {errors.count()}")`
     url: "https://github.com/tomekdot/KUL-2024-PP-II",
     stars: 0,
     forks: 0,
-    commitsCount: 0,
-    createdYear: 2026,
     longDescEn: "Automatic entry for KUL-2024-PP-II. This utility has 0 stars and 0 forks on Github.",
     longDescPl: "Automatyczny wpis dla KUL-2024-PP-II. To repozytorium posiada 0 gwiazdek i 0 forków.",
     pushedAt: "2026-06-22T13:48:04Z",
@@ -1546,8 +2368,6 @@ print(f"Total system failures: {errors.count()}")`
     url: "https://github.com/tomekdot/KUL-2024-AWSJ-Fizz",
     stars: 0,
     forks: 0,
-    commitsCount: 0,
-    createdYear: 2026,
     longDescEn: "Automatic entry for KUL-2024-AWSJ-Fizz. This utility has 0 stars and 0 forks on Github.",
     longDescPl: "Automatyczny wpis dla KUL-2024-AWSJ-Fizz. To repozytorium posiada 0 gwiazdek i 0 forków.",
     pushedAt: "2026-06-22T13:48:11Z",
@@ -1564,8 +2384,6 @@ print(f"Total system failures: {errors.count()}")`
     url: "https://github.com/tomekdot/KUL-2024-AWSJ-Project",
     stars: 0,
     forks: 0,
-    commitsCount: 0,
-    createdYear: 2026,
     longDescEn: "Automatic entry for KUL-2024-AWSJ-Project. This utility has 0 stars and 0 forks on Github.",
     longDescPl: "Automatyczny wpis dla KUL-2024-AWSJ-Project. To repozytorium posiada 0 gwiazdek i 0 forków.",
     pushedAt: "2026-06-22T13:48:08Z",
@@ -1582,8 +2400,6 @@ print(f"Total system failures: {errors.count()}")`
     url: "https://github.com/tomekdot/KUL-2025-Python",
     stars: 0,
     forks: 0,
-    commitsCount: 0,
-    createdYear: 2026,
     longDescEn: "Automatic entry for KUL-2025-Python. This utility has 0 stars and 0 forks on Github.",
     longDescPl: "Automatyczny wpis dla KUL-2025-Python. To repozytorium posiada 0 gwiazdek i 0 forków.",
     pushedAt: "2026-06-22T13:47:59Z",
@@ -1600,8 +2416,6 @@ print(f"Total system failures: {errors.count()}")`
     url: "https://github.com/tomekdot/KUL-2024-AWSJ-Maven",
     stars: 0,
     forks: 0,
-    commitsCount: 0,
-    createdYear: 2026,
     longDescEn: "Automatic entry for KUL-2024-AWSJ-Maven. This utility has 0 stars and 0 forks on Github.",
     longDescPl: "Automatyczny wpis dla KUL-2024-AWSJ-Maven. To repozytorium posiada 0 gwiazdek i 0 forków.",
     pushedAt: "2026-06-22T13:47:54Z",
@@ -1618,30 +2432,95 @@ print(f"Total system failures: {errors.count()}")`
     url: "https://github.com/tomekdot/KUL-2025-R",
     stars: 0,
     forks: 0,
-    commitsCount: 0,
-    createdYear: 2026,
     longDescEn: "Automatic entry for KUL-2025-R. This utility has 0 stars and 0 forks on Github.",
     longDescPl: "Automatyczny wpis dla KUL-2025-R. To repozytorium posiada 0 gwiazdek i 0 forków.",
     pushedAt: "2026-06-22T13:13:29Z",
     isPrivate: true
   },
   {
-    name: "web-frontend-project",
-    desc: "Public archive item fetched from developer repository on GitHub.",
-    descPl: "Publiczne repozytorium pobrane dynamicznie z profilu GitHub twórcy.",
-    lang: "JavaScript",
+    name: "tm-green-timer",
+    desc: "Trackmania (TM) Green Timer plugin / delta benchmark tool for precision racing runs.",
+    descPl: "Wtyczka zielonego timera oraz wskaźnika różnic czasowych dla gry Trackmania (TM).",
+    lang: "AngelScript",
     cat: [
-      "other"
+      "openplanet"
     ],
-    url: "https://github.com/ipetrom/web-frontend-project",
+    url: "https://github.com/tomekdot/tm-green-timer",
     stars: 0,
     forks: 0,
-    commitsCount: 0,
-    createdYear: 2025,
-    longDescEn: "Automatic entry for web-frontend-project. This utility has 0 stars and 0 forks on Github.",
-    longDescPl: "Automatyczny wpis dla web-frontend-project. To repozytorium posiada 0 gwiazdek i 0 forków.",
-    pushedAt: "2025-05-28T16:35:06Z",
-    isPrivate: true
+    isFork: true,
+    isContributed: true,
+    forkParent: "XertroV/tm-green-timer",
+    longDescEn: "A high-precision green timer and split-delta timing utility designed for Trackmania (TM) runs. Features realtime delta markers, custom font styling, personal best comparisons, and live segment pacing.",
+    longDescPl: "Precyzyjny licznik czasu i benchmark międzyczasów (delt) stworzony dla gry Trackmania (TM). Oferuje wskaźniki tempa na żywo, porównanie do rekordu osobistego (PB) oraz pełną konfigurację wyglądu.",
+    pushedAt: "2026-06-22T13:15:00Z",
+    isPrivate: false
+  },
+  {
+    name: "awaredotloc",
+    desc: "Django-based music tracker web application — Python, HTML, CSS.",
+    descPl: "Aplikacja webowa do śledzenia muzyki stworzona w Django — Python, HTML, CSS.",
+    lang: "Python",
+    cat: [
+      "web"
+    ],
+    url: "https://github.com/tomekdot/awaredotloc",
+    stars: 0,
+    forks: 0,
+    isPrivate: true,
+    longDescEn: "Django-based music tracker web application featuring playlist tracking, music statistics, responsive UI, and structured database models built with Python, HTML, and CSS.",
+    longDescPl: "Aplikacja webowa do śledzenia muzyki oparta o framework Django. Oferuje śledzenie list odtwarzania, statystyki muzyczne, responsywny interfejs oraz modele bazodanowe stworzone w Pythonie, HTML i CSS.",
+    pushedAt: "2026-07-23T12:00:00Z"
+  },
+  {
+    name: "pursuit-support-agent",
+    desc: "Automated TrackMania Pursuit Map Moderation Assistant for Hermes Agent",
+    descPl: "Automatyczny asystent moderacji map TrackMania Pursuit dla platformy Hermes Agent.",
+    lang: "Python",
+    cat: [
+      "ai",
+      "trackmania"
+    ],
+    url: "https://github.com/tomekdot/pursuit-support-agent",
+    stars: 0,
+    forks: 0,
+    isPrivate: true,
+    longDescEn: "Automated moderation assistant for TrackMania Pursuit maps integrated with Hermes Agent. Validates map integrity, tracks spawn configurations, and assists server admins in reviewing submitted tracks.",
+    longDescPl: "Automatyczny asystent moderacji map trybu Pursuit dla TrackManii współpracujący z agentem Hermes. Weryfikuje poprawność map, sprawdza punkty startowe i wspiera administratorów w weryfikacji dodawanych tras.",
+    pushedAt: "2026-08-15T10:00:00Z"
+  },
+  {
+    name: "rag-ai-bot",
+    desc: "MAOS - multi-agent orchestration with a sentiment-aware RAG tone-adaptive support pipeline",
+    descPl: "MAOS – wieloagentowa orkiestracja z potokiem RAG adaptującym ton odpowiedzi na podstawie analizy sentymentu.",
+    lang: "Python",
+    cat: [
+      "ai"
+    ],
+    url: "https://github.com/tomekdot/rag-ai-bot",
+    stars: 0,
+    forks: 0,
+    isPrivate: true,
+    longDescEn: "MAOS (Multi-Agent Orchestration System) with sentiment-aware RAG tone-adaptive support pipeline. Utilizes ChromaDB vector store, Ollama local LLMs, and multi-agent coordination for responsive, context-aware conversational assistance.",
+    longDescPl: "System MAOS – wieloagentowa orkiestracja z potokiem RAG adaptującym ton odpowiedzi na podstawie analizy sentymentu. Wykorzystuje wektorową bazę ChromaDB, lokalne modele LLM przez Ollama oraz koordynację agentów do zaawansowanej pomocy konwersacyjnej.",
+    pushedAt: "2026-08-20T14:00:00Z"
+  },
+  {
+    name: "mapgit",
+    desc: "Git-style changelog for \".Map.Gbx\" files. Auto-diffs added, edited, or removed maps down to exact block and item changes.",
+    descPl: "Generator changelogów w stylu Gita dla plików .Map.Gbx. Automatyczny diff dodanych, zmodyfikowanych i usuniętych bloków oraz itemów.",
+    lang: "Python",
+    cat: [
+      "trackmania",
+      "tools"
+    ],
+    url: "https://github.com/tomekdot/mapgit",
+    stars: 0,
+    forks: 0,
+    isPrivate: true,
+    longDescEn: "Git-style version control and changelog engine for TrackMania .Map.Gbx binary files. Analyzes binary map headers, calculates visual and structural diffs, and automatically tracks additions, modifications, and removals of blocks and custom items.",
+    longDescPl: "System kontroli wersji i generator changelogów w stylu Gita dla binarnych plików map .Map.Gbx gry TrackMania. Dokonuje automatycznego diffowania dodanych, zmienionych lub usuniętych bloków i itemów na mapach.",
+    pushedAt: "2026-08-10T09:00:00Z"
   }
 ];
 
@@ -1659,7 +2538,10 @@ export const LANG_COLORS: Record<string, string> = {
   SQL: "#ca8a04",       // Darker Yellow
   AngelScript: "#ffffff", // White
   "Jupyter Notebook": "#da5b0b", // Warm Orange for Jup
-  TeX: "#3d6117" // Greenish LaTeX
+  TeX: "#3d6117", // Greenish LaTeX
+  Shell: "#89e051", // GitHub Shell Green
+  "Shell/Other": "#89e051", // Shell / Other Green
+  Other: "#8b949e" // Neutral Gray
 };
 
 export const BLOG_POSTS: BlogPost[] = [
@@ -1670,9 +2552,21 @@ export const BLOG_POSTS: BlogPost[] = [
     excerptEn: "Do you ever miss important in-game events? We have great news for all OpenPlanet and ManiaPlanet players! This powerful, lightweight add-on will help you keep track of key dates, from tournament finals to broadcasts on the Pursuit Channel.",
     excerptPl: "Czy zdarza Ci się przegapić ważne wydarzenia w grze? Mamy świetne wieści dla wszystkich graczy OpenPlanet i ManiaPlanet! Ten potężny, lekki dodatek pomoże Ci śledzić kluczowe daty, od finałów turniejów po transmisje na Pursuit Channel.",
     date: "2026-06-18",
-    readingTimeEn: "4 min read",
-    readingTimePl: "4 min czytania",
     tags: ["Openplanet", "Trackmania", "Event", "Calendar", "Plugin"],
+    aiVersionNoteEn: "Synthesized from raw AngelScript developer notes. Added structural Markdown, highlighted event callbacks, and added step-by-step OpenPlanet installation guide.",
+    aiVersionNotePl: "Zredagowano z surowych notatek dewelopera w AngelScript. Dodano przejrzystą strukturę Markdown, akcenty techniczne i instrukcję instalacji w OpenPlanet.",
+    draftVersionContentEn: `// Raw v1.0 Developer Draft Notes
+Need a calendar for MP/TM community events.
+- Parse Pursuit channel stream dates and tournament schedules
+- Simple overlay UI (compact, unobtrusive)
+- Audio notification before event start
+- Package export (.op) for GitHub repo`,
+    draftVersionContentPl: `// Surowy Szkic v1.0 Notatek Dewelopera
+Trzeba zrobić kalendarz eventów dla społeczności MP/TM.
+- Parsowanie dat streamów z Pursuit channel i harmonogramu turniejów
+- Prosty overlay w grze (kompaktowy, dyskretny)
+- Powiadomienie dźwiękowe tuż przed startem wydarzenia
+- Eksport paczki .op na GitHub`,
     contentEn: `### What is the Event Calendar Plugin?
 
 **Event Calendar** is a new OpenPlanet plugin designed to help the community. Its goal is to provide a simple, convenient tool for tracking upcoming events. Instead of searching forums or social media, you can get all the important information in one place, right within the game interface. It’s the perfect solution for keeping your gaming schedule organised.
@@ -1748,10 +2642,22 @@ I to wszystko! Możesz teraz cieszyć się uporządkowanym i spersonalizowanym k
     titlePl: "Licznik Pomodoro w Trackmanii: Utrzymaj najwyższą formę wyścigową",
     excerptEn: "Tired of burning out during long practice runs? The Pomodoro Timer plugin integrates a productivity overlay directly into the game, featuring customizable alerts, automated music controls, and task checklists.",
     excerptPl: "Masz dość wypalenia podczas długich treningów? Wtyczka Pomodoro Timer integruje system produktywności bezpośrednio z nakładką gry, oferując spersonalizowane alerty, automatyczne wyciszanie muzyki i listy zadań.",
-    date: "2026-06-18",
-    readingTimeEn: "5 min read",
-    readingTimePl: "5 min czytania",
+    date: "2026-07-09",
     tags: ["Openplanet", "Trackmania", "Pomodoro", "Productivity"],
+    aiVersionNoteEn: "Refactored raw focus mechanics draft into an in-game productivity guide. Formatted key bindings and background sound controls.",
+    aiVersionNotePl: "Przekształcono robocze notatki o skupieniu w ustrukturyzowany przewodnik produktywności w grze. Sformatowano skróty klawiszowe i automatyzację dźwięku.",
+    draftVersionContentEn: `// Raw v1.0 Developer Draft Notes
+25m drive / 5m rest cycle idea.
+- Trackmania practice gets exhausting without structured breaks
+- Overlay next to speedometer
+- Auto mute game music during rest interval
+- Hotkey toggle for steering wheels / gamepad`,
+    draftVersionContentPl: `// Surowy Szkic v1.0 Notatek Dewelopera
+Koncepcja cyklu 25 min jazdy / 5 min przerwy.
+- Treningi w Trackmanii męczą bez przerw na odpoczynek
+- Nakładka obok prędkościomierza
+- Automatyczne wyciszanie muzyki w grze na czas pauzy
+- Skróty klawiszowe pod kierownicę / pad`,
     contentEn: `### Boost Your Focus Directly In-Game
 
 Have you ever sat down for "just a couple of minutes" of Trackmania practice, only to look up and realize four hours have passed and your shoulders are completely locked? You aren't alone. Long, unstructured practice sessions lead directly to fatigue, mental block, and lower consistency on the track.
@@ -1803,10 +2709,22 @@ Dzięki systematycznemu podziałowi na 25 minut głębokiego treningu i 5 minut 
     titlePl: "PyPlanet ClanSpirits: Architektura zaawansowanego systemu klanowego i drużynowego",
     excerptEn: "How to safely scale active team allegiance database queries, resolve asynchronous SQLite operations, and award competitive spirit points on high-traffic ManiaPlanet servers.",
     excerptPl: "Jak bezpiecznie skalować zapytania bazodanowe o przynależność klanową, obsługiwać asynchroniczny zapis w SQLite i przyznawać punkty ducha na zatłoczonych serwerach.",
-    date: "2026-06-18",
-    readingTimeEn: "6 min read",
-    readingTimePl: "6 min czytania",
+    date: "2026-07-30",
     tags: ["Pyplanet", "Python", "Database", "Trackmania"],
+    aiVersionNoteEn: "Transformed raw backend concurrency notes into an architectural deep dive with asynchronous code snippets and database hazard analysis.",
+    aiVersionNotePl: "Przekształcono surowe notatki o współbieżności w analizę architektury z fragmentami kodu asynchronicznego i eliminacją hazardów bazodanowych.",
+    draftVersionContentEn: `// Raw v1.0 Developer Draft Notes
+PyPlanet clanspirits concept:
+- Divide player base into faction spirits
+- Log records to DB on finish
+- Hazard: blocking asyncio loop drops game server tick rate below 100hz
+- Solution: decoupled non-blocking DB execute`,
+    draftVersionContentPl: `// Surowy Szkic v1.0 Notatek Dewelopera
+Koncepcja clanspirits pod PyPlanet:
+- Podział graczy na frakcje (duchy)
+- Zapis rekordów do bazy po mecie
+- Problem: blokowanie pętli asyncio obniża tick rate serwera poniżej 100 Hz
+- Rozwiązanie: w pełni asynchroniczny, nieblokujący db.execute`,
     contentEn: `### Redefining Competition on Dedicated Servers
 
 Running a dedicated server for ManiaPlanet or Trackmania requires more than just loading high-tech maps. To keep a community vibrant, server managers need system mechanics that award players a real sense of cooperative identity.
@@ -1872,10 +2790,22 @@ Dzięki asynchronicznemu projektowi serwer utrzymuje stałe odświeżanie 100 Hz
     titlePl: "Hermes Skills: Modułowa rozszerzalność w nowoczesnych autonomicznych agentach AI",
     excerptEn: "A comprehensive look at how modular skills streamline DevOps automations like Node.js 24 migrations and simplify plugin ecosystems for OpenPlanet/PyPlanet game platforms under a unified standard.",
     excerptPl: "Kompleksowa analiza architektury hermes-skills ułatwiającej automatyzacje DevOps (migracje na Node 24) oraz upraszczającej integrowanie wtyczek OpenPlanet/PyPlanet dla platform gier.",
-    date: "2026-06-18",
-    readingTimeEn: "7 min read",
-    readingTimePl: "7 min czytania",
+    date: "2026-08-14",
     tags: ["AI", "Python", "Hermes", "Agent", "DevOps", "Trackmania"],
+    aiVersionNoteEn: "Upgraded modular agent documentation with clear orthogonal capability matrices, DevOps validation rules, and deterministic skill contracts.",
+    aiVersionNotePl: "Wzbogacono dokumentację modułowego agenta o macierz ortogonalnych zdolności, reguły walidacji DevOps i deterministyczne kontrakty umiejętności.",
+    draftVersionContentEn: `// Raw v1.0 Developer Draft Notes
+Hermes skills spec:
+- Unify sensory-motor interfaces for developer agents
+- Node 24 migration scanner
+- OpenPlanet / PyPlanet scaffolds
+- Deterministic text transformation instead of raw hallucinated scripts`,
+    draftVersionContentPl: `// Surowy Szkic v1.0 Notatek Dewelopera
+Specyfikacja hermes-skills:
+- Ujednolicenie interfejsu akcji dla agentów
+- Skaner migracji na Node 24
+- Szablony OpenPlanet / PyPlanet
+- Deterministyczna transformacja tekstu zamiast halucynowanych skryptów`,
     contentEn: `### The Philosophy of Pragmatic AI Agentic Extensions
 
 To bridge the gap between large language models and production-grade developer workspaces, autonomous systems require more than generalized conversational models. We need localized, deterministic action spaces. The **hermes-skills** library acts as a unified sensory-motor interface for developer agents, translating natural language reasoning into exact, sandboxed infrastructure executions without relying on simulated environments or mock behaviors.

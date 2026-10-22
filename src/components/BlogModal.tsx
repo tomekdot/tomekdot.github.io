@@ -7,7 +7,9 @@ import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, Calendar, Clock, Tag, BookOpen } from 'lucide-react';
 import Markdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { BlogPost } from '../types';
+import { calculateReadingTime } from '../data';
 
 interface BlogModalProps {
   post: BlogPost | null;
@@ -29,11 +31,12 @@ export default function BlogModal({ post, onClose, lang }: BlogModalProps) {
 
   const title = lang === 'en' ? post.titleEn : post.titlePl;
   const content = lang === 'en' ? post.contentEn : post.contentPl;
-  const readingTime = lang === 'en' ? post.readingTimeEn : post.readingTimePl;
+  const explicitReadingTime = lang === 'en' ? post.readingTimeEn : post.readingTimePl;
+  const readingTime = explicitReadingTime || calculateReadingTime(content, lang);
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-4">
+      <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-2 sm:p-4">
         {/* Backdrop overlay */}
         <motion.div
           id="blog_modal_backdrop"
@@ -51,18 +54,18 @@ export default function BlogModal({ post, onClose, lang }: BlogModalProps) {
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 15 }}
           transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-          className="relative bg-editorial-bg border-2 border-editorial-border w-full max-w-2xl rounded-none shadow-2xl flex flex-col overflow-hidden max-h-[85vh]"
+          className="relative bg-editorial-bg border-2 border-editorial-border w-full max-w-2xl rounded-none shadow-2xl flex flex-col overflow-hidden max-h-[90vh] sm:max-h-[85vh]"
         >
           {/* Header Block */}
-          <div className="bg-editorial-sidebar-bg border-b border-editorial-border px-6 py-5 flex items-start justify-between">
+          <div className="bg-editorial-sidebar-bg border-b border-editorial-border px-4 sm:px-6 py-3.5 sm:py-5 flex items-start justify-between">
             <div>
-              <div className="flex flex-wrap items-center gap-3 mb-2 font-mono text-[10px] text-editorial-muted uppercase tracking-wider">
-                <span className="flex items-center gap-1">
-                  <Calendar size={11} className="text-editorial-accent" />
+              <div className="flex flex-wrap items-center gap-1.5 mb-2.5 font-mono text-[9px] text-editorial-muted uppercase tracking-wider">
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-neutral-950 border border-editorial-border text-zinc-300 font-semibold whitespace-nowrap shrink-0">
+                  <Calendar size={10} className="text-editorial-accent shrink-0" />
                   {post.date}
                 </span>
-                <span className="flex items-center gap-1">
-                  <Clock size={11} className="text-editorial-accent" />
+                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-neutral-950 border border-editorial-border text-editorial-muted font-semibold whitespace-nowrap shrink-0">
+                  <Clock size={10} className="text-editorial-accent shrink-0" />
                   {readingTime}
                 </span>
               </div>
@@ -90,10 +93,10 @@ export default function BlogModal({ post, onClose, lang }: BlogModalProps) {
               {post.tags.map(tag => (
                 <span
                   key={tag}
-                  className="inline-flex items-center gap-1 px-2.5 py-0.5 border border-editorial-border bg-neutral-900/60 font-mono text-[10px] uppercase text-editorial-muted"
+                  className="inline-flex items-center gap-1 px-1.5 py-0.5 border border-editorial-border bg-neutral-900 font-mono text-[9px] uppercase font-semibold text-editorial-accent"
                 >
-                  <Tag size={9} className="text-editorial-accent" />
-                  {tag}
+                  <Tag size={8} className="text-editorial-accent" />
+                  #{tag.toUpperCase()}
                 </span>
               ))}
             </div>
@@ -101,6 +104,7 @@ export default function BlogModal({ post, onClose, lang }: BlogModalProps) {
             {/* Main Article Body */}
             <div className="markdown-body text-editorial-text font-serif text-sm leading-relaxed prose prose-invert max-w-none space-y-4">
               <Markdown
+                remarkPlugins={[remarkGfm]}
                 components={{
                   h3: ({ node, ...props }) => (
                     <h3 className="text-lg font-bold font-mono text-white uppercase tracking-wider border-b border-editorial-border pb-1.5 mt-6 mb-3" {...props} />
@@ -109,7 +113,7 @@ export default function BlogModal({ post, onClose, lang }: BlogModalProps) {
                     <h4 className="text-sm font-bold font-mono text-editorial-accent uppercase tracking-wide mt-4 mb-2" {...props} />
                   ),
                   p: ({ node, ...props }) => (
-                    <p className="font-sans text-editorial-text/90 leading-relaxed text-sm mb-4" {...props} />
+                    <div className="font-sans text-editorial-text/90 leading-relaxed text-sm mb-4" {...props} />
                   ),
                   ul: ({ node, ...props }) => (
                     <ul className="list-disc pl-5 space-y-1.5 font-sans text-sm mb-4" {...props} />
@@ -129,6 +133,12 @@ export default function BlogModal({ post, onClose, lang }: BlogModalProps) {
                   code: ({ node, ...props }) => (
                     <code className="px-1.5 py-0.5 bg-neutral-950 font-mono text-xs text-rose-400 border border-editorial-border/40" {...props} />
                   ),
+                  table: ({ node, ...props }) => <div className="overflow-x-auto my-4"><table className="w-full text-left border-collapse border border-editorial-border text-sm font-sans" {...props} /></div>,
+                  thead: ({ node, ...props }) => <thead className="bg-neutral-900/80 border-b border-editorial-border text-editorial-accent font-mono" {...props} />,
+                  tbody: ({ node, ...props }) => <tbody className="divide-y divide-editorial-border/50" {...props} />,
+                  tr: ({ node, ...props }) => <tr className="hover:bg-neutral-900/30 transition-colors" {...props} />,
+                  th: ({ node, ...props }) => <th className="px-3 py-2 font-semibold border-r border-editorial-border/50 last:border-0" {...props} />,
+                  td: ({ node, ...props }) => <td className="px-3 py-2 border-r border-editorial-border/50 last:border-0 text-editorial-text" {...props} />,
                 }}
               >
                 {content}
