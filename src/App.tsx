@@ -76,8 +76,33 @@ export default function App() {
   const [appLang, setAppLang] = useState<'en' | 'pl'>('en');
   const [viewLayout, setViewLayout] = useState<'grouped' | 'grid' | 'compact'>('grouped');
   const [selectedRepo, setSelectedRepo] = useState<Repository | null>(null);
+  const [isRepoMinimized, setIsRepoMinimized] = useState(false);
+  const [isBlogMinimized, setIsBlogMinimized] = useState(false);
+  const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  const handleSelectRepo = useCallback((repo: Repository) => {
+    setSelectedRepo(repo);
+    setIsRepoMinimized(false);
+  }, []);
+
+  const handleSelectBlogPost = useCallback((post: BlogPost) => {
+    setSelectedBlogPost(post);
+    setIsBlogMinimized(false);
+  }, []);
+
+  const handleUpdateRepo = useCallback((updated: Repository) => {
+    React.startTransition(() => {
+      setReposList(prev => 
+        prev.map(r => 
+          r.name.toLowerCase() === updated.name.toLowerCase() 
+            ? { ...r, ...updated } 
+            : r
+        )
+      );
+    });
+  }, []);
   const [selectedYearRange, setSelectedYearRange] = useState<[number, number]>([2021, 2026]);
-  const [isYearFilterOpen, setIsYearFilterOpen] = useState(true);
+  const [isYearFilterOpen, setIsYearFilterOpen] = useState(false);
   const [hasCachedData, setHasCachedData] = useState<boolean>(() => {
     return !!localStorage.getItem('github_repos_cache');
   });
@@ -91,9 +116,6 @@ export default function App() {
             .filter((r: Repository) => {
               const isBlacklisted = REPO_BLACKLIST.some(b => b.toLowerCase() === r.name.toLowerCase());
               if (isBlacklisted) return false;
-              if (r.isFork && !r.isContributed && !CONTRIBUTED_FORKS.some(cf => cf.toLowerCase() === r.name.toLowerCase())) {
-                return false;
-              }
               return true;
             })
             .map((r: Repository) => {
@@ -119,9 +141,6 @@ export default function App() {
       .filter(r => {
         const isBlacklisted = REPO_BLACKLIST.some(b => b.toLowerCase() === r.name.toLowerCase());
         if (isBlacklisted) return false;
-        if (r.isFork && !r.isContributed && !CONTRIBUTED_FORKS.some(cf => cf.toLowerCase() === r.name.toLowerCase())) {
-          return false;
-        }
         return true;
       })
       .map(r => {
@@ -158,8 +177,8 @@ export default function App() {
     if (SHOW_PRIVATE_REPOS_TO_PUBLIC) {
       return false;
     }
-    // 3. Default back to check for logged-in user with token
-    return !localStorage.getItem('github_personal_token');
+    // 3. Default to true: only public repositories are visible on initial load
+    return true;
   });
   const [isTokenModalOpen, setIsTokenModalOpen] = useState(false);
   const [tempTokenValue, setTempTokenValue] = useState(() => {
@@ -290,40 +309,41 @@ export default function App() {
       }
 
       // If token is present, we fetch from 'user/repos' with pagination of up to 2 pages (up to 200 repos) 
-      // sorted by 'updated' to safely retrieve private and public items without cut-offs.
+      // Fetch all pages (up to 500 repos = 5 pages of 100 items) sorted by 'updated'
       let data: any[] = [];
-      if (token) {
-        const page1Url = 'https://api.github.com/user/repos?per_page=100&page=1&sort=updated';
-        const page2Url = 'https://api.github.com/user/repos?per_page=100&page=2&sort=updated';
-        
-        const [res1, res2] = await Promise.all([
-          fetch(page1Url, { headers }),
-          fetch(page2Url, { headers }).catch(() => null)
-        ]);
-        
-        if (!res1.ok) {
-          console.warn('GitHub API responded with status', res1.status, '- Falling back to offline snapshot.');
-          setSyncFailed(true);
-          setIsSyncing(false);
-          return;
+      const fetchPages = async (baseUrl: string) => {
+        const results: any[] = [];
+        for (let page = 1; page <= 5; page++) {
+          try {
+            const separator = baseUrl.includes('?') ? '&' : '?';
+            const res = await fetch(`${baseUrl}${separator}per_page=100&page=${page}&sort=updated`, { headers });
+            if (!res.ok) {
+              if (page === 1) throw new Error(`HTTP ${res.status}`);
+              break;
+            }
+            const pageData = await res.json();
+            if (!Array.isArray(pageData) || pageData.length === 0) break;
+            results.push(...pageData);
+            if (pageData.length < 100) break;
+          } catch (err) {
+            if (page === 1) throw err;
+            break;
+          }
         }
-        
-        const data1 = await res1.json();
-        const data2 = res2 && res2.ok ? await res2.json() : [];
-        
-        data = [
-          ...(Array.isArray(data1) ? data1 : []),
-          ...(Array.isArray(data2) ? data2 : [])
-        ];
-      } else {
-        const response = await fetch('https://api.github.com/users/tomekdot/repos?per_page=100', { headers });
-        if (!response.ok) {
-          console.warn('GitHub API responded with status', response.status, '- Falling back to offline snapshot.');
-          setSyncFailed(true);
-          setIsSyncing(false);
-          return;
+        return results;
+      };
+
+      try {
+        if (token) {
+          data = await fetchPages('https://api.github.com/user/repos');
+        } else {
+          data = await fetchPages('https://api.github.com/users/tomekdot/repos');
         }
-        data = await response.json();
+      } catch (err) {
+        console.warn('GitHub API fetch failed, utilizing local fallback snapshot.', err);
+        setSyncFailed(true);
+        setIsSyncing(false);
+        return;
       }
 
       // Proactively fetch context-aware-music-recommendation-system directly if missing.
@@ -352,11 +372,6 @@ export default function App() {
         data = data.filter(item => {
           const isBlacklisted = REPO_BLACKLIST.some(b => b.toLowerCase() === item.name.toLowerCase());
           if (isBlacklisted) return false;
-          // Filter out pure forks that have no personal contribution (keep only own and contributed)
-          if (item.fork) {
-            const isContributed = CONTRIBUTED_FORKS.some(cf => cf.toLowerCase() === item.name.toLowerCase());
-            if (!isContributed) return false;
-          }
           return true;
         });
       }
@@ -373,135 +388,100 @@ export default function App() {
           } catch (e) {}
         }
 
-        // Merge fetched data with our preconfigured REPOS
-        const updated = REPOS.map(repo => {
-          const match = data.find(item => 
-            item.name.toLowerCase() === repo.name.toLowerCase() ||
-            item.name.toLowerCase() === repo.url.split('/').pop()?.toLowerCase() ||
-            item.html_url.toLowerCase() === repo.url.toLowerCase()
+        // Process live GitHub API repositories as primary source of truth
+        const processedMap = new Map<string, Repository>();
+
+        data.forEach(item => {
+          const isBlacklisted = REPO_BLACKLIST.some(b => b.toLowerCase() === item.name.toLowerCase());
+          if (isBlacklisted) return;
+
+          const itemSlug = item.html_url ? (item.html_url.split('/').pop() || item.name) : item.name;
+          const matchInStatic = REPOS.find(r => 
+            r.name.toLowerCase() === item.name.toLowerCase() ||
+            (r.url && r.url.toLowerCase().split('/').pop() === itemSlug.toLowerCase()) ||
+            (r.url && r.url.toLowerCase() === item.html_url?.toLowerCase())
           );
 
-          // Determine if repository should be private (preconfigured private/KUL or checked as private on GitHub)
-          const isPrivateOrAcademic = repo.isPrivate || repo.cat.includes('kul') || (match ? !!match.private : false);
+          // Category determination
+          const cat = matchInStatic ? matchInStatic.cat : detectCategories({
+            name: item.name,
+            description: item.description,
+            language: item.language,
+            topics: item.topics,
+            html_url: item.html_url
+          });
 
-          // Get the most up-to-date commits count from previous cache or individual cache
-          const repoNameSlug = repo.url ? (repo.url.split('/').pop() || repo.name) : repo.name;
-          const individualCacheKey = `github_commits_cache_${repoNameSlug}`;
+          // Commits count from individual or previous cache
+          const individualCacheKey = `github_commits_cache_${itemSlug}`;
           const cachedCommits = localStorage.getItem(individualCacheKey);
-          
-          let commitsCount = isPrivateOrAcademic ? 0 : (repo.commitsCount || 0);
+          let commitsCount = 0;
           if (cachedCommits) {
             commitsCount = parseInt(cachedCommits, 10);
+          } else if (matchInStatic && matchInStatic.commitsCount) {
+            commitsCount = matchInStatic.commitsCount;
           } else {
-            const cacheMatch = parsedCachedRepos.find(c => c.name.toLowerCase() === repo.name.toLowerCase());
+            const cacheMatch = parsedCachedRepos.find(c => c.name.toLowerCase() === item.name.toLowerCase());
             if (cacheMatch && cacheMatch.commitsCount > 0) {
               commitsCount = cacheMatch.commitsCount;
             }
           }
 
-          // If we have a match
-          if (match) {
-            const isFork = match ? !!match.fork : !!repo.isFork;
-            const isContributed = (match ? CONTRIBUTED_FORKS.some(cf => cf.toLowerCase() === match.name.toLowerCase()) : false) || repo.isContributed || CONTRIBUTED_FORKS.some(cf => cf.toLowerCase() === repo.name.toLowerCase());
-            const forkParent = match?.parent?.full_name || match?.source?.full_name || repo.forkParent;
-
-            return {
-              ...repo,
-              cat: repo.cat,
-              isPrivate: isPrivateOrAcademic,
-              isFork: isFork,
-              isContributed: isContributed,
-              forkParent: forkParent,
-              stars: isPrivateOrAcademic ? 0 : match.stargazers_count,
-              forks: match.forks_count,
-              lang: match.language || repo.lang,
-              // Update description if matching
-              desc: match.description || repo.desc,
-              pushedAt: match.pushed_at,
-              commitsCount: commitsCount,
-              createdYear: match.created_at ? new Date(match.created_at).getFullYear() : (repo.createdYear || 2024),
-            };
+          let createdYear = 2024;
+          if (item.created_at) {
+            createdYear = new Date(item.created_at).getFullYear();
+          } else if (matchInStatic?.createdYear) {
+            createdYear = matchInStatic.createdYear;
           }
-          // If no match is found, respect preconfigured isPrivate / KUL status
-          const fallbackPrivate = repo.isPrivate || repo.cat.includes('kul');
-          return {
-            ...repo,
-            cat: repo.cat,
-            isPrivate: fallbackPrivate,
-            isFork: !!repo.isFork,
-            isContributed: repo.isContributed || CONTRIBUTED_FORKS.some(cf => cf.toLowerCase() === repo.name.toLowerCase()),
-            forkParent: repo.forkParent,
-            stars: fallbackPrivate ? 0 : (repo.stars || 0),
-            commitsCount: fallbackPrivate ? 0 : commitsCount,
-          };
+
+          const isPrivateOrAcademic = !!item.private || (matchInStatic ? matchInStatic.isPrivate || matchInStatic.cat.includes('kul') : false);
+          const isFork = !!item.fork;
+          const isContributed = (item.fork ? CONTRIBUTED_FORKS.some(cf => cf.toLowerCase() === item.name.toLowerCase()) : false) || (matchInStatic ? matchInStatic.isContributed : false);
+
+          const enrichedRepo = autoEnrichRepo({
+            name: item.name, // Always use live name from GitHub
+            desc: item.description || matchInStatic?.desc || '',
+            descPl: matchInStatic?.descPl || item.description || matchInStatic?.desc || '',
+            longDescPl: matchInStatic?.longDescPl,
+            longDescEn: matchInStatic?.longDescEn,
+            lang: item.language || matchInStatic?.lang || '',
+            cat: cat,
+            url: item.html_url || matchInStatic?.url || `https://github.com/tomekdot/${item.name}`,
+            stars: isPrivateOrAcademic ? 0 : (item.stargazers_count || 0),
+            forks: item.forks_count || 0,
+            commitsCount: commitsCount,
+            createdYear: createdYear,
+            pushedAt: item.pushed_at,
+            isPrivate: isPrivateOrAcademic,
+            isFork: isFork,
+            isContributed: isContributed,
+            forkParent: item.parent?.full_name || item.source?.full_name || matchInStatic?.forkParent,
+          });
+
+          processedMap.set(enrichedRepo.name.toLowerCase(), enrichedRepo);
         });
 
-        // Also dynamically add real repositories from GitHub that are not in REPOS
-        const existingNamesOrUrls = new Set([
-          ...REPOS.map(r => r.name.toLowerCase()),
-          ...REPOS.map(r => r.url.toLowerCase()),
-          ...REPOS.map(r => r.url.split('/').pop()?.toLowerCase() || '')
-        ]);
+        // When GitHub token is active, GitHub API is the authoritative live source!
+        // Static REPOS are only preserved when unauthenticated (!token) for offline viewing.
+        if (!token) {
+          REPOS.forEach(staticRepo => {
+            const isBlacklisted = REPO_BLACKLIST.some(b => b.toLowerCase() === staticRepo.name.toLowerCase());
+            if (isBlacklisted) return;
 
-        const dynamicRepos: Repository[] = [];
-        data.forEach(item => {
-          const nameLower = item.name.toLowerCase();
-          const urlLower = item.html_url.toLowerCase();
-          if (!existingNamesOrUrls.has(nameLower) && !existingNamesOrUrls.has(urlLower)) {
-            // Determine category dynamically using comprehensive detector
-            const cat = detectCategories({
-              name: item.name,
-              description: item.description,
-              language: item.language,
-              topics: item.topics,
-              html_url: item.html_url
-            });
+            const key = staticRepo.name.toLowerCase();
+            const staticSlug = staticRepo.url ? staticRepo.url.split('/').pop()?.toLowerCase() : key;
 
-            // Parse year
-            let createdYear = 2024;
-            if (item.created_at) {
-              createdYear = new Date(item.created_at).getFullYear();
-            }
-
-            const isPrivateOrAcademic = item.private;
-
-            // Retain previously loaded dynamic repo commits
-            const repoNameSlug = item.html_url ? (item.html_url.split('/').pop() || item.name) : item.name;
-            const individualCacheKey = `github_commits_cache_${repoNameSlug}`;
-            const cachedCommits = localStorage.getItem(individualCacheKey);
-            let commitsCount = 0;
-            if (cachedCommits) {
-              commitsCount = parseInt(cachedCommits, 10);
-            } else {
-              const cacheMatch = parsedCachedRepos.find(c => c.name.toLowerCase() === item.name.toLowerCase());
-              if (cacheMatch && cacheMatch.commitsCount > 0) {
-                commitsCount = cacheMatch.commitsCount;
+            const existsInMap = processedMap.has(key) || (staticSlug && processedMap.has(staticSlug));
+            if (!existsInMap) {
+              const isPrivateOrAcademic = staticRepo.isPrivate || staticRepo.cat.includes('kul');
+              if (isPrivateOrAcademic) {
+                processedMap.set(key, autoEnrichRepo(staticRepo));
               }
             }
+          });
+        }
 
-            dynamicRepos.push({
-              name: item.name,
-              desc: item.description || '',
-              descPl: item.description || '',
-              lang: item.language || '',
-              cat: cat,
-              url: item.html_url,
-              stars: item.stargazers_count || 0,
-              forks: item.forks_count,
-              commitsCount: commitsCount,
-              createdYear: createdYear,
-              pushedAt: item.pushed_at,
-              isPrivate: isPrivateOrAcademic,
-              isFork: !!item.fork,
-              isContributed: item.fork ? CONTRIBUTED_FORKS.some(cf => cf.toLowerCase() === item.name.toLowerCase()) : false,
-              forkParent: item.parent?.full_name || item.source?.full_name,
-            });
-          }
-        });
+        const finalRepos = Array.from(processedMap.values());
 
-        const finalRepos = [...updated, ...dynamicRepos]
-          .filter(r => !r.isFork || r.isContributed || CONTRIBUTED_FORKS.some(cf => cf.toLowerCase() === r.name.toLowerCase()))
-          .map(r => autoEnrichRepo(r));
         localStorage.setItem('github_repos_cache', JSON.stringify(finalRepos));
 
         // Calculate dynamic sync stats
@@ -524,7 +504,7 @@ export default function App() {
     } finally {
       setIsSyncing(false);
     }
-  }, []);
+  }, [appLang]);
 
   useEffect(() => {
     fetchGitHubData(false);
@@ -621,24 +601,25 @@ export default function App() {
     return sorted;
   }, [reposList, hidePrivate]);
 
-  // Available min and max creation years across currently visible repositories
+  // Available min and max creation years across the complete repository portfolio
   const { minAvailableYear, maxAvailableYear, yearDistribution } = useMemo(() => {
-    const visibleList = reposList.filter(repo => !hidePrivate || !repo.isPrivate);
-    let min = 2026;
-    let max = 2021;
-    const dist: Record<number, number> = {};
+    let min = 2021;
+    let max = 2026;
 
-    visibleList.forEach(r => {
+    // Stable boundaries across the whole catalog
+    reposList.forEach(r => {
       const yr = r.createdYear || (r.pushedAt ? new Date(r.pushedAt).getFullYear() : 2024);
       if (yr < min) min = yr;
       if (yr > max) max = yr;
-      dist[yr] = (dist[yr] || 0) + 1;
     });
 
-    if (min > max) {
-      min = 2021;
-      max = 2026;
-    }
+    // Histogram distribution for currently visible repositories
+    const dist: Record<number, number> = {};
+    const visibleList = reposList.filter(repo => !hidePrivate || !repo.isPrivate);
+    visibleList.forEach(r => {
+      const yr = r.createdYear || (r.pushedAt ? new Date(r.pushedAt).getFullYear() : 2024);
+      dist[yr] = (dist[yr] || 0) + 1;
+    });
 
     return { minAvailableYear: min, maxAvailableYear: max, yearDistribution: dist };
   }, [reposList, hidePrivate]);
@@ -785,6 +766,8 @@ export default function App() {
     return Array.from(tags).sort();
   }, []);
 
+
+
   // Filter blog posts by search query and active tab tag selection
   const filteredBlogPosts = useMemo(() => {
     const list = BLOG_POSTS.filter(post => {
@@ -834,6 +817,29 @@ export default function App() {
     if (!selectedRepo) return null;
     return reposList.find(r => r.name.toLowerCase() === selectedRepo.name.toLowerCase()) || selectedRepo;
   }, [selectedRepo, reposList]);
+
+  // Check if any modal dialog is currently active in full-screen (not minimized)
+  const isAnyModalOpen = Boolean(
+    (activeSelectedRepo && !isRepoMinimized) ||
+    (selectedBlogPost && !isBlogMinimized) ||
+    isStatsModalOpen ||
+    isBlogStatsModalOpen ||
+    isGalaxyModalOpen ||
+    isTokenModalOpen
+  );
+
+  // Prevent background body scrolling when any full modal dialog is active
+  useEffect(() => {
+    if (isAnyModalOpen) {
+      const originalOverflow = document.body.style.overflow;
+      document.body.style.overflow = 'hidden';
+      return () => {
+        document.body.style.overflow = originalOverflow || '';
+      };
+    } else {
+      document.body.style.overflow = '';
+    }
+  }, [isAnyModalOpen]);
 
   return (
     <div className="min-h-screen bg-editorial-bg text-editorial-text font-sans flex flex-col justify-between selection:bg-editorial-accent selection:text-editorial-bg border-2 sm:border-4 md:border-8 border-[#1A1A1A]">
@@ -932,23 +938,30 @@ export default function App() {
                   <span className="text-xs sm:text-sm font-bold text-white">VOL. 2026</span>
                 </div>
                 <div className="h-6 w-px bg-editorial-border shrink-0" />
-                <div className="text-right">
-                  <span className="text-[9px] sm:text-[10px] uppercase tracking-widest text-[#8b949e] flex items-center gap-1 justify-end">
+                <div 
+                  className="text-right cursor-pointer group/status select-none" 
+                  onClick={() => !isSyncing && fetchGitHubData(true)}
+                  title={appLang === 'en' ? 'Click to force sync & refresh status' : 'Kliknij, aby wymusić synchronizację i odświeżyć status'}
+                >
+                  <span className="text-[9px] sm:text-[10px] uppercase tracking-widest text-[#8b949e] flex items-center gap-1 justify-end group-hover/status:text-white transition-colors">
                     <span>Status</span>
                     <button 
                       type="button"
                       id="force_sync_btn"
-                      onClick={() => fetchGitHubData(true)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (!isSyncing) fetchGitHubData(true);
+                      }}
                       disabled={isSyncing}
                       title={appLang === 'en' ? 'Force Sync & Clear Cache' : 'Wymuś synchronizację i wyczyść cache'}
-                      className={`hover:text-white transition-all focus:outline-none p-0.5 border border-transparent rounded bg-transparent ${isSyncing ? 'animate-spin' : 'hover:border-editorial-border hover:bg-neutral-900'} cursor-pointer`}
+                      className={`hover:text-white transition-all focus:outline-none p-0.5 border border-transparent rounded bg-transparent ${isSyncing ? 'animate-spin [animation-duration:2.2s]' : 'group-hover/status:border-editorial-border group-hover/status:bg-neutral-900'} cursor-pointer`}
                     >
-                      <RefreshCw size={10} />
+                      <RefreshCw size={10} className={isSyncing ? 'text-editorial-accent' : ''} />
                     </button>
                   </span>
-                  <span className={`text-xs sm:text-sm font-bold transition-all ${
+                  <span className={`text-xs sm:text-sm font-bold transition-all duration-500 inline-block ${
                     isSyncing 
-                      ? 'text-editorial-accent animate-pulse' 
+                      ? 'text-editorial-accent animate-pulse [animation-duration:2.5s]' 
                       : syncFailed 
                         ? (hasCachedData ? 'text-[#3fb950]' : 'text-amber-500') 
                         : 'text-[#3fb950]'
@@ -1042,7 +1055,7 @@ export default function App() {
         <aside className="p-3.5 sm:p-4 md:p-5 lg:p-6 pb-4 md:pb-44 flex flex-col justify-start gap-3.5 sm:gap-4 md:gap-6 lg:gap-7 bg-editorial-sidebar-bg md:overflow-y-auto">
           <div className="space-y-4 md:space-y-6">
             {/* Main Tabs Navigation */}
-            <div className="flex h-[38px] border border-editorial-border p-1 bg-neutral-950 font-mono text-[11px] rounded-none mb-3 sm:mb-4 box-border">
+            <div className="flex h-[38px] border border-editorial-border p-1 bg-neutral-950 font-mono text-[11px] rounded-none mb-2 sm:mb-3 box-border">
               <button
                 type="button"
                 id="tab_trigger_projects"
@@ -1062,6 +1075,36 @@ export default function App() {
                 📝 {appLang === 'en' ? `Blog (${BLOG_POSTS.length})` : `Blog (${BLOG_POSTS.length})`}
               </button>
             </div>
+
+            {/* Mobile-only Collapsible Toggle Button */}
+            <button
+              type="button"
+              id="toggle_mobile_sidebar_btn"
+              onClick={() => setIsMobileSidebarOpen(!isMobileSidebarOpen)}
+              className="md:hidden w-full py-2 px-3 bg-neutral-900 border border-editorial-accent/60 hover:border-editorial-accent text-editorial-accent font-mono text-xs font-bold uppercase tracking-wider flex items-center justify-between transition-all cursor-pointer rounded-none my-1 shadow-sm"
+            >
+              <div className="flex items-center gap-2 truncate">
+                <SlidersHorizontal size={13} className="text-editorial-accent shrink-0" />
+                <span className="truncate">
+                  {activeWorkspaceTab === 'projects'
+                    ? (appLang === 'en'
+                        ? `Filter Categories (${selectedCategory === 'all' ? 'All' : selectedCategory})`
+                        : `Kategorie (${selectedCategory === 'all' ? 'Wszystkie' : selectedCategory})`)
+                    : (appLang === 'en'
+                        ? `Blog Tags (${selectedBlogTag === 'all' ? 'All' : selectedBlogTag})`
+                        : `Tagi Wpisów (${selectedBlogTag === 'all' ? 'Wszystkie' : selectedBlogTag})`)
+                  }
+                </span>
+              </div>
+              <div className="flex items-center gap-1.5 text-[10px] font-bold text-editorial-muted shrink-0 ml-1">
+                <span className="bg-neutral-950 border border-editorial-border px-2 py-0.5 text-editorial-accent font-mono">
+                  {isMobileSidebarOpen ? (appLang === 'en' ? 'HIDE ▲' : 'ZWIŃ ▲') : (appLang === 'en' ? 'SLIDE OUT ▼' : 'ROZWIŃ ▼')}
+                </span>
+              </div>
+            </button>
+
+            {/* Sidebar Content Body - Collapsible on Mobile, always visible on desktop */}
+            <div className={`${isMobileSidebarOpen ? 'block space-y-4 pt-2' : 'hidden md:block md:space-y-6'}`}>
 
             {activeWorkspaceTab === 'projects' ? (
               <>
@@ -1273,7 +1316,7 @@ export default function App() {
               {/* Latest Change Live Banner */}
               {stats.latestUpdated && (
                 <div
-                  onClick={() => setSelectedRepo(stats.latestUpdated)}
+                  onClick={() => stats.latestUpdated && handleSelectRepo(stats.latestUpdated)}
                   className="p-2 sm:p-2.5 bg-[#0B0B0B] hover:bg-[#141414] border border-editorial-border hover:border-editorial-accent/70 transition-all cursor-pointer space-y-1 group overflow-hidden"
                 >
                   <div className="flex items-center justify-between text-editorial-accent text-[9px] sm:text-[9.5px] font-mono font-bold uppercase">
@@ -1309,15 +1352,39 @@ export default function App() {
               </button>
             </div>
           ) : (
-            <div className="bg-editorial-sidebar-bg p-3 sm:p-4 border-2 border-editorial-border rounded-none space-y-3 mb-1 sm:mb-2 md:mb-6 shadow-xl flex flex-col">
-              <div className="flex items-center justify-between border-b border-editorial-border pb-2">
-                <h3 className="text-xs sm:text-sm font-bold uppercase font-mono text-editorial-accent tracking-wider">
-                  {appLang === 'en' ? 'Journal Stats' : 'Statystyki Bloga'}
-                </h3>
-                <span className="text-[9px] font-mono uppercase px-2 py-0.5 bg-neutral-900 border border-editorial-border text-editorial-muted">
+            <div className="bg-editorial-sidebar-bg p-2.5 sm:p-3 md:p-3.5 border-2 border-editorial-border rounded-none space-y-2.5 sm:space-y-3 mb-1 sm:mb-2 md:mb-6 shadow-xl overflow-hidden box-border flex flex-col">
+              <div className="flex items-center justify-between border-b border-editorial-border pb-2 gap-1.5 min-w-0">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <div className="p-1 bg-[#1D170E] border border-editorial-accent/50 text-editorial-accent shrink-0">
+                    <Sparkles size={12} />
+                  </div>
+                  <h3 className="text-[11.5px] sm:text-xs font-bold uppercase font-mono text-editorial-accent tracking-wide whitespace-nowrap">
+                    {appLang === 'en' ? 'Journal Stats' : 'Statystyki Bloga'}
+                  </h3>
+                </div>
+                <span className="text-[8.5px] font-mono font-bold uppercase px-1.5 py-0.5 bg-neutral-900 border border-editorial-border text-editorial-muted shrink-0 ml-1">
                   DEV LOG
                 </span>
               </div>
+
+              {/* Prominent Constellation Network Map Button */}
+              <button
+                type="button"
+                id="open_galaxy_map_primary_btn"
+                onClick={() => {
+                  setGalaxyFilterMode('all');
+                  setIsGalaxyModalOpen(true);
+                }}
+                className="w-full py-2.5 px-3 bg-gradient-to-r from-cyan-950/70 via-indigo-950/70 to-emerald-950/70 hover:from-cyan-900 hover:to-emerald-900 border-2 border-cyan-500/80 hover:border-cyan-400 text-cyan-300 hover:text-white font-mono font-bold uppercase tracking-wider text-xs transition-all cursor-pointer flex items-center justify-between shadow-lg group"
+                title={appLang === 'en' ? 'Open Constellation Network Galaxy Map' : 'Otwórz mapę konstelacji sieci wiedzy'}
+              >
+                <div className="flex items-center gap-2">
+                  <Compass size={14} className="text-cyan-400 group-hover:rotate-45 transition-transform shrink-0" />
+                  <span>{appLang === 'en' ? '🌌 CONSTELLATION MAP' : '🌌 MAPA KONSTELACJI'}</span>
+                </div>
+                <span className="text-xs text-cyan-400 font-bold group-hover:translate-x-0.5 transition-transform">VIEW →</span>
+              </button>
+
               <div className="grid grid-cols-2 gap-2 font-mono">
                 <button 
                   type="button"
@@ -1360,6 +1427,8 @@ export default function App() {
                 </button>
               </div>
 
+
+
               {/* High-Contrast Blog Stats & AI Modal Button */}
               <button
                 type="button"
@@ -1373,10 +1442,11 @@ export default function App() {
               </button>
             </div>
           )}
+          </div>
         </aside>
 
         {/* Right workspace section block */}
-        <section className="p-3.5 sm:p-4 md:p-5 lg:p-6 pb-20 sm:pb-28 md:pb-48 bg-editorial-bg md:overflow-y-auto">
+        <section className="p-3.5 sm:p-4 md:p-5 lg:p-6 pb-44 sm:pb-48 md:pb-52 bg-editorial-bg md:overflow-y-auto">
           {activeWorkspaceTab === 'projects' ? (
             <div className="main-content flex flex-col gap-4 sm:gap-5">
               {/* Header controls, year filter, language spectrum, and active filters container */}
@@ -1470,7 +1540,7 @@ export default function App() {
                           ? (appLang === 'en' ? 'SHOWN' : 'JAWNE') 
                           : (appLang === 'en' ? 'HIDDEN' : 'UKRYTE')}
                       </span>
-                      <span className="text-[8.5px] sm:text-[9px] uppercase px-1 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold shrink-0 hidden xs:inline">
+                      <span className="text-[8.5px] sm:text-[9px] uppercase px-1 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold shrink-0 hidden min-[400px]:inline">
                         ADMIN
                       </span>
                     </button>
@@ -1487,7 +1557,7 @@ export default function App() {
                             ? 'border-sky-500/60 bg-neutral-900 text-sky-300'
                             : 'border-editorial-border bg-[#0D0D0D] hover:border-editorial-accent/50 text-editorial-muted hover:text-white'
                       }`}
-                      title={appLang === 'en' ? 'Toggle creation year range slider filter' : 'Przełącz filtr suwaka rocznika projektu'}
+                      title={appLang === 'en' ? (isYearFilterOpen ? 'Collapse creation year slider' : 'Open creation year range slider filter') : (isYearFilterOpen ? 'Zwiń suwak rocznika' : 'Otwórz filtr suwaka rocznika projektu')}
                     >
                       <Calendar size={12} className={!isFullYearRange ? 'text-sky-400' : 'text-editorial-muted group-hover:text-white'} />
                       <span className="truncate">
@@ -1496,6 +1566,7 @@ export default function App() {
                       {!isFullYearRange && (
                         <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse ml-0.5" />
                       )}
+                      <ChevronDown size={11} className={`transition-transform duration-200 ml-0.5 ${isYearFilterOpen ? 'rotate-180 text-sky-300' : 'text-editorial-muted group-hover:text-white'}`} />
                     </button>
 
                     {/* Language Droplist */}
@@ -1674,7 +1745,7 @@ export default function App() {
                       <RepoCard
                         key={repo.name}
                         repo={repo}
-                        onSelect={setSelectedRepo}
+                        onSelect={handleSelectRepo}
                         lang={appLang}
                         compact={true}
                       />
@@ -1724,7 +1795,7 @@ export default function App() {
                               <RepoCard
                                 key={repo.name}
                                 repo={repo}
-                                onSelect={setSelectedRepo}
+                                onSelect={handleSelectRepo}
                                 lang={appLang}
                               />
                             ))}
@@ -1740,13 +1811,16 @@ export default function App() {
                       <RepoCard
                         key={repo.name}
                         repo={repo}
-                        onSelect={setSelectedRepo}
+                        onSelect={handleSelectRepo}
                         lang={appLang}
                       />
                     ))}
                   </div>
                 )}
               </div>
+
+              {/* Dedicated bottom clearance buffer to prevent any floating elements from overlapping content */}
+              <div className="h-32 sm:h-24 w-full shrink-0 pointer-events-none" aria-hidden="true" />
             </div>
           ) : (
             <>
@@ -1930,7 +2004,7 @@ export default function App() {
                       return (
                         <div
                           key={post.id}
-                          onClick={() => setSelectedBlogPost(post)}
+                          onClick={() => handleSelectBlogPost(post)}
                           className="border border-editorial-border hover:border-editorial-accent/60 bg-editorial-sidebar-bg p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 transition-all group cursor-pointer rounded-none hover:bg-neutral-900/60"
                         >
                           <div className="flex items-center gap-3 min-w-0 flex-1">
@@ -2013,7 +2087,7 @@ export default function App() {
                               return (
                                 <div
                                   key={post.id}
-                                  onClick={() => setSelectedBlogPost(post)}
+                                  onClick={() => handleSelectBlogPost(post)}
                                   className="group relative border-b border-editorial-border p-6 cursor-pointer flex flex-col justify-between transition-all bg-transparent hover:bg-white/[0.03]"
                                 >
                                   <div>
@@ -2066,7 +2140,7 @@ export default function App() {
 
                                     <button
                                       type="button"
-                                      onClick={() => setSelectedBlogPost(post)}
+                                      onClick={() => handleSelectBlogPost(post)}
                                       className="text-editorial-accent group-hover:brightness-110 transition-all flex items-center gap-1 text-[11px] font-mono uppercase tracking-widest shrink-0 self-start sm:self-auto cursor-pointer"
                                     >
                                       {appLang === 'en' ? 'Read Journal →' : 'Czytaj wpis →'}
@@ -2093,7 +2167,7 @@ export default function App() {
                       return (
                         <div
                           key={post.id}
-                          onClick={() => setSelectedBlogPost(post)}
+                          onClick={() => handleSelectBlogPost(post)}
                           className="group relative border-b border-editorial-border p-6 cursor-pointer flex flex-col justify-between transition-all bg-transparent hover:bg-white/[0.03]"
                         >
                           <div>
@@ -2146,7 +2220,7 @@ export default function App() {
 
                             <button
                               type="button"
-                              onClick={() => setSelectedBlogPost(post)}
+                              onClick={() => handleSelectBlogPost(post)}
                               className="text-editorial-accent group-hover:brightness-110 transition-all flex items-center gap-1 text-[11px] font-mono uppercase tracking-widest shrink-0 self-start sm:self-auto cursor-pointer"
                             >
                               {appLang === 'en' ? 'Read Journal →' : 'Czytaj wpis →'}
@@ -2157,43 +2231,40 @@ export default function App() {
                     })}
                   </div>
                 )}
+
+                {/* Dedicated bottom clearance buffer to prevent any floating elements from overlapping content */}
+                <div className="h-32 sm:h-24 w-full shrink-0 pointer-events-none" aria-hidden="true" />
               </div>
             </>
           )}
         </section>
       </main>
 
-      {/* 6. High-fidelity dynamic retro control shell console */}
-      <TerminalConsole onSelectCategory={(cat) => setSelectedCategory(cat as any)} lang={appLang} repos={reposList} isModalOpen={!!activeSelectedRepo} />
-
-      {/* 7. Repository Details Pop-Up dialog */}
+      {/* 6 & 7 & 8. Modals & Terminal Console */}
       <RepoModal
         repo={activeSelectedRepo}
-        onClose={() => setSelectedRepo(null)}
-        lang={appLang}
-        onUpdateRepo={(updated) => {
-          setReposList(prev => {
-            const nextList = prev.map(r => 
-              r.name.toLowerCase() === updated.name.toLowerCase() 
-                ? { ...r, ...updated } 
-                : r
-            );
-            try {
-              localStorage.setItem('tomekdot_portfolio_repos', JSON.stringify(nextList));
-            } catch (err) {
-              console.warn('Failed to persist repos to localStorage', err);
-            }
-            return nextList;
-          });
+        onClose={() => {
+          setSelectedRepo(null);
+          setIsRepoMinimized(false);
         }}
+        lang={appLang}
+        isMinimized={isRepoMinimized}
+        onMinimize={() => setIsRepoMinimized(true)}
+        onRestore={() => setIsRepoMinimized(false)}
+        onUpdateRepo={handleUpdateRepo}
       />
-
-      {/* 8. Blog Details View dialog */}
       <BlogModal
         post={selectedBlogPost}
-        onClose={() => setSelectedBlogPost(null)}
+        onClose={() => {
+          setSelectedBlogPost(null);
+          setIsBlogMinimized(false);
+        }}
         lang={appLang}
+        isMinimized={isBlogMinimized}
+        onMinimize={() => setIsBlogMinimized(true)}
+        onRestore={() => setIsBlogMinimized(false)}
       />
+      <TerminalConsole onSelectCategory={(cat) => setSelectedCategory(cat as any)} lang={appLang} repos={reposList} isModalOpen={isAnyModalOpen} />
 
       {/* 9. Full Developer Statistics & Changelog Modal for Repos */}
       <DeveloperStatsModal
@@ -2204,7 +2275,7 @@ export default function App() {
         initialTab="new_plugins"
         onSelectRepo={(r) => {
           setIsStatsModalOpen(false);
-          setSelectedRepo(r);
+          handleSelectRepo(r);
         }}
       />
 
@@ -2216,12 +2287,14 @@ export default function App() {
         lang={appLang}
         onSelectBlogPost={(post) => {
           setIsBlogStatsModalOpen(false);
-          setSelectedBlogPost(post);
+          handleSelectBlogPost(post);
         }}
         onOpenGalaxyGraph={(tag) => {
+          if (tag && tag !== 'all') {
+            setSelectedBlogTag(tag);
+          }
           setGalaxyFilterMode('tags');
           setIsGalaxyModalOpen(true);
-          // If we want the galaxy graph to focus on a tag, we might need a way, but let's just open it.
         }}
       />
 
@@ -2235,7 +2308,7 @@ export default function App() {
         initialFilterMode={galaxyFilterMode}
         onSelectBlogPost={(post) => {
           setIsGalaxyModalOpen(false);
-          setSelectedBlogPost(post);
+          handleSelectBlogPost(post);
         }}
         onSelectTag={(tag) => {
           setSelectedBlogTag(tag);
@@ -2244,6 +2317,7 @@ export default function App() {
         onOpenAiDiscussion={(post) => {
           setIsGalaxyModalOpen(false);
           setIsBlogStatsModalOpen(true);
+          handleSelectBlogPost(post);
         }}
       />
 
@@ -2255,7 +2329,7 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             id="token_modal_backdrop"
-            className="fixed inset-0 bg-neutral-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            className="fixed inset-0 bg-neutral-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overscroll-contain"
             onClick={() => setIsTokenModalOpen(false)}
           >
             <motion.div
@@ -2263,7 +2337,7 @@ export default function App() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               id="token_modal_window"
-              className="bg-[#0A0A0A] border-2 border-amber-800/60 max-w-sm w-full max-h-[85vh] overflow-y-auto p-4 md:p-5 relative shadow-[0_0_30px_rgba(0,0,0,0.8)] flex flex-col scrollbar-thin scrollbar-thumb-neutral-800"
+              className="bg-[#0A0A0A] border-2 border-amber-800/60 max-w-sm w-[92%] sm:w-full max-h-[76svh] sm:max-h-[85vh] overflow-y-auto p-3.5 sm:p-5 relative shadow-[0_0_30px_rgba(0,0,0,0.8)] flex flex-col scrollbar-thin scrollbar-thumb-neutral-800 overscroll-contain my-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
@@ -2277,7 +2351,7 @@ export default function App() {
                       <h3 className="text-xs font-bold font-mono text-white tracking-widest uppercase">
                         {appLang === 'en' ? 'ADMIN ACCESS CONSOLE' : 'KONSOLA ADMINISTRATORA'}
                       </h3>
-                      <span className="text-[8px] uppercase px-1 py-0.2 bg-amber-500/20 border border-amber-500/50 text-amber-300 font-bold font-mono">
+                      <span className="text-[8px] uppercase px-1 py-0.5 bg-amber-500/20 border border-amber-500/50 text-amber-300 font-bold font-mono">
                         {appLang === 'en' ? 'ADMIN ONLY' : 'DLA ADMINA'}
                       </span>
                     </div>
@@ -2403,7 +2477,7 @@ export default function App() {
                     <button
                       type="button"
                       onClick={handleExportRepos}
-                      className="w-full text-center py-1 bg-amber-950/60 hover:bg-amber-900 border border-amber-650 hover:border-amber-400 text-amber-250 transition-all cursor-pointer font-bold uppercase tracking-wider text-[8.5px]"
+                      className="w-full text-center py-1 bg-amber-950/60 hover:bg-amber-900 border border-amber-600 hover:border-amber-400 text-amber-200 transition-all cursor-pointer font-bold uppercase tracking-wider text-[8.5px]"
                     >
                       {exportSuccess === 'copied' 
                         ? (appLang === 'en' ? '✅ COPIED TO CLIPBOARD!' : '✅ SKOPIOWANO!') 
@@ -2413,7 +2487,7 @@ export default function App() {
                     <button
                       type="button"
                       onClick={handleDownloadJSON}
-                      className="w-full text-center py-1 bg-[#121212] hover:bg-neutral-900 border border-neutral-850 text-neutral-350 transition-all cursor-pointer font-semibold uppercase tracking-wider text-[8.5px]"
+                      className="w-full text-center py-1 bg-[#121212] hover:bg-neutral-900 border border-neutral-800 text-neutral-300 transition-all cursor-pointer font-semibold uppercase tracking-wider text-[8.5px]"
                     >
                       {exportSuccess === 'downloaded' 
                         ? (appLang === 'en' ? '✅ DOWNLOADED!' : '✅ POBRANO!') 

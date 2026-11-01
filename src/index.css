@@ -13,6 +13,19 @@
   --color-editorial-muted: #8b949e;
 }
 
+html, body {
+  background-color: #050505;
+  color-scheme: dark;
+  overscroll-behavior-y: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#root {
+  background-color: #050505;
+  min-height: 100vh;
+  min-height: 100svh;
+}
+
 @keyframes border-blink {
   0%, 100% {
     border-color: #58a6ff;
@@ -92,6 +105,28 @@ input[type="range"].range-slider-thumb::-moz-range-thumb:active {
   cursor: grabbing;
   transform: scale(1.25);
   box-shadow: 0 0 16px rgba(88, 166, 255, 1);
+}
+
+/* Mobile landscape / small height screen bounds with comfortable breathing room */
+@media (max-height: 520px) {
+  #terminal_toggle_wrapper {
+    bottom: 0.75rem !important;
+    right: 0.75rem !important;
+  }
+
+  #terminal_console {
+    top: 0.75rem !important;
+    bottom: 4rem !important;
+    right: 0.75rem !important;
+    height: auto !important;
+    max-height: calc(100svh - 4.75rem) !important;
+  }
+
+  #pomodoro_widget {
+    top: 0.75rem !important;
+    bottom: auto !important;
+    right: 0.75rem !important;
+  }
 }
 
 

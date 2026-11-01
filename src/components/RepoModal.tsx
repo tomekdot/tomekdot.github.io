@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'motion/react';
+import { motion, AnimatePresence, useDragControls, PanInfo } from 'motion/react';
 import { 
   X, 
   Star, 
@@ -43,7 +43,10 @@ import {
   Camera,
   Square,
   Calendar,
-  Boxes
+  Boxes,
+  Minus,
+  FolderGit2,
+  Minimize2
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -63,6 +66,11 @@ import {
   AIProviderId,
   AIProviderInfo 
 } from '../lib/apiKeyStorage';
+import { 
+  handleClientSideAiFallback, 
+  generateClientSideSummary, 
+  HAS_BACKEND 
+} from '../lib/clientAi';
 
 import AnimatedNumber from './AnimatedNumber';
 
@@ -71,6 +79,9 @@ interface RepoModalProps {
   onClose: () => void;
   lang: 'en' | 'pl';
   onUpdateRepo?: (updatedRepo: Repository) => void;
+  isMinimized?: boolean;
+  onMinimize?: () => void;
+  onRestore?: () => void;
 }
 
 interface ReadmeImageProps {
@@ -243,6 +254,92 @@ function ReadmeImageRenderer({ src, alt, width, height, repo, lang, ...props }: 
   );
 }
 
+interface ReadmeCodeBlockProps {
+  children: any;
+  lang: 'en' | 'pl';
+}
+
+function ReadmeCodeBlock({ children, lang }: ReadmeCodeBlockProps) {
+  const [copied, setCopied] = useState(false);
+  // Na telefonie domyślnie włączone zawijanie, żeby nic nie wychodziło poza ramkę
+  const [isWrapped, setIsWrapped] = useState(false);
+
+  const extractText = (node: any): string => {
+    if (!node) return '';
+    if (typeof node === 'string') return node;
+    if (typeof node === 'number') return String(node);
+    if (Array.isArray(node)) return node.map(extractText).join('');
+    if (node?.props?.children) return extractText(node.props.children);
+    return '';
+  };
+
+  const rawCode = extractText(children);
+
+  const handleCopy = () => {
+    if (!rawCode) return;
+    navigator.clipboard.writeText(rawCode).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {});
+  };
+
+  return (
+    <div className="my-3 w-full max-w-full min-w-0 border border-editorial-border bg-neutral-950 overflow-hidden">
+      <div className="flex items-center justify-between px-3 py-1.5 bg-neutral-900/95 border-b border-editorial-border/60 text-[9.5px] font-mono text-editorial-muted select-none">
+        <span className="uppercase tracking-wider font-semibold text-emerald-400 flex items-center gap-1.5 shrink-0">
+          <Code size={11} className="text-emerald-400 shrink-0" />
+          <span>CODE / STRUCTURE</span>
+        </span>
+        <div className="flex items-center gap-1.5 shrink-0">
+          <button
+            type="button"
+            onClick={() => setIsWrapped(prev => !prev)}
+            className={`px-1.5 py-0.5 border text-[9px] uppercase tracking-wider transition-colors cursor-pointer shrink-0 ${
+              isWrapped
+                ? 'bg-editorial-accent/20 border-editorial-accent text-editorial-accent font-bold'
+                : 'border-editorial-border hover:border-neutral-500 text-neutral-400 hover:text-white'
+            }`}
+          >
+            {isWrapped ? (lang === 'en' ? 'Wrap: On' : 'Zawijanie: Wł') : (lang === 'en' ? 'Wrap' : 'Zawijaj')}
+          </button>
+          {rawCode && (
+            <button
+              type="button"
+              onClick={handleCopy}
+              className="px-1.5 py-0.5 border border-editorial-border hover:border-editorial-accent text-editorial-muted hover:text-white text-[9px] uppercase tracking-wider flex items-center gap-1 transition-colors cursor-pointer shrink-0"
+            >
+              {copied ? (
+                <>
+                  <Check size={10} className="text-emerald-400" />
+                  <span className="text-emerald-400 font-bold">{lang === 'en' ? 'Copied' : 'Skopiowano'}</span>
+                </>
+              ) : (
+                <>
+                  <Copy size={10} />
+                  <span>{lang === 'en' ? 'Copy' : 'Kopiuj'}</span>
+                </>
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Padding na zewnętrznym wrapperze, nie na pre: wtedy tekst ma margines z obu stron */}
+      <div className="px-4 py-3.5 min-w-0 w-full">
+        <pre
+          className={`m-0 font-mono text-xs text-emerald-400 leading-relaxed select-text min-w-0 max-w-full ${
+            isWrapped ? 'whitespace-pre-wrap break-all' : 'whitespace-pre overflow-x-auto'
+          }`}
+        >
+          <code translate="no" className="notranslate">
+            {children}
+          </code>
+        </pre>
+      </div>
+    </div>
+  );
+}
+
 const getRepoName = (repo: Repository) => {
   if (repo.url) {
     const parts = repo.url.split('/');
@@ -275,13 +372,40 @@ function sanitizeReadmeMarkdown(raw: string | null): string {
   let cleaned = raw.replace(/<!--+[\s\S]*?--+>/g, '');
   // Strip unclosed comment markers if any
   cleaned = cleaned.replace(/<!--+[\s\S]*$/g, '');
+  // Normalize excessive intra-line whitespace before comments (e.g. in file trees with 15+ spaces)
+  cleaned = cleaned.replace(/([^\n#]+)[ \t]{4,}(#.*)/g, '$1  $2');
   // Normalize triple+ newlines to double newlines
   cleaned = cleaned.replace(/\n{3,}/g, '\n\n');
   return cleaned.trim();
 }
 
-export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoModalProps) {
+export default function RepoModal({ 
+  repo: inputRepo, 
+  onClose, 
+  lang, 
+  onUpdateRepo,
+  isMinimized = false,
+  onMinimize,
+  onRestore
+}: RepoModalProps) {
+  const lastRepoRef = useRef<Repository | null>(null);
+  if (inputRepo) lastRepoRef.current = inputRepo;
+  const repo = inputRepo ?? lastRepoRef.current;
+  const isOpen = Boolean(inputRepo);
+
   const [activeTab, setActiveTab] = useState<'info' | 'code' | 'ai'>('info');
+  const dragControls = useDragControls();
+
+  const startDrag = (e: React.PointerEvent) => {
+    if ((e.target as HTMLElement).closest('button, a, input, select, textarea')) return;
+    dragControls.start(e);
+  };
+
+  const handleDragEnd = (_: unknown, info: PanInfo) => {
+    if (info.offset.y > 45 || info.velocity.y > 500) {
+      onMinimize?.();
+    }
+  };
 
   // Dynamic README
   const [readmeContent, setReadmeContent] = useState<string | null>(null);
@@ -350,6 +474,8 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [showContextInspector, setShowContextInspector] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatMessagesContainerRef = useRef<HTMLDivElement>(null);
+  const modalBodyRef = useRef<HTMLDivElement>(null);
   const chatAbortControllerRef = useRef<AbortController | null>(null);
 
   // Stop Chat AI Generation
@@ -401,10 +527,12 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
       }
     }
 
-    fetch('/api/ai/config-status')
-      .then(res => res.json())
-      .then(data => setServerConfigStatus(data))
-      .catch(() => {});
+    if (HAS_BACKEND) {
+      fetch('/api/ai/config-status')
+        .then(res => res.json())
+        .then(data => setServerConfigStatus(data))
+        .catch(() => {});
+    }
   }, []);
 
   // Update selected model when detected provider changes if input is modified and no explicit selection was made
@@ -450,12 +578,19 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
     }
   }, [repo?.name, lang]);
 
-  // Scroll chat to bottom
+  // Scroll chat to bottom (only inside chat messages container, avoiding parent modal shifts)
   useEffect(() => {
-    if (activeTab === 'ai' && chatEndRef.current) {
-      chatEndRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (activeTab === 'ai' && chatMessagesContainerRef.current) {
+      chatMessagesContainerRef.current.scrollTop = chatMessagesContainerRef.current.scrollHeight;
     }
   }, [chatMessages, activeTab, isChatLoading]);
+
+  // Ensure modal body stays properly at top on tab changes
+  useEffect(() => {
+    if (modalBodyRef.current) {
+      modalBodyRef.current.scrollTop = 0;
+    }
+  }, [activeTab]);
 
   // Save / Clear local API Key and model configuration
   const handleSaveApiKey = () => {
@@ -530,6 +665,58 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
     const controller = new AbortController();
     chatAbortControllerRef.current = controller;
 
+    const runClientSummaryFallback = async () => {
+      try {
+        const clientSummary = await generateClientSideSummary({
+          repo,
+          lang,
+          readme: sanitizedReadme,
+          signal: controller.signal
+        });
+        const replyTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        let fullMarkdown = `### 📋 **${lang === 'en' ? 'Archival Summary' : 'Szczegółowy Opis Archiwalny'}**\n\n${clientSummary.summary}\n\n`;
+        
+        if (clientSummary.keyFeatures && clientSummary.keyFeatures.length > 0) {
+          fullMarkdown += `#### ⚡ **${lang === 'en' ? 'Key Features & Capabilities:' : 'Kluczowe Funkcje i Możliwości:'}**\n` + 
+            clientSummary.keyFeatures.map((f: string) => `- ${f}`).join('\n') + '\n\n';
+        }
+
+        if (clientSummary.technicalHighlights) {
+          fullMarkdown += `#### ⚙️ **${lang === 'en' ? 'Technical Highlights:' : 'Aspekty Techniczne:'}**\n${clientSummary.technicalHighlights}\n`;
+        }
+
+        setChatMessages(prev => [
+          ...prev,
+          { role: 'assistant', text: fullMarkdown, time: replyTime },
+        ]);
+
+        if (onUpdateRepo) {
+          onUpdateRepo({
+            ...repo,
+            longDescPl: lang === 'pl' ? clientSummary.summary : repo.longDescPl,
+            longDescEn: lang === 'en' ? clientSummary.summary : repo.longDescEn,
+          });
+        }
+      } catch (err: any) {
+        if (err.name === 'AbortError') return;
+        const replyTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        setChatMessages(prev => [
+          ...prev,
+          { 
+            role: 'assistant', 
+            text: `> ⚠️ **BŁĄD GENEROWANIA OPISU:** ${err.message || 'Nie udało się połączyć z modelem AI.'}\n\n*Wskazówka: Możesz dodać własny klucz Google Gemini w zakładce u góry (🔑 Konfiguracja AI).*`, 
+            time: replyTime 
+          },
+        ]);
+      }
+    };
+
+    if (!HAS_BACKEND) {
+      await runClientSummaryFallback();
+      setIsChatLoading(false);
+      return;
+    }
+
     try {
       const response = await fetch('/api/ai/generate-summary', {
         method: 'POST',
@@ -593,18 +780,25 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
         throw new Error(data.error || 'Generation failed');
       }
     } catch (err: any) {
-      const replyTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      setChatMessages(prev => [
-        ...prev,
-        { 
-          role: 'assistant', 
-          text: `> ⚠️ **BŁĄD GENEROWANIA OPISU:** ${err.message || 'Nie udało się połączyć z modelem AI.'}\n\n*Wskazówka: Możesz dodać własny klucz lub skonfigurować model lokalny w zakładce u góry (🔑 Konfiguracja Klucza AI).*`, 
-          time: replyTime 
-        },
-      ]);
+      if (err.name === 'AbortError') return;
+      await runClientSummaryFallback();
     } finally {
       setIsChatLoading(false);
     }
+  };
+
+  const handleShowApiKeyGuideInChat = () => {
+    setShowApiKeyConfig(true);
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const guideMsg = lang === 'en'
+      ? `### 🔑 **Quick Guide: How to Get a Free Google Gemini API Key**\n\nGoogle provides free API keys for developers to access Gemini 2.5 Flash and Gemini Pro models:\n\n1. **Open Google AI Studio**: Go to [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey).\n2. **Sign In**: Log in using your Google / Gmail account.\n3. **Create Key**: Click the blue **"Create API key"** button and select a project.\n4. **Copy Key**: Copy your generated key (starts with \`AIzaSy...\`).\n5. **Paste & Save**: Paste your key into the **"API Key"** field in the setup box above, then click **"Save Locally"**.\n\n---\n💡 **Local PC Models (100% Offline / No Key Needed)**\nIf you prefer running models locally without cloud accounts, switch the engine above to **"Local PC / Server"** and point to your local Ollama or LM Studio endpoint (\`http://localhost:11434/v1\`).`
+      : `### 🔑 **Szybki Przewodnik: Jak bezpłatnie uzyskać klucz API Google Gemini**\n\nGoogle udostępnia bezpłatne klucze API dla deweloperów z dostępem do modeli Gemini 2.5 Flash i Gemini Pro:\n\n1. **Otwórz Google AI Studio**: Wejdź na [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey).\n2. **Zaloguj się**: Użyj swojego konta Google / Gmail.\n3. **Utwórz klucz**: Kliknij niebieski przycisk **"Create API key"** i wybierz projekt.\n4. **Skopiuj klucz**: Skopiuj wygenerowany klucz (zaczyna się od \`AIzaSy...\`).\n5. **Wklej i zapisz**: Wklej klucz w pole **"Klucz API"** w panelu powyżej i kliknij **"Zapisz Lokalnie"**.\n\n---\n💡 **Lokalne Modele PC (100% Offline / Bez Klucza)**\nMożesz też przełączyć silnik powyżej na **"Lokalny PC (Ollama / LM Studio)"** i połączyć się z lokalną instancją (\`http://localhost:11434/v1\`) bez potrzeby posiadania żadnego klucza chmurowego.`;
+
+    setChatMessages(prev => [
+      ...prev,
+      { role: 'user' as const, text: lang === 'en' ? '🔑 API Key Guide' : '🔑 Instrukcja klucza API', time: timeStr },
+      { role: 'assistant' as const, text: guideMsg, time: timeStr },
+    ]);
   };
 
   // Chat message submission
@@ -614,6 +808,13 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
 
     if (textToSend.includes('✨ Wygeneruj pełny opis') || textToSend.includes('✨ Generate comprehensive archival')) {
       handleGenerateArchivalSummaryInChat();
+      return;
+    }
+
+    const lower = textToSend.toLowerCase();
+    if (lower.includes('api key') || lower.includes('klucz') || lower.includes('guide') || lower.includes('instrukcj') || lower.includes('jak zdobyć') || lower.includes('how to get')) {
+      handleShowApiKeyGuideInChat();
+      if (!presetText) setChatInput('');
       return;
     }
 
@@ -633,6 +834,46 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
     }
     const controller = new AbortController();
     chatAbortControllerRef.current = controller;
+
+    const runChatFallback = async () => {
+      try {
+        const fallback = await handleClientSideAiFallback({
+          query: textToSend,
+          repoName: repo.name,
+          repoDesc: repo.desc || repo.descPl,
+          repoLang: repo.lang,
+          readme: sanitizedReadme,
+          category: repo.cat?.join(', '),
+          lang,
+          signal: controller.signal
+        });
+        const replyTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        setChatMessages(prev => [
+          ...prev,
+          { role: 'assistant', text: fallback.reply, time: replyTime },
+        ]);
+      } catch (clientErr: any) {
+        if (clientErr.name === 'AbortError') return;
+        const replyTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        setChatMessages(prev => [
+          ...prev,
+          {
+            role: 'assistant',
+            text: lang === 'en'
+              ? `> ⚠️ **ERROR:** ${clientErr.message || 'Could not retrieve response from AI assistant.'}`
+              : `> ⚠️ **BŁĄD:** ${clientErr.message || 'Nie udało się uzyskać odpowiedzi od modelu AI.'}`,
+            time: replyTime
+          }
+        ]);
+      }
+    };
+
+    if (!HAS_BACKEND) {
+      await runChatFallback();
+      chatAbortControllerRef.current = null;
+      setIsChatLoading(false);
+      return;
+    }
 
     try {
       const response = await fetch('/api/ai/chat-repo', {
@@ -676,17 +917,8 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
         chatAbortControllerRef.current = null;
         return;
       }
-      const replyTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      setChatMessages(prev => [
-        ...prev,
-        { 
-          role: 'assistant', 
-          text: lang === 'en'
-            ? `> ⚠️ **CONNECTION ERROR:** ${err.message || 'Could not retrieve response from AI assistant.'}\n\n*Tip: You can configure an API key or local model in the configuration bar above.*`
-            : `> ⚠️ **BŁĄD POŁĄCZENIA:** ${err.message || 'Nie udało się uzyskać odpowiedzi od modelu AI.'}\n\n*Wskazówka: Możesz dodać klucz API lub wybrać model lokalny w zakładce u góry (🔑 Konfiguracja AI).*`, 
-          time: replyTime 
-        },
-      ]);
+      // On backend error (e.g. 404 or network error), fallback seamlessly to client-side AI!
+      await runChatFallback();
     } finally {
       chatAbortControllerRef.current = null;
       setIsChatLoading(false);
@@ -865,10 +1097,14 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
       if (cached) {
         const cachedCount = parseInt(cached, 10);
         if (!isNaN(cachedCount) && onUpdateRepo && cachedCount !== repo.commitsCount) {
-          onUpdateRepo({
-            ...repo,
-            commitsCount: cachedCount
-          });
+          setTimeout(() => {
+            if (active && onUpdateRepo) {
+              onUpdateRepo({
+                ...repo,
+                commitsCount: cachedCount
+              });
+            }
+          }, 300);
         }
         return;
       }
@@ -893,10 +1129,14 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
 
           localStorage.setItem(cacheKey, realCommits.toString());
           if (onUpdateRepo && active && realCommits !== repo.commitsCount) {
-            onUpdateRepo({
-              ...repo,
-              commitsCount: realCommits
-            });
+            setTimeout(() => {
+              if (active && onUpdateRepo) {
+                onUpdateRepo({
+                  ...repo,
+                  commitsCount: realCommits
+                });
+              }
+            }, 300);
           }
         }
       } catch (err) {
@@ -925,28 +1165,116 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-2 sm:p-4">
-        {/* Backdrop overlay */}
+      {isOpen && (
+        isMinimized ? (
         <motion.div
-          id="modal_backdrop"
+          key="repo_minimized_dock"
+          id="repo_minimized_dock"
+          initial={{ opacity: 0, y: 14, scale: 0.98 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: 10, scale: 0.98 }}
+          transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
+          className="fixed bottom-3 left-3 z-40 w-[calc(100vw-14rem)] max-w-sm min-w-0 bg-[#0D0D0D]/95 border-2 border-cyan-500/80 hover:border-cyan-400 shadow-[0_12px_36px_rgba(0,0,0,0.9)] backdrop-blur-md p-1.5 sm:p-2.5 flex items-center justify-between gap-1.5 sm:gap-2 text-white font-mono cursor-pointer rounded-none"
+          onClick={onRestore}
+          title={lang === 'en' ? 'Click to restore repository modal' : 'Kliknij, aby przywrócić okno projektu'}
+        >
+          <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
+            <span className="p-1 sm:p-1.5 bg-neutral-900 border border-editorial-border text-cyan-400 shrink-0">
+              <FolderGit2 size={12} className="sm:w-[13px] sm:h-[13px]" />
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-1 sm:gap-1.5">
+                <span className="text-[11px] sm:text-xs font-bold truncate text-white" translate="no">{repo.name}</span>
+                <span className="hidden md:inline-block text-[8.5px] uppercase px-1 py-0.2 bg-[#0E1B24] border border-cyan-500/40 text-cyan-400 font-bold shrink-0">
+                  {lang === 'en' ? catSpec.labelEn : catSpec.labelPl}
+                </span>
+              </div>
+              <p className="text-[8.5px] sm:text-[9.5px] text-editorial-muted truncate font-sans">
+                {lang === 'en' ? 'Click to restore ↗' : 'Kliknij, by otworzyć ↗'}
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+            <button
+              type="button"
+              id="restore_repo_modal_btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRestore?.();
+              }}
+              className="w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center bg-neutral-900 hover:bg-neutral-800 border border-editorial-border hover:border-cyan-400 text-cyan-400 hover:text-white transition-colors cursor-pointer shrink-0"
+              title={lang === 'en' ? 'Expand modal' : 'Przywróć okno'}
+            >
+              <ChevronUp size={13} className="sm:w-3.5 sm:h-3.5" />
+            </button>
+            <button
+              type="button"
+              id="dismiss_repo_modal_btn"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose();
+              }}
+              className="w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center bg-neutral-900 hover:bg-neutral-800 border border-editorial-border hover:border-rose-500 text-editorial-muted hover:text-rose-400 transition-colors cursor-pointer shrink-0"
+              title={lang === 'en' ? 'Close' : 'Zamknij'}
+            >
+              <X size={13} className="sm:w-3.5 sm:h-3.5" />
+            </button>
+          </div>
+        </motion.div>
+      ) : (
+        <motion.div
+          key="repo_modal_portal"
+          id="repo_modal_portal"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          onClick={onClose}
-          className="fixed inset-0 bg-black/80 backdrop-blur-sm"
-        />
-
-        {/* Modal Window Container */}
-        <motion.div
-          id="modal_window"
-          initial={{ opacity: 0, scale: 0.95, y: 15 }}
-          animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 15 }}
-          transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-          className="relative bg-editorial-bg border-2 border-editorial-border w-full max-w-2xl h-[92vh] sm:h-[680px] max-h-[92vh] sm:max-h-[88vh] rounded-none shadow-2xl flex flex-col overflow-hidden"
+          transition={{ duration: 0.16 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 overflow-hidden"
         >
-          {/* Header Block */}
-          <div className="bg-editorial-sidebar-bg border-b border-editorial-border px-4 sm:px-6 py-3.5 sm:py-5 flex items-start justify-between shrink-0">
+          {/* Backdrop overlay */}
+          <motion.div
+            id="modal_backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.16 }}
+            onClick={onClose}
+            className="fixed inset-0 bg-black/80"
+          />
+
+          {/* Modal Window Container with native Framer Motion drag to minimize */}
+          {!isMinimized && (
+            <motion.div
+              id="modal_window"
+              drag="y"
+              dragControls={dragControls}
+              dragListener={false}
+              dragConstraints={{ top: 0, bottom: 0 }}
+              dragElastic={{ top: 0, bottom: 0.4 }}
+              onDragEnd={handleDragEnd}
+              initial={{ opacity: 0, scale: 0.98, y: 10 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.98, y: 10 }}
+              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+              className="relative bg-editorial-bg border-2 border-editorial-border w-[calc(100vw-1rem)] sm:w-full max-w-2xl min-w-0 max-w-full h-[84svh] sm:h-[720px] max-h-[88svh] sm:max-h-[90vh] rounded-none shadow-2xl flex flex-col overflow-hidden my-auto"
+            >
+            {/* iOS/iPhone-style pull-down handle (clean pill bar, no text) */}
+            <div 
+              className="w-full flex items-center justify-center pt-2.5 pb-2 bg-editorial-sidebar-bg cursor-grab active:cursor-grabbing select-none shrink-0 group border-b border-editorial-border/30 touch-none"
+              style={{ touchAction: 'none' }}
+              onPointerDown={startDrag}
+              title={lang === 'en' ? 'Drag down to minimize' : 'Przeciągnij w dół, aby zminimalizować'}
+            >
+              <div className="w-10 h-1 rounded-full bg-neutral-600 group-hover:bg-cyan-400 transition-colors" />
+            </div>
+
+            {/* Header Block - draggable from blank areas */}
+            <div 
+              className="bg-editorial-sidebar-bg border-b border-editorial-border px-3.5 sm:px-6 py-2.5 sm:py-4 flex items-start justify-between shrink-0 select-none cursor-grab active:cursor-grabbing touch-none"
+              style={{ touchAction: 'none' }}
+              onPointerDown={startDrag}
+            >
             <div className="min-w-0 flex-1 pr-2">
               <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
                 {repo.cat.map(catKey => {
@@ -984,15 +1312,26 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
               </h2>
             </div>
 
-            <button
-              type="button"
-              id="close_modal_btn"
-              onClick={onClose}
-              className="text-editorial-muted hover:text-white hover:bg-neutral-900 p-1.5 sm:p-2 rounded-none transition-all border border-editorial-border shrink-0"
-              title={lang === 'en' ? 'Close (Esc)' : 'Zamknij (Esc)'}
-            >
-              <X size={18} />
-            </button>
+            <div className="flex items-center gap-1.5 shrink-0">
+              <button
+                type="button"
+                id="minimize_modal_btn"
+                onClick={onMinimize}
+                className="w-8 h-8 sm:w-9 sm:h-9 text-cyan-400 hover:text-white hover:bg-cyan-950/40 rounded-none transition-all border border-cyan-500/50 shrink-0 cursor-pointer flex items-center justify-center shadow-sm"
+                title={lang === 'en' ? 'Minimize' : 'Zminimalizuj'}
+              >
+                <Minimize2 size={16} />
+              </button>
+              <button
+                type="button"
+                id="close_modal_btn"
+                onClick={onClose}
+                className="w-8 h-8 sm:w-9 sm:h-9 text-rose-400 hover:text-white hover:bg-rose-950/40 rounded-none transition-all border border-rose-500/50 shrink-0 cursor-pointer flex items-center justify-center shadow-sm"
+                title={lang === 'en' ? 'Close (Esc)' : 'Zamknij (Esc)'}
+              >
+                <X size={16} />
+              </button>
+            </div>
           </div>
 
           {/* Navigation Tabs - Full width segmented on mobile, all tabs clearly visible */}
@@ -1045,7 +1384,10 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
           </div>
 
           {/* Body Content */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6 scrollbar-thin scrollbar-thumb-neutral-800">
+          <div 
+            ref={modalBodyRef}
+            className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-5 space-y-3 sm:space-y-4 scrollbar-thin scrollbar-thumb-neutral-800 min-w-0 w-full"
+          >
             {activeTab === 'info' ? (
               <div className="space-y-6 animate-fadeIn font-sans">
                 {/* Statistics panel */}
@@ -1358,28 +1700,28 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
                 </div>
               </div>
             ) : activeTab === 'code' && !repo.isPrivate ? (
-              <div className="space-y-4 animate-fadeIn font-sans leading-relaxed">
+              <div className="space-y-4 animate-fadeIn font-sans leading-relaxed min-w-0 max-w-full overflow-hidden">
                 {isLoadingReadme ? (
                   <div className="py-20 text-center font-mono text-xs text-editorial-accent animate-pulse uppercase tracking-widest">
                     &gt;&gt; [FETCHING LIVE ARCHIVAL README.MD...]
                   </div>
                 ) : sanitizedReadme ? (
-                  <div className="markdown-body text-editorial-text space-y-4 max-h-[48vh] overflow-y-auto p-5 sm:p-6 bg-neutral-950/30 border border-editorial-border scrollbar-thin scrollbar-thumb-neutral-800 scrollbar-track-transparent">
+                  <div className="markdown-body text-editorial-text space-y-4 p-3 sm:p-5 bg-neutral-950/30 border border-editorial-border min-w-0 max-w-full overflow-hidden">
                     <Markdown
                       remarkPlugins={[remarkGfm]}
                       rehypePlugins={[rehypeRaw]}
                       components={{
-                        h1: ({ children }) => <h1 className="text-base sm:text-lg font-bold font-mono text-white border-b border-editorial-border pb-2 mt-4 mb-3 w-full">{children}</h1>,
-                        h2: ({ children }) => <h2 className="text-sm sm:text-base font-bold font-mono text-white border-b border-editorial-border pb-1.5 mt-4 mb-2 w-full">{children}</h2>,
-                        h3: ({ children }) => <h3 className="text-xs sm:text-sm font-bold font-mono text-editorial-accent mt-3 mb-1.5">{children}</h3>,
-                        h4: ({ children }) => <h4 className="text-xs font-bold font-mono text-white mt-2 mb-1">{children}</h4>,
-                        h5: ({ children }) => <h5 className="text-xs font-semibold font-mono text-editorial-muted mt-2 mb-1">{children}</h5>,
-                        h6: ({ children }) => <h6 className="text-xs font-semibold font-mono text-editorial-muted mt-2 mb-1">{children}</h6>,
+                        h1: ({ children }) => <h1 className="text-base sm:text-lg font-bold font-mono text-white border-b border-editorial-border pb-2 mt-4 mb-3 w-full break-words">{children}</h1>,
+                        h2: ({ children }) => <h2 className="text-sm sm:text-base font-bold font-mono text-white border-b border-editorial-border pb-1.5 mt-4 mb-2 w-full break-words">{children}</h2>,
+                        h3: ({ children }) => <h3 className="text-xs sm:text-sm font-bold font-mono text-editorial-accent mt-3 mb-1.5 break-words">{children}</h3>,
+                        h4: ({ children }) => <h4 className="text-xs font-bold font-mono text-white mt-2 mb-1 break-words">{children}</h4>,
+                        h5: ({ children }) => <h5 className="text-xs font-semibold font-mono text-editorial-muted mt-2 mb-1 break-words">{children}</h5>,
+                        h6: ({ children }) => <h6 className="text-xs font-semibold font-mono text-editorial-muted mt-2 mb-1 break-words">{children}</h6>,
                         hr: () => <hr className="border-t border-editorial-border my-4 w-full" />,
                         p: ({ children, className, align }: any) => {
                           const isCenter = align === 'center';
                           return (
-                            <div className={`text-xs font-sans text-editorial-text leading-relaxed mb-3 ${isCenter ? 'text-center flex flex-wrap justify-center items-center gap-2' : ''} ${className || ''}`}>
+                            <div className={`text-xs font-sans text-editorial-text leading-relaxed mb-3 break-words [overflow-wrap:anywhere] ${isCenter ? 'text-center flex flex-wrap justify-center items-center gap-2' : ''} ${className || ''}`}>
                               {children}
                             </div>
                           );
@@ -1387,7 +1729,7 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
                         div: ({ children, className, align }: any) => {
                           const isCenter = align === 'center';
                           return (
-                            <div className={`${isCenter ? 'text-center flex flex-wrap justify-center items-center gap-2 my-2' : ''} ${className || ''}`}>
+                            <div className={`break-words ${isCenter ? 'text-center flex flex-wrap justify-center items-center gap-2 my-2' : ''} ${className || ''}`}>
                               {children}
                             </div>
                           );
@@ -1396,17 +1738,20 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
                         strong: ({ children }) => <strong className="font-bold text-white font-mono">{children}</strong>,
                         em: ({ children }) => <em className="italic text-editorial-text">{children}</em>,
                         i: ({ children }) => <i className="italic text-editorial-text">{children}</i>,
-                        code: ({ children, className }) => {
-                          const isInline = !className;
+                        pre: ({ children }: any) => <ReadmeCodeBlock lang={lang}>{children}</ReadmeCodeBlock>,
+                        code: ({ children, className, inline }: any) => {
+                          const isInline = inline || (!className && typeof children === 'string' && !children.includes('\n'));
                           return isInline ? (
-                            <code translate="no" className="bg-neutral-900 text-editorial-accent font-mono text-xs px-1 py-0.5 border border-editorial-border notranslate">{children}</code>
+                            <code translate="no" className="bg-neutral-900 text-editorial-accent font-mono text-[10px] sm:text-xs px-1 py-0.5 border border-editorial-border notranslate break-words [overflow-wrap:anywhere] whitespace-normal">
+                              {children}
+                            </code>
                           ) : (
-                            <pre className="bg-neutral-950 p-3.5 border border-editorial-border font-mono text-xs text-emerald-400 overflow-x-auto my-3 leading-relaxed rounded-none w-full">
-                              <code translate="no" className="notranslate">{children}</code>
-                            </pre>
+                            <code translate="no" className="notranslate font-mono block">
+                              {children}
+                            </code>
                           );
                         },
-                        li: ({ children }) => <li className="text-xs font-sans text-editorial-text leading-relaxed">{children}</li>,
+                        li: ({ children }) => <li className="text-xs font-sans text-editorial-text leading-relaxed break-words">{children}</li>,
                         ul: ({ children }) => <ul className="my-2.5 space-y-1.5 list-disc pl-5 text-xs text-editorial-text">{children}</ul>,
                         ol: ({ children }) => <ol className="my-2.5 space-y-1.5 list-decimal pl-5 text-xs text-editorial-text">{children}</ol>,
                         a: ({ href, children }) => {
@@ -1424,7 +1769,7 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
                                 href={resolvedHref} 
                                 target="_blank" 
                                 rel="noopener noreferrer" 
-                                className="text-editorial-accent hover:underline decoration-dotted font-mono text-xs inline-flex items-center gap-1 mx-0.5"
+                                className="text-editorial-accent hover:underline decoration-dotted font-mono text-xs inline-flex items-center gap-1 mx-0.5 break-all"
                               >
                                 {children}
                               </a>
@@ -1444,9 +1789,9 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
                             />
                           );
                         },
-                        blockquote: ({ children }) => <blockquote className="border-l-2 border-editorial-accent pl-3.5 pr-2 py-1.5 italic font-serif text-editorial-muted my-3 bg-neutral-900/40">{children}</blockquote>,
+                        blockquote: ({ children }) => <blockquote className="border-l-2 border-editorial-accent pl-3.5 pr-2 py-1.5 italic font-serif text-editorial-muted my-3 bg-neutral-900/40 break-words">{children}</blockquote>,
                         table: ({ children }) => (
-                          <div className="overflow-x-auto my-4 w-full border border-editorial-border bg-neutral-950/40">
+                          <div className="overflow-x-auto my-4 w-full max-w-full min-w-0 border border-editorial-border bg-neutral-950/40">
                             <table className="w-full text-left border-collapse text-xs font-sans">
                               {children}
                             </table>
@@ -1456,9 +1801,9 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
                         tbody: ({ children }) => <tbody className="divide-y divide-editorial-border/40">{children}</tbody>,
                         tr: ({ children }) => <tr className="hover:bg-neutral-900/40 transition-colors">{children}</tr>,
                         th: ({ children }) => <th className="px-3.5 py-2.5 font-semibold font-mono border-r border-editorial-border/40 last:border-0">{children}</th>,
-                        td: ({ children }) => <td className="px-3.5 py-2.5 border-r border-editorial-border/40 last:border-0 text-editorial-text leading-relaxed">{children}</td>,
-                        details: ({ children }) => <details className="my-3 border border-editorial-border bg-neutral-900/30 p-3 rounded-none open:bg-neutral-900/50">{children}</details>,
-                        summary: ({ children }) => <summary className="cursor-pointer font-mono font-bold text-editorial-accent hover:text-white mb-2 select-none">{children}</summary>,
+                        td: ({ children }) => <td className="px-3.5 py-2.5 border-r border-editorial-border/40 last:border-0 text-editorial-text leading-relaxed break-words">{children}</td>,
+                        details: ({ children }) => <details className="my-3 border border-editorial-border bg-neutral-900/30 p-3 rounded-none open:bg-neutral-900/50 min-w-0 max-w-full overflow-hidden">{children}</details>,
+                        summary: ({ children }) => <summary className="cursor-pointer font-mono font-bold text-editorial-accent hover:text-white mb-2 select-none break-words">{children}</summary>,
                       }}
                     >
                       {sanitizedReadme}
@@ -1480,7 +1825,7 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
               </div>
             ) : (
               /* AI Terminal Assistant / Chatbot Tab */
-              <div className="space-y-4 animate-fadeIn font-mono">
+              <div className="space-y-2.5 sm:space-y-3.5 animate-fadeIn font-mono">
                 {/* Terminal Header Bar */}
                 <div className="flex flex-wrap items-center justify-between gap-2 p-2.5 bg-neutral-950 border border-editorial-border text-[10px] text-editorial-muted">
                   <div className="flex items-center gap-2 text-editorial-accent font-bold">
@@ -1576,10 +1921,10 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
                     {/* Quick Provider Selection Grid / Pills */}
                     <div className="space-y-1.5">
                       <div className="text-[10.5px] font-mono uppercase font-bold text-editorial-muted">
-                        {lang === 'en' ? '1. Select Engine (Google Gemini or Custom Host):' : '1. Wybierz Silnik (Google Gemini lub Własny Host):'}
+                        {lang === 'en' ? '1. Select AI Engine (Google Gemini or Local PC / Server):' : '1. Wybierz Silnik AI (Google Gemini lub Lokalny PC / Serwer):'}
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 font-mono text-[10.5px]">
-                        {(['gemini', 'custom'] as AIProviderId[]).map((provId) => {
+                        {(['gemini', 'ollama', 'lmstudio', 'custom'] as AIProviderId[]).map((provId) => {
                           const conf = PROVIDERS_CONFIG[provId];
                           const isSelected = (effectiveProviderInfo.id === provId && selectedProviderId === 'unknown') || selectedProviderId === provId;
                           return (
@@ -1588,12 +1933,18 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
                               type="button"
                               onClick={() => {
                                 setSelectedProviderId(provId);
-                                if (provId === 'custom') {
-                                  if (!customBaseUrl) setCustomBaseUrl('http://localhost:11434/v1');
-                                  if (!selectedModel || selectedModel === 'gemini-flash-latest') setSelectedModel('llama3.2');
+                                if (provId === 'ollama') {
+                                  setCustomBaseUrl('http://localhost:11434/v1');
+                                  setSelectedModel('llama3.2');
+                                } else if (provId === 'lmstudio') {
+                                  setCustomBaseUrl('http://localhost:1234/v1');
+                                  setSelectedModel('local-model');
+                                } else if (provId === 'custom') {
+                                  if (!customBaseUrl) setCustomBaseUrl('http://localhost:8080/v1');
+                                  if (!selectedModel || selectedModel === 'gemini-2.5-flash') setSelectedModel('local-model');
                                 } else {
                                   setCustomBaseUrl('');
-                                  setSelectedModel('gemini-flash-latest');
+                                  setSelectedModel('gemini-2.5-flash');
                                 }
                               }}
                               className={`p-2.5 text-left border transition-all cursor-pointer flex items-center justify-between gap-2 ${
@@ -1607,7 +1958,7 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
                                 <span className="text-[9.5px] text-editorial-muted truncate">
                                   {conf.isLocal 
                                     ? (lang === 'en' ? 'Local PC / Server ($0 / offline)' : 'Lokalny PC / Serwer (0 zł / offline)') 
-                                    : (lang === 'en' ? 'Google AI Studio (Cloud)' : 'Google AI Studio (Chmura)')}
+                                    : (lang === 'en' ? 'Google AI Studio (Cloud API)' : 'Google AI Studio (Chmura API)')}
                                 </span>
                               </div>
                               {isSelected && <Check size={14} className="text-emerald-400 shrink-0" />}
@@ -1643,6 +1994,21 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
                         {lang === 'en' ? effectiveProviderInfo.descriptionEn : effectiveProviderInfo.descriptionPl}
                       </p>
 
+                      {/* HTTPS Mixed Content Guidance for Local PC Engines */}
+                      {effectiveProviderInfo.isLocal && typeof window !== 'undefined' && window.location.protocol === 'https:' && (
+                        <div className="p-2.5 bg-amber-950/40 border border-amber-600/60 text-amber-300 text-[10.5px] font-sans leading-relaxed space-y-1">
+                          <div className="font-bold flex items-center gap-1.5 font-mono text-[11px] text-amber-200">
+                            <AlertTriangle size={13} className="shrink-0" />
+                            <span>{lang === 'en' ? 'Running on GitHub Pages (HTTPS)' : 'Uruchomiono na GitHub Pages (HTTPS)'}</span>
+                          </div>
+                          <p>
+                            {lang === 'en'
+                              ? 'Browsers block direct connections from HTTPS sites to insecure local endpoints (http://localhost). Local engines work seamlessly when you clone the repo and run "npm run dev" locally (http://localhost:3000), or by using Google Gemini on GitHub Pages.'
+                              : 'Przeglądarki blokują bezpośrednie zapytania ze stron HTTPS do lokalnego http://localhost (Mixed Content). Silniki lokalne działają w pełni po sklonowaniu repozytorium i uruchomieniu "npm run dev" (http://localhost:3000), lub przez darmowy klucz Google Gemini online.'}
+                          </p>
+                        </div>
+                      )}
+
                       {/* Endpoint Base URL (for Local Custom Gateways / Ollama / LM Studio) */}
                       {effectiveProviderInfo.isLocal && (
                         <div className="pt-2 border-t border-editorial-border/40 space-y-1.5">
@@ -1667,18 +2033,18 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
                         <label className="text-[10px] text-editorial-muted uppercase font-bold flex items-center justify-between">
                           <span>{lang === 'en' ? '2. Model Selection (Type & Name):' : '2. Wybór Modelu (Wpisz i Nazwij):'}</span>
                           <span className="text-[9px] text-editorial-muted font-mono lowercase">
-                            {effectiveProviderInfo.id === 'custom' ? 'np. llama-3.2, mistral, deepseek-r1' : 'np. gemini-flash-latest, gemini-pro-latest'}
+                            {effectiveProviderInfo.id === 'custom' || effectiveProviderInfo.isLocal ? 'np. llama3.2, deepseek-r1:8b, local-model' : 'np. gemini-2.5-flash, gemini-2.5-pro'}
                           </span>
                         </label>
                         <input
                           type="text"
-                          value={customModelInput || selectedModel || (effectiveProviderInfo.id === 'custom' ? 'llama-3.2' : 'gemini-flash-latest')}
+                          value={customModelInput || selectedModel || (effectiveProviderInfo.isLocal ? 'llama3.2' : 'gemini-2.5-flash')}
                           onChange={(e) => {
                             setSelectedModel(e.target.value);
                             setCustomModelInput(e.target.value);
                             setIsCustomModelMode(true);
                           }}
-                          placeholder={effectiveProviderInfo.id === 'custom' ? 'llama-3.2' : 'gemini-flash-latest'}
+                          placeholder={effectiveProviderInfo.isLocal ? 'llama3.2' : 'gemini-2.5-flash'}
                           className="w-full bg-neutral-900 border border-editorial-border focus:border-editorial-accent px-2.5 py-1.5 text-xs font-mono text-white placeholder-neutral-600 focus:outline-none"
                         />
                       </div>
@@ -1926,7 +2292,7 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
                       },
                       {
                         label: lang === 'en' ? '🔑 API Key Guide' : '🔑 Instrukcja klucza API',
-                        handler: () => setShowApiKeyConfig(true),
+                        handler: () => handleShowApiKeyGuideInChat(),
                       },
                     ].map((item, idx) => (
                       <button
@@ -1943,7 +2309,10 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
                 </div>
 
                 {/* Chat conversation history window */}
-                <div className="bg-neutral-950 border border-editorial-border p-4 max-h-[36vh] min-h-[220px] overflow-y-auto space-y-3.5 scrollbar-thin scrollbar-thumb-neutral-800">
+                <div 
+                  ref={chatMessagesContainerRef}
+                  className="bg-neutral-950 border border-editorial-border p-3 sm:p-4 min-h-[160px] sm:min-h-[220px] max-h-[360px] overflow-y-auto space-y-3 sm:space-y-3.5 scrollbar-thin scrollbar-thumb-neutral-800"
+                >
                   {chatMessages.map((msg, index) => (
                     <div
                       key={index}
@@ -2019,7 +2388,7 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
                       handleSendChatMessage();
                     }
                   }}
-                  className="flex items-center gap-2 bg-neutral-900 border border-editorial-border p-1.5"
+                  className="flex items-center gap-2 bg-neutral-900 border border-editorial-border p-1.5 sm:p-2 shrink-0 mb-1 sm:mb-1.5 shadow-sm"
                 >
                   <span className="text-editorial-accent pl-2 text-xs font-mono select-none">&gt;</span>
                   <input
@@ -2084,7 +2453,10 @@ export default function RepoModal({ repo, onClose, lang, onUpdateRepo }: RepoMod
             </a>
           </div>
         </motion.div>
-      </div>
+        )}
+      </motion.div>
+      )
+      )}
     </AnimatePresence>
   );
 }

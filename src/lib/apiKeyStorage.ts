@@ -54,10 +54,12 @@ export const PROVIDERS_CONFIG: Record<AIProviderId, AIProviderInfo> = {
     shortName: 'Gemini',
     vendor: 'Google',
     prefix: 'AIzaSy',
-    defaultModel: 'gemini-flash-latest',
+    defaultModel: 'gemini-2.5-flash',
     availableModels: [
-      { id: 'gemini-flash-latest', labelPl: 'Gemini Flash (Domyślny / Auto Latest)', labelEn: 'Gemini Flash (Default / Auto Latest)', badge: 'Default' },
-      { id: 'gemini-pro-latest', labelPl: 'Gemini Pro (Auto Latest)', labelEn: 'Gemini Pro (Auto Latest)' },
+      { id: 'gemini-2.5-flash', labelPl: 'Gemini 2.5 Flash (Domyślny / Szybki)', labelEn: 'Gemini 2.5 Flash (Default / Fast)', badge: 'Default' },
+      { id: 'gemini-2.5-pro', labelPl: 'Gemini 2.5 Pro (Głębokie rozumowanie)', labelEn: 'Gemini 2.5 Pro (Deep Reasoning)' },
+      { id: 'gemini-2.0-flash', labelPl: 'Gemini 2.0 Flash', labelEn: 'Gemini 2.0 Flash' },
+      { id: 'gemini-1.5-flash', labelPl: 'Gemini 1.5 Flash', labelEn: 'Gemini 1.5 Flash' },
     ],
     badgeClass: 'bg-sky-950/70 border-sky-500/70 text-sky-300',
     borderClass: 'border-sky-500/60',
@@ -185,10 +187,10 @@ export const PROVIDERS_CONFIG: Record<AIProviderId, AIProviderInfo> = {
     shortNameEn: 'Auto AI',
     shortName: 'Auto AI',
     vendor: 'Universal',
-    defaultModel: 'gemini-flash-latest',
+    defaultModel: 'gemini-3.8-flash',
     availableModels: [
-      { id: 'gemini-flash-latest', labelPl: 'Gemini Flash (Domyślny / Auto Latest)', labelEn: 'Gemini Flash (Default / Auto Latest)' },
-      { id: 'gemini-pro-latest', labelPl: 'Gemini Pro (Auto Latest)', labelEn: 'Gemini Pro (Auto Latest)' },
+      { id: 'gemini-3.8-flash', labelPl: 'Gemini 3.8 Flash (Domyślny)', labelEn: 'Gemini 3.8 Flash (Default)' },
+      { id: 'gemini-3.8-pro', labelPl: 'Gemini 3.8 Pro', labelEn: 'Gemini 3.8 Pro' },
     ],
     badgeClass: 'bg-neutral-900 border-neutral-700 text-neutral-300',
     borderClass: 'border-neutral-700',
@@ -262,7 +264,7 @@ export function detectAIProvider(rawKey: string, explicitProvider?: AIProviderId
   }
 
   // 1. Google Gemini (AIzaSy... or standard Google Cloud key)
-  if (trimmed.startsWith('AIza') || trimmed.startsWith('aiza') || trimmed.length > 15) {
+  if (/^AIza/i.test(trimmed)) {
     return PROVIDERS_CONFIG.gemini;
   }
 
@@ -330,7 +332,8 @@ export function setLocalAIKey(
 ): void {
   const trimmedKey = (key || '').trim();
   const provider = customProvider || detectAIProvider(trimmedKey).id;
-  const model = (customModel || '').trim() || detectAIProvider(trimmedKey, provider).defaultModel;
+  const providerConfig = PROVIDERS_CONFIG[provider] || PROVIDERS_CONFIG.unknown;
+  const model = (customModel || '').trim() || providerConfig.defaultModel || 'gemini-3.8-flash';
   const baseUrl = (customBaseUrl || '').trim();
 
   try {

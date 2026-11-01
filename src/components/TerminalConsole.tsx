@@ -4,8 +4,8 @@
  */
 
 import React, { useState, useRef, useEffect } from 'react';
-import { Terminal, X, CornerDownRight, Play, Square, RefreshCw, Key } from 'lucide-react';
-import { REPOS, SHOW_PRIVATE_REPOS_TO_PUBLIC } from '../data';
+import { Terminal, X, CornerDownRight, Square } from 'lucide-react';
+import { REPOS, BLOG_POSTS, SHOW_PRIVATE_REPOS_TO_PUBLIC } from '../data';
 import { Repository } from '../types';
 import { 
   detectAIProvider, 
@@ -17,6 +17,7 @@ import {
   getLocalAIProvider,
   PROVIDERS_CONFIG
 } from '../lib/apiKeyStorage';
+import { handleClientSideAiFallback, HAS_BACKEND } from '../lib/clientAi';
 
 interface CommandOutput {
   text: string;
@@ -32,7 +33,6 @@ interface TerminalConsoleProps {
 
 export default function TerminalConsole({ onSelectCategory, lang, repos = REPOS, isModalOpen }: TerminalConsoleProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [isAtBottom, setIsAtBottom] = useState(false);
   const [history, setHistory] = useState<CommandOutput[]>([
     { text: lang === 'en' 
         ? "tomekdot System v1.0.0 initialized. Type 'help' to review commands." 
@@ -42,36 +42,26 @@ export default function TerminalConsole({ onSelectCategory, lang, repos = REPOS,
   ]);
   const [inputVal, setInputVal] = useState('');
 
+  // Container scroll reference
+  const logsRef = useRef<HTMLDivElement>(null);
+  const stickToBottomRef = useRef(true);
+
+  // Track if user is near bottom
+  const handleLogsScroll = () => {
+    const el = logsRef.current;
+    if (!el) return;
+    stickToBottomRef.current = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+  };
+
+  // Auto-scroll logs container on new history entry after frame render
   useEffect(() => {
-    const handleScroll = () => {
-      // Check window scroll
-      const winBottom = (window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - 60);
+    const el = logsRef.current;
+    if (!el || !stickToBottomRef.current) return;
+    requestAnimationFrame(() => {
+      el.scrollTop = el.scrollHeight;
+    });
+  }, [history]);
 
-      // Check main workspace section scroll
-      const sec = document.querySelector('section');
-      const secBottom = sec 
-        ? (sec.scrollHeight > sec.clientHeight && (sec.scrollTop + sec.clientHeight >= sec.scrollHeight - 50)) 
-        : false;
-
-      // Check sidebar scroll
-      const asd = document.querySelector('aside');
-      const asdBottom = asd 
-        ? (asd.scrollHeight > asd.clientHeight && (asd.scrollTop + asd.clientHeight >= asd.scrollHeight - 50)) 
-        : false;
-
-      setIsAtBottom(winBottom || secBottom || asdBottom);
-    };
-
-    window.addEventListener('scroll', handleScroll, true);
-    window.addEventListener('resize', handleScroll);
-    handleScroll();
-
-    return () => {
-      window.removeEventListener('scroll', handleScroll, true);
-      window.removeEventListener('resize', handleScroll);
-    };
-  }, []);
-  
   // Pomodoro dynamic tracking
   const [pomodoroState, setPomodoroState] = useState<{
     isRunning: boolean;
@@ -79,45 +69,35 @@ export default function TerminalConsole({ onSelectCategory, lang, repos = REPOS,
     label: string;
   } | null>(null);
 
-  const timerRef = useRef<NodeJS.Timeout | null>(null);
-  const consoleEndRef = useRef<HTMLDivElement>(null);
-
+  // Single Pomodoro interval hook
   useEffect(() => {
-    if (consoleEndRef.current) {
-      consoleEndRef.current.scrollIntoView({ behavior: 'smooth' });
-    }
-  }, [history]);
-
-  useEffect(() => {
-    if (pomodoroState?.isRunning && pomodoroState.timeLeft > 0) {
-      timerRef.current = setInterval(() => {
-        setPomodoroState(prev => {
-          if (!prev) return null;
-          if (prev.timeLeft <= 1) {
-            clearInterval(timerRef.current!);
-            return { ...prev, timeLeft: 0, isRunning: false };
-          }
-          return { ...prev, timeLeft: prev.timeLeft - 1 };
-        });
-      }, 1000);
-    } else {
-      if (timerRef.current) clearInterval(timerRef.current);
-    }
-
-    return () => {
-      if (timerRef.current) clearInterval(timerRef.current);
-    };
-  }, [pomodoroState?.isRunning, pomodoroState?.timeLeft]);
+    if (!pomodoroState?.isRunning) return;
+    const intervalId = setInterval(() => {
+      setPomodoroState(prev => {
+        if (!prev || !prev.isRunning) return prev;
+        if (prev.timeLeft <= 1) {
+          return { ...prev, timeLeft: 0, isRunning: false };
+        }
+        return { ...prev, timeLeft: prev.timeLeft - 1 };
+      });
+    }, 1000);
+    return () => clearInterval(intervalId);
+  }, [pomodoroState?.isRunning]);
 
   const handleCommandSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    const cmd = inputVal.trim();
-    if (!cmd) return;
+    stickToBottomRef.current = true;
+    const rawCmd = inputVal.trim();
+    if (!rawCmd) return;
 
-    const newHistory = [...history, { text: `> ${cmd}`, type: 'input' as const }];
-    const parts = cmd.toLowerCase().split(' ');
+    const rawParts = rawCmd.split(/\s+/);
+    const parts = rawCmd.toLowerCase().split(/\s+/);
     const primary = parts[0];
-    const argument = parts.slice(1).join(' ');
+    const argument = rawParts.slice(1).join(' ');
+
+    // Mask sensitive API keys in terminal history output
+    const shownText = /^ai\s+key\s+set\b/i.test(rawCmd) ? '> ai key set ••••••' : `> ${rawCmd}`;
+    const newHistory: CommandOutput[] = [...history, { text: shownText, type: 'input' as const }];
 
     const addOutput = (text: string, type: 'output' | 'error' | 'success' | 'comment' = 'output') => {
       newHistory.push({ text, type });
@@ -189,7 +169,7 @@ nie ma nic do zatwierdzenia, drzewo robocze czyste`, "success");
             : "commit f82d9a3 (HEAD -> main, origin/main)\nAuthor: tomekdot <tomekdot@users.noreply.github.com>\nDate:   2026-06-20\n\n    feat: dodano opcję SHOW_PRIVATE_REPOS_TO_PUBLIC i panel narzędzi właściciela\n\ncommit a47c92b\nAuthor: tomekdot <tomekdot@users.noreply.github.com>\nDate:   2026-06-16\n\n    Initial archival index sync of Trackmania plugins";
           addOutput(logMsg, "comment");
         } else if (subAction === 'clone') {
-          const repoArg = parts[2];
+          const repoArg = rawParts[2];
           if (!repoArg) {
             addOutput("Error: git clone requires a repository name/url.", "error");
           } else {
@@ -243,26 +223,34 @@ nie ma nic do zatwierdzenia, drzewo robocze czyste`, "success");
       case 'about':
       case 'bio':
         if (lang === 'en') {
-          addOutput("tomekdot profile details:", "comment");
-          addOutput("Trackmania Modder, AI enthusiast, and Computer Science Student at KUL.");
-          addOutput("Specializes in Python (PyPlanet server scripts), AngelScript (Openplanet game utilities), and Java/Kotlin.");
-          addOutput("Passionate about microtonal frequencies (432Hz), lunar rhythms, and task-automation bots.");
+          addOutput("tomekdot profile & archive details:", "comment");
+          addOutput("• Trackmania Modder, AI enthusiast, and Computer Science Student at KUL.");
+          addOutput("• Specializes in Python (PyPlanet), AngelScript (Openplanet), and Java/Kotlin.");
+          addOutput("• Passionate about Trackmania game music automation, audio synchronization, and intelligent AI agents.");
+          addOutput(`• Indexed Workspace: ${repos.length} repositories across categories (PyPlanet, Openplanet, AI, KUL, Tools).`);
+          addOutput(`• Journal Articles: ${BLOG_POSTS.length} developer blog posts & research synthesis notes.`);
         } else {
-          addOutput("Szczegóły profilu tomekdot:", "comment");
-          addOutput("Twórca modyfikacji Trackmanii, pasjonat AI oraz student Informatyki na KUL.");
-          addOutput("Specjalizuje się w Pythonie (wtyczki PyPlanet), AngelScript (skrypty Openplanet) oraz Javie i Kotlinie.");
-          addOutput("Fascynat częstotliwości mikrowisowych (432Hz), cykli księżyca oraz botów automatyzujących.");
+          addOutput("Szczegóły profilu i archiwum tomekdot:", "comment");
+          addOutput("• Twórca modyfikacji Trackmanii, pasjonat AI oraz student Informatyki na KUL.");
+          addOutput("• Specjalizuje się w Pythonie (PyPlanet), AngelScript (Openplanet) oraz Javie/Kotlinie.");
+          addOutput("• Pasjonat automatyzacji muzyki w grze Trackmania, synchronizacji audio oraz inteligentnych agentów AI.");
+          addOutput(`• Zindeksowane repozytoria: ${repos.length} projektów (PyPlanet, Openplanet, AI, KUL, Narzędzia).`);
+          addOutput(`• Wpisy dziennika: ${BLOG_POSTS.length} artykułów deweloperskich i notatek badawczych AI.`);
         }
         break;
 
       case 'cat':
-        if (argument === 'bio' || argument === 'about') {
+        if (parts[1] === 'bio' || parts[1] === 'about') {
           if (lang === 'en') {
-            addOutput("Reading local bio file...", "comment");
-            addOutput("tomekdot is an active developer specializing in game engine addons, telemetry sensors, and network sockets.");
+            addOutput("Reading local bio file from data registry...", "comment");
+            addOutput(`[Profile] tomekdot — ${repos.length} repos, ${BLOG_POSTS.length} journal articles.`);
+            addOutput("Focus: Trackmania game engine modding, music & audio automation in-game, PyPlanet server controllers, Openplanet AngelScript plugins, and autonomous AI agents.");
+            addOutput("Academic: KUL Computer Science studies, IoT networking, data structures.");
           } else {
-            addOutput("Wczytywanie pliku lokalnego bio...", "comment");
-            addOutput("tomekdot to aktywny programista specjalizujący się w dodatkach silnika gier, czujnikach telemetrycznych i gniazdach sieciowych.");
+            addOutput("Wczytywanie lokalnego pliku bio z rejestru danych...", "comment");
+            addOutput(`[Profil] tomekdot — ${repos.length} repozytoriów, ${BLOG_POSTS.length} wpisów w dzienniku.`);
+            addOutput("Główne obszary: Modyfikacje silnika Trackmania, automatyzacja muzyki i audio w grze, kontrolery PyPlanet, wtyczki AngelScript Openplanet oraz agenci AI.");
+            addOutput("Akademicko: Informatyka na KUL, sieci IoT, struktury danych.");
           }
         } else {
           addOutput(`cat: '${argument || 'file'}' not found. Try: 'cat bio'`, "error");
@@ -342,7 +330,7 @@ nie ma nic do zatwierdzenia, drzewo robocze czyste`, "success");
       }
 
       case 'ai': {
-        const query = parts.slice(1).join(' ').trim();
+        const query = rawParts.slice(1).join(' ').trim();
         if (!query) {
           if (lang === 'en') {
             addOutput("Usage: ai <question | explain <repo-name> | key <set <key> | clear | status>>", "comment");
@@ -356,10 +344,11 @@ nie ma nic do zatwierdzenia, drzewo robocze czyste`, "success");
           break;
         }
 
-        if (parts[1]?.toLowerCase() === 'key') {
-          const sub = parts[2]?.toLowerCase();
-          if (sub === 'set' && parts[3]) {
-            const newKey = parts.slice(3).join(' ').trim();
+        if (parts[1] === 'key') {
+          const sub = parts[2];
+          if (sub === 'set' && rawParts[3]) {
+            // Case-sensitive API key extraction
+            const newKey = rawParts.slice(3).join(' ').trim();
             const detected = detectAIProvider(newKey);
             setLocalAIKey(newKey, false, detected.defaultModel, detected.id);
             addOutput(lang === 'en' 
@@ -410,7 +399,34 @@ nie ma nic do zatwierdzenia, drzewo robocze czyste`, "success");
             "comment"
         );
 
-        // Async fetch
+        const runFallback = async () => {
+          const fallbackResult = await handleClientSideAiFallback({
+            query,
+            repoName,
+            repoDesc,
+            repoLang,
+            category: targetRepo?.cat?.join(', ') || 'Trackmania/AI',
+            repos,
+            lang
+          });
+          setHistory(prev => [
+            ...prev,
+            { text: `🤖 [AI // ${fallbackResult.provider}]:\n${fallbackResult.reply}`, type: 'success' },
+          ]);
+          if (fallbackResult.sourcesUsed && fallbackResult.sourcesUsed.length > 0) {
+            setHistory(prev => [
+              ...prev,
+              { text: `🔍 [${lang === 'en' ? 'Knowledge Sources Used' : 'Użyte źródła wiedzy'}]: ${fallbackResult.sourcesUsed.join(' • ')}`, type: 'comment' },
+            ]);
+          }
+        };
+
+        if (!HAS_BACKEND) {
+          runFallback();
+          break;
+        }
+
+        // Try backend endpoint first, fallback to static/client-side engine if hosted on github.io (no Node server)
         fetch('/api/ai/chat-repo', {
           method: 'POST',
           headers: { 
@@ -434,7 +450,12 @@ nie ma nic do zatwierdzenia, drzewo robocze czyste`, "success");
             siteLang: lang,
           }),
         })
-          .then(res => res.json())
+          .then(async res => {
+            if (!res.ok) {
+              throw new Error(`HTTP ${res.status}`);
+            }
+            return res.json();
+          })
           .then(data => {
             const sourceLabel = data.provider || (data.source === 'gemini' 
               ? 'GEMINI 2.5 FLASH' 
@@ -450,16 +471,8 @@ nie ma nic do zatwierdzenia, drzewo robocze czyste`, "success");
               ]);
             }
           })
-          .catch(err => {
-            setHistory(prev => [
-              ...prev,
-              { 
-                text: lang === 'en'
-                  ? `⚠️ [AI ERROR]: ${err.message || 'Error communicating with AI service.'}`
-                  : `⚠️ [BŁĄD AI]: ${err.message || 'Błąd komunikacji z modelem.'}`, 
-                type: 'error' 
-              },
-            ]);
+          .catch(async () => {
+            await runFallback();
           });
         break;
       }
@@ -479,17 +492,15 @@ nie ma nic do zatwierdzenia, drzewo robocze czyste`, "success");
     return `${mins.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`;
   };
 
-  if (isModalOpen) return null;
-
   return (
-    <>
+    <div className={isModalOpen ? 'hidden' : ''}>
       {/* Floating Active Pomodoro Display */}
       {pomodoroState && (
-        <div id="pomodoro_widget" className="fixed bottom-24 right-6 z-40 bg-editorial-sidebar-bg border border-editorial-accent/60 text-editorial-accent rounded-none px-4 py-3 shadow-2xl flex items-center gap-3 font-mono text-sm animate-pulse">
+        <div id="pomodoro_widget" className="fixed top-3 right-3 z-40 bg-editorial-sidebar-bg border border-editorial-accent/60 text-editorial-accent rounded-none px-3.5 sm:px-4 py-2.5 sm:py-3 shadow-2xl flex items-center gap-3 font-mono text-xs sm:text-sm animate-pulse">
           <div className="w-2 h-2 rounded-none bg-editorial-accent animate-ping"></div>
           <div>
-            <div className="text-xs text-editorial-muted font-sans tracking-wide uppercase">{pomodoroState.label}</div>
-            <div className="text-lg font-bold">{formatTime(pomodoroState.timeLeft)}</div>
+            <div className="text-[10px] sm:text-xs text-editorial-muted font-sans tracking-wide uppercase">{pomodoroState.label}</div>
+            <div className="text-base sm:text-lg font-bold">{formatTime(pomodoroState.timeLeft)}</div>
           </div>
           <button 
             type="button"
@@ -502,47 +513,61 @@ nie ma nic do zatwierdzenia, drzewo robocze czyste`, "success");
         </div>
       )}
 
-      {/* Toggle button - Always visible, pulses when reaching the end of the page */}
-      <div className="fixed bottom-4 sm:bottom-6 right-4 sm:right-6 z-40 flex flex-col items-end gap-1.5 transition-all duration-300 opacity-100 translate-y-0 pointer-events-auto">
+      {/* Toggle button - Clean, stable floating button with responsive sizing */}
+      <div 
+        id="terminal_toggle_wrapper"
+        className="fixed bottom-3 right-3 z-40 flex flex-col items-end gap-1.5 pointer-events-auto"
+      >
         <button
           type="button"
           id="toggle_terminal_btn"
           onClick={() => setIsOpen(!isOpen)}
-          className={`flex items-center gap-2 px-3.5 sm:px-4 py-2 sm:py-2.5 rounded-none border transition-colors duration-200 font-mono text-xs font-semibold uppercase tracking-wider cursor-pointer select-none
+          className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-none border transition-colors duration-200 font-mono text-[11px] sm:text-xs font-semibold uppercase tracking-wider cursor-pointer select-none shadow-2xl backdrop-blur-sm
             ${isOpen 
               ? 'bg-red-950/90 text-red-300 border-red-500/60 hover:bg-red-900' 
-              : isAtBottom
-                ? 'bg-[#0E0E0E] text-editorial-accent border-editorial-accent animate-border-pulse font-bold'
-                : 'bg-[#0E0E0E] text-editorial-accent border-editorial-border hover:border-editorial-accent font-bold'}`}
+              : 'bg-[#0E0E0E]/95 text-editorial-accent border-editorial-border hover:border-editorial-accent font-bold hover:text-white'}`}
         >
           <Terminal size={14} className="shrink-0" />
-          {isOpen ? (lang === 'en' ? 'Close Console' : 'Zamknij Konsolę') : (lang === 'en' ? 'Developer Terminal' : 'Terminal Dewelopera')}
+          <span className="hidden sm:inline">
+            {isOpen ? (lang === 'en' ? 'Close Console' : 'Zamknij Konsolę') : (lang === 'en' ? 'Developer Terminal' : 'Terminal Dewelopera')}
+          </span>
+          <span className="sm:hidden">
+            {isOpen ? (lang === 'en' ? 'Close' : 'Zamknij') : 'Terminal'}
+          </span>
         </button>
       </div>
 
-      {/* Console frame */}
+      {/* Console frame - Bounded strictly to mobile screen width and height */}
       {isOpen && (
-        <div id="terminal_console" translate="no" className="fixed bottom-16 sm:bottom-20 left-3 sm:left-auto right-3 sm:right-6 z-40 w-[calc(100vw-1.5rem)] sm:w-full sm:max-w-lg h-80 bg-[#0A0A0A]/95 backdrop-blur-md border-2 border-editorial-border rounded-none shadow-2xl overflow-hidden flex flex-col font-mono text-xs select-text notranslate">
+        <div 
+          id="terminal_console" 
+          translate="no" 
+          className="fixed bottom-[4.5rem] left-2.5 right-2.5 sm:left-auto sm:right-3 z-50 sm:w-[480px] h-[min(20rem,calc(100svh-6rem))] bg-[#0A0A0A]/95 backdrop-blur-md border-2 border-editorial-border rounded-none shadow-2xl overflow-hidden flex flex-col font-mono text-xs select-text notranslate overscroll-contain box-border"
+        >
           {/* Header */}
-          <div className="bg-editorial-sidebar-bg px-4 py-2 border-b border-editorial-border flex items-center justify-between text-editorial-muted">
-            <div className="flex items-center gap-1.5 uppercase tracking-wider text-[10px]">
+          <div className="bg-editorial-sidebar-bg px-3 sm:px-4 py-1.5 sm:py-2 border-b border-editorial-border flex items-center justify-between text-editorial-muted shrink-0">
+            <div className="flex items-center gap-1.5 uppercase tracking-wider text-[9.5px] sm:text-[10px]">
               <span className="w-2 h-2 bg-neutral-700 inline-block pointer-events-none"></span>
               <span className="w-2 h-2 bg-neutral-600 inline-block pointer-events-none"></span>
               <span className="w-2 h-2 bg-neutral-500 inline-block pointer-events-none"></span>
-              <span className="ml-2 font-bold text-white">sh — tomekdot@archive</span>
+              <span className="ml-1.5 font-bold text-white truncate">sh — tomekdot@archive</span>
             </div>
             <button 
               type="button"
               id="close_terminal_top_btn"
               onClick={() => setIsOpen(false)} 
-              className="text-editorial-muted hover:text-white transition-colors cursor-pointer p-0.5"
+              className="text-editorial-muted hover:text-white transition-colors cursor-pointer p-0.5 ml-2 shrink-0"
             >
               <X size={14} />
             </button>
           </div>
 
           {/* Logs */}
-          <div className="flex-1 overflow-y-auto p-4 pb-3 space-y-2 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent">
+          <div 
+            ref={logsRef} 
+            onScroll={handleLogsScroll}
+            className="flex-1 min-h-0 overflow-y-auto p-2.5 sm:p-4 pb-2 space-y-2 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent overscroll-contain"
+          >
             {(() => {
               const renderLogText = (text: string) => {
                 const urlRegex = /(https?:\/\/[^\s]+)/g;
@@ -570,21 +595,20 @@ nie ma nic do zatwierdzenia, drzewo robocze czyste`, "success");
                 if (log.type === 'input') textClass = 'text-editorial-accent font-bold';
                 if (log.type === 'error') textClass = 'text-rose-400';
                 if (log.type === 'success') textClass = 'text-emerald-400';
-                if (log.type === 'comment') textClass = 'text-editorial-muted italic';
+                if (log.type === 'comment') textClass = 'text-editorial-muted';
 
                 return (
-                  <div key={index} className={`${textClass} whitespace-pre-wrap leading-relaxed break-all`}>
+                  <div key={index} className={`${textClass} whitespace-pre-wrap leading-relaxed break-all text-[11px] sm:text-xs`}>
                     {renderLogText(log.text)}
                   </div>
                 );
               });
             })()}
-            <div ref={consoleEndRef} />
           </div>
 
           {/* Input field */}
-          <form onSubmit={handleCommandSubmit} className="bg-editorial-sidebar-bg p-2 border-t border-editorial-border flex items-center gap-2">
-            <span className="text-editorial-muted pl-2">
+          <form onSubmit={handleCommandSubmit} className="bg-editorial-sidebar-bg p-1.5 sm:p-2 border-t border-editorial-border flex items-center gap-1.5 sm:gap-2 shrink-0">
+            <span className="text-editorial-muted pl-1.5 shrink-0">
               <CornerDownRight size={12} />
             </span>
             <input
@@ -593,13 +617,13 @@ nie ma nic do zatwierdzenia, drzewo robocze czyste`, "success");
               value={inputVal}
               onChange={(e) => setInputVal(e.target.value)}
               placeholder={lang === 'en' ? "Type command (e.g. 'help')..." : "Wpisz komendę (np. 'help')..."}
-              className="flex-1 bg-transparent border-0 outline-none text-editorial-accent text-xs placeholder:text-zinc-700 font-mono py-1"
-              autoFocus
+              className="flex-1 min-w-0 bg-transparent border-0 outline-none text-editorial-accent text-[11px] sm:text-xs placeholder:text-zinc-700 font-mono py-1"
+              autoFocus={typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches}
               maxLength={100}
             />
           </form>
         </div>
       )}
-    </>
+    </div>
   );
 }

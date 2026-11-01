@@ -17,7 +17,7 @@ interface RepoCardProps {
   key?: string;
 }
 
-export default function RepoCard({ repo, onSelect, lang, compact }: RepoCardProps) {
+const RepoCard = React.memo(function RepoCard({ repo, onSelect, lang, compact }: RepoCardProps) {
   const primaryCatKey = repo.cat[0] || 'other';
   const catSpec = CATEGORIES[primaryCatKey] || CATEGORIES.other;
   const displayLang = repo.lang && repo.lang.trim() !== '' ? repo.lang : 'Shell/Other';
@@ -109,7 +109,7 @@ export default function RepoCard({ repo, onSelect, lang, compact }: RepoCardProp
       whileHover={{ backgroundColor: 'rgba(255, 255, 255, 0.03)' }}
       transition={{ duration: 0.2 }}
       onClick={() => onSelect(repo)}
-      className="group relative border border-editorial-border bg-editorial-sidebar-bg hover:border-editorial-accent/60 p-5 sm:p-6 cursor-pointer flex flex-col justify-between h-full transition-all rounded-none"
+      className="group relative border border-editorial-border bg-editorial-sidebar-bg hover:border-editorial-accent/60 p-4 sm:p-5 md:p-6 cursor-pointer flex flex-col justify-between h-full transition-all rounded-none overflow-hidden"
     >
       <div>
         {/* Card Header stats & Icon */}
@@ -156,8 +156,8 @@ export default function RepoCard({ repo, onSelect, lang, compact }: RepoCardProp
       </div>
 
       {/* Footer stats & actions */}
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-2 border-t border-editorial-border/30 font-mono text-xs text-editorial-muted">
-        <div className="flex items-center gap-4 flex-wrap">
+      <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 pt-2.5 border-t border-editorial-border/30 font-mono text-xs text-editorial-muted w-full min-w-0">
+        <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0">
           {repo.createdYear && (
             <span className="flex items-center gap-1.5 border border-sky-500/30 bg-sky-950/20 px-2 py-0.5 rounded text-[10px] font-mono text-sky-300 font-medium tracking-wide shrink-0" title={lang === 'en' ? 'Created year' : 'Rok utworzenia'}>
               <Calendar size={11} className="text-sky-400 shrink-0" />
@@ -181,11 +181,13 @@ export default function RepoCard({ repo, onSelect, lang, compact }: RepoCardProp
         <button
           type="button"
           id={`view_details_${repo.name}`}
-          className="text-editorial-accent group-hover:brightness-110 transition-all flex items-center gap-1 text-[11px] font-mono uppercase tracking-widest shrink-0 self-start sm:self-auto"
+          className="text-editorial-accent group-hover:brightness-110 hover:text-white transition-all flex items-center gap-1 text-[11px] font-mono uppercase tracking-widest shrink-0 ml-auto sm:ml-0"
         >
           {lang === 'en' ? 'Review Details →' : 'Zobacz szczegóły →'}
         </button>
       </div>
     </motion.div>
   );
-}
+});
+
+export default RepoCard;

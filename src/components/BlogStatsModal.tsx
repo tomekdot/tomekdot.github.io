@@ -19,9 +19,11 @@ import {
   Send,
   Bot,
   Terminal,
+  ChevronLeft,
   ChevronRight,
   ChevronUp,
   ChevronDown,
+  Search,
   Layers,
   CheckCircle2,
   ListFilter,
@@ -38,7 +40,8 @@ import {
   CheckCircle,
   Info,
   Database,
-  Square
+  Square,
+  Star
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -57,6 +60,7 @@ import {
   AIProviderId,
   AIProviderInfo
 } from '../lib/apiKeyStorage';
+import { handleClientSideBlogAiFallback, HAS_BACKEND } from '../lib/clientAi';
 
 interface BlogStatsModalProps {
   isOpen: boolean;
@@ -87,12 +91,25 @@ export default function BlogStatsModal({
   const [selectedPostId, setSelectedPostId] = useState<string>('1');
   const [versionMode, setVersionMode] = useState<'v2_ai' | 'v1_draft' | 'diff'>('v2_ai');
   const [copiedContent, setCopiedContent] = useState<boolean>(false);
+  const [articleSearchQuery, setArticleSearchQuery] = useState<string>('');
+  const [showArticleSearchInput, setShowArticleSearchInput] = useState<boolean>(false);
+  const sliderRef = useRef<HTMLDivElement>(null);
+  const chatSliderRef = useRef<HTMLDivElement>(null);
+
+  const handleScrollSlider = (direction: 'left' | 'right', isChat = false) => {
+    const targetRef = isChat ? chatSliderRef : sliderRef;
+    if (targetRef.current) {
+      const scrollAmount = direction === 'left' ? -280 : 280;
+      targetRef.current.scrollBy({ left: scrollAmount, behavior: 'smooth' });
+    }
+  };
 
   // Chat State
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [inputQuery, setInputQuery] = useState('');
   const [isAiThinking, setIsAiThinking] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
+  const chatContainerRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
 
   // Stop AI Generation / Analysis
@@ -165,8 +182,8 @@ export default function BlogStatsModal({
 
   // Auto scroll chat
   useEffect(() => {
-    if (activeTab === 'interactive_chat') {
-      chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    if (activeTab === 'interactive_chat' && chatContainerRef.current) {
+      chatContainerRef.current.scrollTop = chatContainerRef.current.scrollHeight;
     }
   }, [chatMessages, isAiThinking, activeTab]);
 
@@ -198,7 +215,6 @@ export default function BlogStatsModal({
       return acc + text.trim().split(/\s+/).filter(Boolean).length;
     }, 0);
     const totalAiRevisions = postsList.filter(p => p.aiVersionNote || p.draftVersionContent).length;
-
     return {
       totalPosts,
       allTags,
@@ -208,11 +224,38 @@ export default function BlogStatsModal({
     };
   }, [postsList]);
 
-  // Filtered posts based on tag
+  // Filtered posts based on tag and search query
   const filteredPosts = useMemo(() => {
-    if (selectedTag === 'all') return postsList;
-    return postsList.filter(p => p.tags.includes(selectedTag));
-  }, [postsList, selectedTag]);
+    let posts = postsList;
+    if (selectedTag !== 'all') {
+      posts = posts.filter(p => p.tags.includes(selectedTag));
+    }
+    if (articleSearchQuery.trim()) {
+      const q = articleSearchQuery.toLowerCase().trim();
+      posts = posts.filter(p => {
+        const title = (lang === 'en' ? p.titleEn : p.titlePl).toLowerCase();
+        const excerpt = (lang === 'en' ? p.excerptEn : p.excerptPl).toLowerCase();
+        return title.includes(q) || excerpt.includes(q) || p.tags.some(t => t.toLowerCase().includes(q)) || p.id.includes(q);
+      });
+    }
+    return posts;
+  }, [postsList, selectedTag, articleSearchQuery, lang]);
+
+  // Keep active post visible in slider
+  useEffect(() => {
+    if (sliderRef.current) {
+      const activeEl = sliderRef.current.querySelector(`[data-article-id="${selectedPostId}"]`);
+      if (activeEl) {
+        activeEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }
+    if (chatSliderRef.current) {
+      const activeEl = chatSliderRef.current.querySelector(`[data-chat-article-id="${selectedPostId}"]`);
+      if (activeEl) {
+        activeEl.scrollIntoView({ behavior: 'smooth', inline: 'center', block: 'nearest' });
+      }
+    }
+  }, [selectedPostId, activeTab]);
 
   // Initialize chat when post changes or lang switches
   useEffect(() => {
@@ -326,10 +369,42 @@ export default function BlogStatsModal({
     }, 120);
   };
 
+  // Instant Offline API Key Guide
+  const handleShowApiKeyGuideInBlog = () => {
+    setShowApiKeyConfig(true);
+    const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    const guideMsg = lang === 'en'
+      ? `### 🔑 **Quick Guide: How to Get a Free Google Gemini API Key**\n\nGoogle provides free API keys for developers to access Gemini 2.5 Flash and Gemini Pro models:\n\n1. **Open Google AI Studio**: Go to [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey).\n2. **Sign In**: Log in using your Google / Gmail account.\n3. **Create Key**: Click the blue **"Create API key"** button and select a project.\n4. **Copy Key**: Copy your generated key (starts with \`AIzaSy...\`).\n5. **Paste & Save**: Paste your key into the **"API Key"** field in the setup box above, then click **"Save Locally"**.\n\n---\n💡 **Local PC Models (100% Offline / No Key Needed)**\nIf you prefer running models locally without cloud accounts, switch the engine above to **"Local PC / Server"** and point to your local Ollama or LM Studio endpoint (\`http://localhost:11434/v1\`).`
+      : `### 🔑 **Szybki Przewodnik: Jak bezpłatnie uzyskać klucz API Google Gemini**\n\nGoogle udostępnia bezpłatne klucze API dla deweloperów z dostępem do modeli Gemini 2.5 Flash i Gemini Pro:\n\n1. **Otwórz Google AI Studio**: Wejdź na [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey).\n2. **Zaloguj się**: Użyj swojego konta Google / Gmail.\n3. **Utwórz klucz**: Kliknij niebieski przycisk **"Create API key"** i wybierz projekt.\n4. **Skopiuj klucz**: Skopiuj wygenerowany klucz (zaczyna się od \`AIzaSy...\`).\n5. **Wklej i zapisz**: Wklej klucz w pole **"Klucz API"** w panelu powyżej i kliknij **"Zapisz lokalnie"**.\n\n---\n💡 **Lokalne Modele PC (100% Offline / Bez Klucza)**\nMożesz też przełączyć silnik powyżej na **"Lokalny PC (Ollama / LM Studio)"** i połączyć się z lokalną instancją (\`http://localhost:11434/v1\`) bez potrzeby posiadania żadnego klucza chmurowego.`;
+
+    setChatMessages(prev => [
+      ...prev,
+      {
+        id: Date.now().toString(),
+        sender: 'user',
+        text: lang === 'en' ? '🔑 API Key Guide' : '🔑 Instrukcja klucza API',
+        timestamp: timeStr,
+      },
+      {
+        id: (Date.now() + 1).toString(),
+        sender: 'assistant',
+        text: guideMsg,
+        timestamp: timeStr,
+      }
+    ]);
+  };
+
   // Handle Chat Input Submission
   const handleSendMessage = async (customPrompt?: string) => {
     const query = (customPrompt || inputQuery).trim();
     if (!query || isAiThinking || !selectedPost) return;
+
+    const qLower = query.toLowerCase();
+    if (qLower.includes('api key') || qLower.includes('klucz') || qLower.includes('guide') || qLower.includes('instrukcj') || qLower.includes('jak zdobyć') || qLower.includes('how to get')) {
+      handleShowApiKeyGuideInBlog();
+      if (!customPrompt) setInputQuery('');
+      return;
+    }
 
     const userMsg: ChatMessage = {
       id: Date.now().toString(),
@@ -342,16 +417,87 @@ export default function BlogStatsModal({
     if (!customPrompt) setInputQuery('');
     setIsAiThinking(true);
 
+    const activeKey = getLocalAIKey();
+    const activeModelChoice = getLocalAIModel();
+    const activeProviderChoice = getLocalAIProvider();
+    const activeBaseUrlChoice = getLocalAIBaseUrl();
+
+    // Check if key is required - do not hallucinate mock text when missing!
+    const isLocalEngine = activeProviderChoice === 'ollama' || activeProviderChoice === 'lmstudio' || effectiveProviderInfo.requiresKey === false;
+    if (!isLocalEngine && !activeKey) {
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const noKeyMsg = lang === 'en'
+        ? `⚠️ **No Active Gemini / AI API Key Connected**\n\nThe AI assistant cannot analyze article **"${selectedPost.titleEn}"** without an active API key or connected local engine.\n\n### How to enable AI analysis:\n1. Click **[🔑 API Key Guide]** below for quick step-by-step instructions.\n2. Click **[⚙️ AI Engine: Setup]** above to paste your Google AI Studio key (\`AIzaSy...\`) or choose local Ollama.\n3. In the meantime, you can review the full v1.0 draft and v2.0 synthesis in the **Synthesis** tab.`
+        : `⚠️ **Brak aktywnego klucza API Gemini / AI**\n\nModel AI nie może wygenerować analizy na żywo dla artykułu **"${selectedPost.titlePl}"** bez podłączonego klucza API lub lokalnego modelu.\n\n### Jak włączyć analizę AI:\n1. Kliknij poniżej **[🔑 Instrukcja klucza API]**, aby zobaczyć jak w 60 sekund bezpłatnie uzyskać klucz w Google AI Studio.\n2. Kliknij **[⚙️ Silnik AI: Ustaw]** u góry, aby wkleić darmowy klucz lub wybrać model lokalny.\n3. W międzyczasie pełny szkic v1.0 i zredagowaną wersję v2.0 możesz przeglądać w zakładce **Synteza**.`;
+
+      setChatMessages(prev => [
+        ...prev,
+        {
+          id: (Date.now() + 1).toString(),
+          sender: 'assistant',
+          text: noKeyMsg,
+          timestamp: timeStr,
+        }
+      ]);
+      setIsAiThinking(false);
+      return;
+    }
+
     if (abortControllerRef.current) {
       abortControllerRef.current.abort();
     }
     const controller = new AbortController();
     abortControllerRef.current = controller;
 
-    const activeKey = getLocalAIKey();
-    const activeModelChoice = getLocalAIModel();
-    const activeProviderChoice = getLocalAIProvider();
-    const activeBaseUrlChoice = getLocalAIBaseUrl();
+    const runBlogFallback = async () => {
+      try {
+        const fallback = await handleClientSideBlogAiFallback({
+          query,
+          postId: selectedPost.id,
+          postTitle: lang === 'en' ? selectedPost.titleEn : selectedPost.titlePl,
+          postExcerpt: lang === 'en' ? selectedPost.excerptEn : selectedPost.excerptPl,
+          postContent: lang === 'en' ? selectedPost.contentEn : selectedPost.contentPl,
+          versionMode,
+          draftContent: activeDraftContent,
+          aiRevisionNote: activeAiNote,
+          tags: selectedPost.tags,
+          lang,
+          signal: controller.signal
+        });
+        const replyTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        setChatMessages(prev => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            sender: 'assistant',
+            text: fallback.reply,
+            timestamp: replyTime
+          }
+        ]);
+      } catch (err: any) {
+        if (err.name === 'AbortError') return;
+        const replyTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        setChatMessages(prev => [
+          ...prev,
+          {
+            id: (Date.now() + 1).toString(),
+            sender: 'assistant',
+            text: lang === 'en'
+              ? `⚠️ **Error:** ${err.message || 'Could not retrieve response from AI model.'}`
+              : `⚠️ **Błąd:** ${err.message || 'Nie udało się pobrać odpowiedzi od modelu AI.'}`,
+            timestamp: replyTime
+          }
+        ]);
+      } finally {
+        setIsAiThinking(false);
+        abortControllerRef.current = null;
+      }
+    };
+
+    if (!HAS_BACKEND) {
+      await runBlogFallback();
+      return;
+    }
 
     try {
       const res = await fetch('/api/ai/chat-blog', {
@@ -397,57 +543,24 @@ export default function BlogStatsModal({
         setIsAiThinking(false);
         abortControllerRef.current = null;
         return;
+      } else {
+        throw new Error(`HTTP ${res.status}`);
       }
     } catch (err: any) {
       if (err.name === 'AbortError' || err.message?.includes('aborted')) {
-        // Stop requested by user
         abortControllerRef.current = null;
+        setIsAiThinking(false);
         return;
       }
-      // Fallback to client-side rule evaluation if network fails
+      await runBlogFallback();
     }
-
-    // Client-side fallback rule evaluation
-    let replyText = '';
-    const qLower = query.toLowerCase();
-    const pTitle = lang === 'en' ? selectedPost.titleEn : selectedPost.titlePl;
-    const pContent = lang === 'en' ? selectedPost.contentEn : selectedPost.contentPl;
-
-    if (qLower.includes('summary') || qLower.includes('podsumuj') || qLower.includes('takeaway')) {
-      replyText = lang === 'en'
-        ? `**Key Takeaways for "${pTitle}":**\n\n1. **Core Topic:** ${selectedPost.excerptEn}\n2. **Target Stack:** Tags included: ${selectedPost.tags.join(', ')}.\n3. **AI Enhancement:** ${activeAiNote || 'Formatted for optimal developer readability with clean syntax structure.'}`
-        : `**Główne wnioski z wpisu "${pTitle}":**\n\n1. **Temat przewodni:** ${selectedPost.excerptPl}\n2. **Technologie:** Tagi: ${selectedPost.tags.join(', ')}.\n3. **Korekta AI:** ${activeAiNote || 'Sformatowano dla maksymalnej przejrzystości i ergonomii czytania.'}`;
-    } else if (qLower.includes('code') || qLower.includes('kod') || qLower.includes('snippet') || qLower.includes('skrypt')) {
-      replyText = lang === 'en'
-        ? `Here is the primary code context from **${pTitle}**:\n\n\`\`\`typescript\n// Technical excerpt from article tags [${selectedPost.tags.join(', ')}]\nimport { Openplanet, PyPlanet } from '@trackmania/ecosystem';\n\nexport async function initPlugin() {\n  console.log("Loaded entry for ${selectedPost.id}: ${pTitle}");\n}\n\`\`\``
-        : `Oto kluczowy fragment kodu powiązany z artykułem **${pTitle}**:\n\n\`\`\`typescript\n// Wyciąg techniczny dla tagów [${selectedPost.tags.join(', ')}]\nimport { Openplanet, PyPlanet } from '@trackmania/ecosystem';\n\nexport async function initPlugin() {\n  console.log("Załadowano moduł dla ${selectedPost.id}: ${pTitle}");\n}\n\`\`\``;
-    } else if (qLower.includes('revision') || qLower.includes('v1') || qLower.includes('v2') || qLower.includes('draft') || qLower.includes('zmian') || qLower.includes('syntez')) {
-      replyText = lang === 'en'
-        ? `**v2.0 AI Synthesis & Revision Analysis for #${selectedPost.id}:**\n- **v1.0 Raw Draft:** Initial developer notes and logic scaffold.\n- **v2.0 AI Polished:** Enhanced code highlighting, structural markdown, WCAG contrast formatting, and dual-language accuracy.\n- **AI Revision Log:** ${activeAiNote || 'Fully synthesized for developer ergonomics.'}`
-        : `**Analiza syntezy v2.0 AI i rewizji artykułu #${selectedPost.id}:**\n- **v1.0 Surowy Szkic:** Pierwotne notatki deweloperskie i zarys logiki.\n- **v2.0 Wersja AI:** Wzbogacone podświetlanie kodu, struktura Markdown, wysoki kontrast i spójne tłumaczenie dwujęzyczne.\n- **Dziennik AI:** ${activeAiNote || 'Pełna synteza pod kątem ergonomii programistycznej.'}`;
-    } else {
-      replyText = lang === 'en'
-        ? `Regarding **"${pTitle}"**: The article explores ${selectedPost.tags.map(t => `#${t}`).join(' ')}. The total reading time is est. ${calculateReadingTime(pContent, 'en')}. You can review full content or switch to v1.0 Draft in the Synthesis tab.`
-        : `Odnośnie **"${pTitle}"**: Artykuł dotyczy ${selectedPost.tags.map(t => `#${t}`).join(' ')}. Szacowany czas czytania to ok. ${calculateReadingTime(pContent, 'pl')}. Pełną treść i szkic v1.0 możesz przełączać w zakładce Syntezy.`;
-    }
-
-    setChatMessages(prev => [
-      ...prev,
-      {
-        id: (Date.now() + 1).toString(),
-        sender: 'assistant',
-        text: replyText,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
-      }
-    ]);
-    setIsAiThinking(false);
   };
 
   if (!isOpen) return null;
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-2 sm:p-4">
+      <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-2 sm:p-4 overscroll-contain">
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -463,10 +576,10 @@ export default function BlogStatsModal({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.96, y: 15 }}
           transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-          className="relative bg-editorial-bg border-2 border-editorial-border w-full max-w-4xl rounded-none shadow-2xl flex flex-col overflow-hidden max-h-[94vh] sm:max-h-[90vh] h-[92vh] sm:h-[720px] font-mono text-xs select-text"
+          className="relative bg-editorial-bg border-2 border-editorial-border w-[94%] sm:w-full max-w-4xl rounded-none shadow-2xl flex flex-col overflow-hidden max-h-[80svh] sm:max-h-[90vh] h-[78svh] sm:h-[720px] font-mono text-xs select-text overscroll-contain my-auto"
         >
           {/* Header Bar */}
-          <div className="bg-editorial-sidebar-bg border-b-2 border-editorial-border p-3 sm:p-4 flex items-center justify-between shrink-0">
+          <div className="bg-editorial-sidebar-bg border-b-2 border-editorial-border p-2.5 sm:p-4 flex items-center justify-between shrink-0">
             <div className="flex items-center gap-2.5">
               <div className="p-1.5 bg-[#1A1128] border border-fuchsia-500/50 text-fuchsia-400">
                 <FileText size={16} />
@@ -508,7 +621,7 @@ export default function BlogStatsModal({
               <span className="text-editorial-muted text-[8.5px] uppercase tracking-wider block">
                 {lang === 'en' ? 'Total Words' : 'Słowa Ogółem'}
               </span>
-              <span className="text-base sm:text-lg font-black text-amber-400 mt-0.5 block">
+              <span className="text-base sm:text-lg font-black text-zinc-300 mt-0.5 block">
                 <AnimatedNumber value={metrics.totalWords} />
               </span>
             </div>
@@ -587,31 +700,60 @@ export default function BlogStatsModal({
           </div>
 
           {/* Modal Main Content Body */}
-          <div className="flex-grow overflow-y-auto overflow-x-hidden p-3 sm:p-5 bg-editorial-bg min-w-0">
+          <div className="flex-grow overflow-y-auto overflow-x-hidden p-3 sm:p-5 bg-editorial-bg min-w-0 overscroll-contain">
             {/* TAB 1: SYNTHESIS & VERSION COMPARISON */}
             {activeTab === 'synthesis' && (
               <div className="space-y-4 min-w-0">
                 {/* Article Selector & Version Controls */}
-                <div className="flex flex-col sm:flex-row gap-3 justify-between items-stretch sm:items-center bg-editorial-sidebar-bg p-3 border border-editorial-border min-w-0">
-                  <div className="flex items-center gap-2 w-full sm:w-auto min-w-0">
-                    <span className="text-editorial-muted font-bold uppercase tracking-wider text-[10px] shrink-0">
-                      {lang === 'en' ? 'Article:' : 'Artykuł:'}
-                    </span>
-                    <select
-                      value={selectedPostId}
-                      onChange={e => setSelectedPostId(e.target.value)}
-                      className="bg-neutral-950 border border-editorial-border text-white text-[11px] p-1.5 font-mono focus:border-editorial-accent outline-none w-full sm:w-64 truncate cursor-pointer min-w-0"
-                    >
-                      {filteredPosts.map(p => (
-                        <option key={p.id} value={p.id}>
-                          #{p.id} - {lang === 'en' ? p.titleEn : p.titlePl}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
+                <div className="bg-editorial-sidebar-bg p-3 border border-editorial-border space-y-2.5 min-w-0">
+                  {/* Top Bar: Search, Arrows, and Version Mode */}
+                  <div className="flex flex-col sm:flex-row gap-2.5 justify-between items-stretch sm:items-center min-w-0">
+                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                      <span className="text-editorial-muted font-bold uppercase tracking-wider text-[10px] shrink-0 font-mono">
+                        {lang === 'en' ? 'Article Navigator:' : 'Pasek Artykułów:'}
+                      </span>
+                      <span className="text-[10px] text-fuchsia-400 font-mono font-bold">
+                        ({filteredPosts.length} {lang === 'en' ? 'posts' : 'wpisów'})
+                      </span>
 
-                  {/* Mode Selector (v2.0 AI / v1.0 Draft / Diff) */}
-                  <div className="grid grid-cols-3 sm:flex gap-1 bg-neutral-950 p-1 border border-editorial-border shrink-0">
+                      {/* Slider Scroll Arrows */}
+                      <div className="flex items-center gap-1 shrink-0 ml-1">
+                        <button
+                          type="button"
+                          onClick={() => handleScrollSlider('left', false)}
+                          className="p-1 bg-neutral-900 hover:bg-neutral-800 border border-editorial-border hover:border-editorial-accent text-editorial-muted hover:text-white transition-all cursor-pointer"
+                          title={lang === 'en' ? 'Scroll left' : 'Przewiń w lewo'}
+                        >
+                          <ChevronLeft size={13} />
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => handleScrollSlider('right', false)}
+                          className="p-1 bg-neutral-900 hover:bg-neutral-800 border border-editorial-border hover:border-editorial-accent text-editorial-muted hover:text-white transition-all cursor-pointer"
+                          title={lang === 'en' ? 'Scroll right' : 'Przewiń w prawo'}
+                        >
+                          <ChevronRight size={13} />
+                        </button>
+                      </div>
+
+                      {/* Search Toggle */}
+                      <button
+                        type="button"
+                        onClick={() => setShowArticleSearchInput(prev => !prev)}
+                        className={`p-1 border transition-all cursor-pointer flex items-center gap-1 text-[10px] font-mono shrink-0 ${
+                          showArticleSearchInput || articleSearchQuery
+                            ? 'bg-fuchsia-950/80 text-fuchsia-300 border-fuchsia-500'
+                            : 'bg-neutral-900 text-editorial-muted border-editorial-border hover:text-white'
+                        }`}
+                        title={lang === 'en' ? 'Filter articles by title or tag' : 'Filtruj artykuły'}
+                      >
+                        <Search size={12} />
+                        <span className="hidden sm:inline">{lang === 'en' ? 'Filter' : 'Szukaj'}</span>
+                      </button>
+                    </div>
+
+                    {/* Mode Selector (v2.0 AI / v1.0 Draft / Diff) */}
+                    <div className="grid grid-cols-3 sm:flex gap-1 bg-neutral-950 p-1 border border-editorial-border shrink-0">
                     <button
                       type="button"
                       onClick={() => setVersionMode('v2_ai')}
@@ -645,6 +787,91 @@ export default function BlogStatsModal({
                     >
                       Diff View
                     </button>
+                  </div>
+                </div>
+
+                  {/* Search Input Bar if toggled */}
+                  {showArticleSearchInput && (
+                    <div className="flex items-center gap-2 pt-1 border-t border-editorial-border/60 animate-fadeIn">
+                      <Search size={12} className="text-editorial-muted shrink-0" />
+                      <input
+                        type="text"
+                        value={articleSearchQuery}
+                        onChange={e => setArticleSearchQuery(e.target.value)}
+                        placeholder={lang === 'en' ? 'Search articles by keywords, topics, tags...' : 'Szukaj artykułów po tytule, tagach...'}
+                        className="flex-1 bg-neutral-950 border border-editorial-border px-2 py-1 text-[11px] font-mono text-white placeholder-neutral-600 focus:outline-none focus:border-fuchsia-400"
+                        autoFocus
+                      />
+                      {articleSearchQuery && (
+                        <button
+                          type="button"
+                          onClick={() => setArticleSearchQuery('')}
+                          className="text-[10px] text-editorial-muted hover:text-white px-1.5 py-0.5 font-mono cursor-pointer"
+                        >
+                          ✕
+                        </button>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Horizontal Scroll Slider Bar ("Pasek suwak z artykułami") */}
+                  <div 
+                    ref={sliderRef}
+                    className="flex items-stretch gap-2 overflow-x-auto py-1 scroll-smooth select-none scrollbar-thin scrollbar-thumb-neutral-800 overscroll-contain"
+                  >
+                    {filteredPosts.length === 0 ? (
+                      <div className="p-3 text-[11px] font-mono text-editorial-muted text-center w-full">
+                        {lang === 'en' ? 'No articles match your search query.' : 'Brak artykułów spełniających kryteria.'}
+                      </div>
+                    ) : (
+                      filteredPosts.map(p => {
+                        const isSelected = p.id === selectedPostId;
+                        const pTitle = lang === 'en' ? p.titleEn : p.titlePl;
+                        return (
+                          <div
+                            key={p.id}
+                            data-article-id={p.id}
+                            onClick={() => setSelectedPostId(p.id)}
+                            className={`min-w-[190px] sm:min-w-[220px] max-w-[240px] p-2.5 border transition-all cursor-pointer flex flex-col justify-between shrink-0 text-left ${
+                              isSelected
+                                ? 'bg-[#150F1E] border-fuchsia-500 shadow-sm shadow-fuchsia-500/20 ring-1 ring-fuchsia-500/50'
+                                : 'bg-neutral-950/70 border-editorial-border hover:border-editorial-border/90 hover:bg-neutral-900/50'
+                            }`}
+                          >
+                            <div>
+                              <div className="flex items-center justify-between gap-1.5 mb-1 text-[9px] font-mono">
+                                <span className={`px-1.5 py-0.5 border font-bold ${
+                                  isSelected 
+                                    ? 'bg-fuchsia-900/60 border-fuchsia-400 text-fuchsia-200' 
+                                    : 'bg-neutral-900 border-editorial-border text-editorial-muted'
+                                }`}>
+                                  #{p.id}
+                                </span>
+                                <div className="flex items-center gap-1.5 text-[8.5px]">
+                                  <span className="text-editorial-muted truncate">{p.date}</span>
+                                </div>
+                              </div>
+                              <h4 className={`text-[11px] font-mono line-clamp-2 leading-tight ${
+                                isSelected ? 'text-white font-bold' : 'text-zinc-300'
+                              }`}>
+                                {pTitle}
+                              </h4>
+                            </div>
+
+                            <div className="flex items-center justify-between gap-1 pt-1.5 mt-1 border-t border-editorial-border/40 text-[8.5px] font-mono text-editorial-muted">
+                              <span className="truncate">
+                                {p.tags.slice(0, 2).map(t => `#${t}`).join(' ')}
+                              </span>
+                              {isSelected && (
+                                <span className="text-fuchsia-400 font-bold uppercase text-[8px] shrink-0">
+                                  ● {lang === 'en' ? 'Active' : 'Aktywny'}
+                                </span>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                 </div>
 
@@ -830,7 +1057,7 @@ export default function BlogStatsModal({
                         {lang === 'en' ? '1. Select Engine:' : '1. Wybierz Silnik AI:'}
                       </div>
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 font-mono text-[10.5px]">
-                        {(['gemini', 'custom'] as AIProviderId[]).map((provId) => {
+                        {(['gemini', 'ollama', 'lmstudio', 'custom'] as AIProviderId[]).map((provId) => {
                           const conf = PROVIDERS_CONFIG[provId];
                           const isSelected = (effectiveProviderInfo.id === provId && selectedProviderId === 'unknown') || selectedProviderId === provId;
                           return (
@@ -839,12 +1066,18 @@ export default function BlogStatsModal({
                               type="button"
                               onClick={() => {
                                 setSelectedProviderId(provId);
-                                if (provId === 'custom') {
-                                  if (!customBaseUrl) setCustomBaseUrl('http://localhost:11434/v1');
-                                  if (!selectedModel || selectedModel === 'gemini-flash-latest') setSelectedModel('llama3.2');
+                                if (provId === 'ollama') {
+                                  setCustomBaseUrl('http://localhost:11434/v1');
+                                  setSelectedModel('llama3.2');
+                                } else if (provId === 'lmstudio') {
+                                  setCustomBaseUrl('http://localhost:1234/v1');
+                                  setSelectedModel('local-model');
+                                } else if (provId === 'custom') {
+                                  if (!customBaseUrl) setCustomBaseUrl('http://localhost:8080/v1');
+                                  if (!selectedModel || selectedModel === 'gemini-2.5-flash') setSelectedModel('local-model');
                                 } else {
                                   setCustomBaseUrl('');
-                                  setSelectedModel('gemini-flash-latest');
+                                  setSelectedModel('gemini-2.5-flash');
                                 }
                               }}
                               className={`p-2.5 text-left border transition-all cursor-pointer flex items-center justify-between gap-2 ${
@@ -881,21 +1114,28 @@ export default function BlogStatsModal({
                         </span>
                       </div>
 
+                      {/* HTTPS Mixed Content Notice for Local Engines */}
+                      {effectiveProviderInfo.isLocal && typeof window !== 'undefined' && window.location.protocol === 'https:' && (
+                        <div className="p-2 bg-amber-950/40 border border-amber-600/60 text-amber-300 text-[10px] font-sans leading-relaxed">
+                          <span>{lang === 'en' ? '⚠️ On GitHub Pages (HTTPS), browsers block direct requests to http://localhost. Run locally via "npm run dev" or use Gemini.' : '⚠️ Na GitHub Pages (HTTPS) przeglądarka blokuje połączenia do http://localhost. Uruchom "npm run dev" lokalnie lub użyj Gemini.'}</span>
+                        </div>
+                      )}
+
                       {/* Model Input - Directly type and name any model */}
                       <div className="pt-1.5 border-t border-editorial-border/40 space-y-1.5">
                         <label className="text-[9.5px] text-editorial-muted uppercase font-bold flex items-center justify-between">
                           <span>{lang === 'en' ? 'Model Name (Type any model):' : 'Nazwa Modelu (Wpisz i Nazwij):'}</span>
                           <span className="text-[8.5px] text-editorial-muted font-mono lowercase">
-                            {effectiveProviderInfo.id === 'custom' 
-                              ? 'np. llama-3.2, mistral, deepseek-r1, local-model'
-                              : 'np. gemini-flash-latest, gemini-pro-latest'}
+                            {effectiveProviderInfo.id === 'custom' || effectiveProviderInfo.isLocal
+                              ? 'np. llama3.2, deepseek-r1:8b, local-model'
+                              : 'np. gemini-2.5-flash, gemini-2.5-pro'}
                           </span>
                         </label>
                         <input
                           type="text"
-                          value={selectedModel || (effectiveProviderInfo.id === 'custom' ? 'llama-3.2' : 'gemini-flash-latest')}
+                          value={selectedModel || (effectiveProviderInfo.isLocal ? 'llama3.2' : 'gemini-2.5-flash')}
                           onChange={(e) => setSelectedModel(e.target.value)}
-                          placeholder={effectiveProviderInfo.id === 'custom' ? 'llama-3.2' : 'gemini-flash-latest'}
+                          placeholder={effectiveProviderInfo.isLocal ? 'llama3.2' : 'gemini-2.5-flash'}
                           className="w-full bg-neutral-900 border border-editorial-border text-white text-xs px-2.5 py-1.5 font-mono focus:outline-none focus:border-cyan-400 placeholder:text-neutral-600"
                         />
                       </div>
@@ -977,26 +1217,103 @@ export default function BlogStatsModal({
                   </div>
                 )}
 
-                {/* Article Selector in Chat Tab */}
-                <div className="flex items-center justify-between gap-2 p-2 bg-neutral-900/60 border border-editorial-border text-xs">
-                  <span className="text-editorial-muted text-[10px] uppercase font-bold">
-                    {lang === 'en' ? 'Target Article:' : 'Wybrany Artykuł:'}
-                  </span>
-                  <select
-                    value={selectedPostId}
-                    onChange={e => setSelectedPostId(e.target.value)}
-                    className="bg-neutral-950 border border-editorial-border text-white text-[10.5px] p-1 font-mono focus:border-cyan-400 outline-none cursor-pointer flex-1 max-w-[280px] truncate"
+                {/* Article Selector Slider in Chat Tab */}
+                <div className="bg-neutral-900/60 border border-editorial-border p-2.5 space-y-2 text-xs">
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="flex items-center gap-1.5 font-mono">
+                      <span className="text-editorial-muted text-[10px] uppercase font-bold">
+                        {lang === 'en' ? 'Target Article:' : 'Wybrany Artykuł:'}
+                      </span>
+                      <span className="text-[10px] text-cyan-400 font-bold">
+                        #{selectedPost?.id}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-1 shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => handleScrollSlider('left', true)}
+                        className="p-1 bg-neutral-950 hover:bg-neutral-800 border border-editorial-border hover:border-cyan-400 text-editorial-muted hover:text-white transition-all cursor-pointer"
+                        title={lang === 'en' ? 'Scroll left' : 'Przewiń w lewo'}
+                      >
+                        <ChevronLeft size={12} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => handleScrollSlider('right', true)}
+                        className="p-1 bg-neutral-950 hover:bg-neutral-800 border border-editorial-border hover:border-cyan-400 text-editorial-muted hover:text-white transition-all cursor-pointer"
+                        title={lang === 'en' ? 'Scroll right' : 'Przewiń w prawo'}
+                      >
+                        <ChevronRight size={12} />
+                      </button>
+                    </div>
+                  </div>
+
+                  {/* Horizontal Scroll Slider Bar for Chat Tab */}
+                  <div 
+                    ref={chatSliderRef}
+                    className="flex items-stretch gap-1.5 overflow-x-auto py-0.5 scroll-smooth select-none scrollbar-thin scrollbar-thumb-neutral-800 overscroll-contain"
                   >
-                    {postsList.map(p => (
-                      <option key={p.id} value={p.id}>
-                        #{p.id} {lang === 'en' ? p.titleEn : p.titlePl}
-                      </option>
-                    ))}
-                  </select>
+                    {postsList.map(p => {
+                      const isSelected = p.id === selectedPostId;
+                      const pTitle = lang === 'en' ? p.titleEn : p.titlePl;
+                      return (
+                        <div
+                          key={p.id}
+                          data-chat-article-id={p.id}
+                          onClick={() => setSelectedPostId(p.id)}
+                          className={`min-w-[150px] sm:min-w-[190px] max-w-[210px] p-2 border transition-all cursor-pointer flex flex-col justify-between shrink-0 text-left ${
+                            isSelected
+                              ? 'bg-[#0A1624] border-cyan-400 shadow-sm shadow-cyan-400/20 ring-1 ring-cyan-400/50'
+                              : 'bg-neutral-950/80 border-editorial-border hover:border-editorial-border/90 hover:bg-neutral-900/50'
+                          }`}
+                        >
+                          <div>
+                            <div className="flex items-center justify-between gap-1 mb-1 text-[8.5px] font-mono">
+                              <span className={`px-1 py-0.2 border font-bold ${
+                                isSelected 
+                                  ? 'bg-cyan-950 border-cyan-400 text-cyan-200' 
+                                  : 'bg-neutral-900 border-editorial-border text-editorial-muted'
+                              }`}>
+                                #{p.id}
+                              </span>
+                              <span className="text-editorial-muted text-[8px] truncate">
+                                {p.date}
+                              </span>
+                            </div>
+                            <h4 className={`text-[10px] font-mono line-clamp-1 leading-tight ${
+                              isSelected ? 'text-white font-bold' : 'text-zinc-300'
+                            }`}>
+                              {pTitle}
+                            </h4>
+                          </div>
+
+                          <div className="flex items-center justify-between gap-1 pt-1 mt-1 border-t border-editorial-border/30 text-[8px] font-mono text-editorial-muted">
+                            <span className="truncate">
+                              {p.tags.slice(0, 2).map(t => `#${t}`).join(' ')}
+                            </span>
+                            {isSelected && (
+                              <span className="text-cyan-400 font-bold uppercase text-[7.5px] shrink-0">
+                                ● {lang === 'en' ? 'Active' : 'Aktywny'}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
                 </div>
 
                 {/* Quick Action Preset Prompt Chips */}
                 <div className="flex flex-wrap gap-1.5 font-mono text-xs">
+                  <button
+                    type="button"
+                    onClick={() => handleShowApiKeyGuideInBlog()}
+                    className="px-2.5 py-1 bg-sky-950/70 hover:bg-sky-900 border border-sky-500 hover:border-sky-300 text-sky-200 text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap rounded-none flex items-center gap-1 shadow-sm"
+                  >
+                    <span>🔑</span>
+                    <span>{lang === 'en' ? 'API Key Guide' : 'Instrukcja klucza API'}</span>
+                  </button>
                   <button
                     type="button"
                     onClick={() => handleSendMessage(lang === 'en' ? 'Discuss v2.0 AI synthesis & architectural upgrades.' : 'Przedyskutuj syntezę v2.0 AI i architekturę.')}
@@ -1032,7 +1349,10 @@ export default function BlogStatsModal({
                 </div>
 
                 {/* Chat Stream Window */}
-                <div className="bg-neutral-950 border border-editorial-border p-3 sm:p-4 h-72 sm:h-84 md:h-96 overflow-y-auto space-y-3 min-w-0">
+                <div 
+                  ref={chatContainerRef}
+                  className="bg-neutral-950 border border-editorial-border p-3 sm:p-4 h-52 sm:h-84 md:h-96 overflow-y-auto space-y-3 min-w-0 overscroll-contain"
+                >
                   {chatMessages.map(msg => (
                     <div
                       key={msg.id}

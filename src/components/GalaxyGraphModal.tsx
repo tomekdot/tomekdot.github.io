@@ -81,6 +81,110 @@ const MATRIX_GLYPHS = [
   'フ', '3', '+', '6', 'サ', 'ビ', '0', 'コ', 'ラ'
 ];
 
+// Memoized Solar Core to prevent SVG filter and SMIL animation recalculation on pan/drag
+const SolarCore = React.memo(function SolarCore() {
+  return (
+    <g className="pointer-events-none select-none">
+      {/* Outer Solar Aura Corona Disc (Pulsating) */}
+      <circle cx="0" cy="0" r="90" fill="url(#sunCoreGlow)" filter="url(#sunGlow)">
+        <animate attributeName="r" values="80;105;80" dur="5s" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0.75;0.95;0.75" dur="5s" repeatCount="indefinite" />
+      </circle>
+
+      {/* Outer Clockwise Rotating Solar Flare Beams */}
+      <g>
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          from="0 0 0"
+          to="360 0 0"
+          dur="30s"
+          repeatCount="indefinite"
+        />
+        {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((deg, i) => {
+          const rad = (deg * Math.PI) / 180;
+          const x2 = Math.cos(rad) * 80;
+          const y2 = Math.sin(rad) * 80;
+          return (
+            <line
+              key={i}
+              x1="0"
+              y1="0"
+              x2={x2}
+              y2={y2}
+              stroke={i % 2 === 0 ? "#fbbf24" : "#38bdf8"}
+              strokeWidth={i % 3 === 0 ? "2.5" : "1.2"}
+              opacity={i % 2 === 0 ? "0.7" : "0.45"}
+              strokeDasharray={i % 2 === 0 ? "none" : "3,5"}
+            />
+          );
+        })}
+      </g>
+
+      {/* Counter-Clockwise Rotating Corona Plasma Ring */}
+      <g>
+        <animateTransform
+          attributeName="transform"
+          type="rotate"
+          from="360 0 0"
+          to="0 0 0"
+          dur="20s"
+          repeatCount="indefinite"
+        />
+        <circle cx="0" cy="0" r="64" fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="12,6" opacity="0.8" />
+        <circle cx="0" cy="0" r="54" fill="none" stroke="#38bdf8" strokeWidth="1" strokeDasharray="6,8" opacity="0.7" />
+        <circle cx="0" cy="0" r="44" fill="none" stroke="#e879f9" strokeWidth="0.8" strokeDasharray="3,6" opacity="0.6" />
+      </g>
+
+      {/* Inner Pulsating Solar Plasma Body */}
+      <circle cx="0" cy="0" r="48" fill="#170d04" stroke="#fbbf24" strokeWidth="2" filter="url(#glow)">
+        <animate attributeName="r" values="45;52;45" dur="4s" repeatCount="indefinite" />
+      </circle>
+
+      {/* Solar Core Energy Plasma Waves */}
+      <circle cx="0" cy="0" r="32" fill="#d97706" opacity="0.4" filter="url(#sunGlow)">
+        <animate attributeName="r" values="28;36;28" dur="2.5s" repeatCount="indefinite" />
+        <animate attributeName="opacity" values="0.3;0.6;0.3" dur="2.5s" repeatCount="indefinite" />
+      </circle>
+
+      {/* Central Radiant Sun Nucleus Pupil */}
+      <circle cx="0" cy="0" r="20" fill="#fbbf24" filter="url(#glow)">
+        <animate attributeName="r" values="18;23;18" dur="3s" repeatCount="indefinite" />
+      </circle>
+      <circle cx="0" cy="0" r="11" fill="#fffbebe6" />
+      <circle cx="0" cy="0" r="5" fill="#ffffff">
+        <animate attributeName="r" values="4;6.5;4" dur="2s" repeatCount="indefinite" />
+      </circle>
+    </g>
+  );
+});
+
+// Memoized Radial Spokes background
+const RadialSpokes = React.memo(function RadialSpokes() {
+  return (
+    <g className="pointer-events-none select-none">
+      {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => {
+        const rad = (deg * Math.PI) / 180;
+        const x2 = Math.cos(rad) * 360;
+        const y2 = Math.sin(rad) * 360;
+        return (
+          <line
+            key={deg}
+            x1="0"
+            y1="0"
+            x2={x2}
+            y2={y2}
+            stroke="#1e293b"
+            strokeWidth="0.75"
+            strokeDasharray="2,8"
+            opacity="0.35"
+          />
+        );
+      })}
+    </g>
+  );
+});
+
 export default function GalaxyGraphModal({
   isOpen,
   onClose,
@@ -101,13 +205,15 @@ export default function GalaxyGraphModal({
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [isLegendOpenMobile, setIsLegendOpenMobile] = useState(false);
   
   // Timeline playback state
   const [isPlayingTimeline, setIsPlayingTimeline] = useState(false);
   const [timelineProgress, setTimelineProgress] = useState(1); // 0 to 1
   const timelineIntervalRef = useRef<any>(null);
 
-  // SVG Container size
+  // Canvas & SVG Container size references
+  const canvasRef = useRef<HTMLDivElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [dimensions, setDimensions] = useState({ width: 900, height: 700 });
 
@@ -124,20 +230,49 @@ export default function GalaxyGraphModal({
     }
   }, [isOpen, initialFilterMode]);
 
-  // Window resize observer
+  // Escape key listener to close modal
   useEffect(() => {
-    const handleResize = () => {
-      if (svgRef.current) {
-        const rect = svgRef.current.getBoundingClientRect();
-        setDimensions({
-          width: rect.width || 900,
-          height: rect.height || 700,
-        });
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        onClose();
       }
     };
-    window.addEventListener('resize', handleResize);
-    handleResize();
-    return () => window.removeEventListener('resize', handleResize);
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, onClose]);
+
+  // Native non-passive wheel listener on canvas for smooth zooming without scrolling page
+  useEffect(() => {
+    const el = canvasRef.current;
+    if (!el || !isOpen) return;
+
+    const onWheel = (e: WheelEvent) => {
+      e.preventDefault();
+      const zoomFactor = e.deltaY < 0 ? 1.12 : 0.88;
+      setZoomLevel(prev => Math.min(3.2, Math.max(0.35, prev * zoomFactor)));
+    };
+
+    el.addEventListener('wheel', onWheel, { passive: false });
+    return () => el.removeEventListener('wheel', onWheel);
+  }, [isOpen]);
+
+  // ResizeObserver using clientWidth & clientHeight (immune to CSS scale animations)
+  useEffect(() => {
+    const el = svgRef.current;
+    if (!el || !isOpen) return;
+
+    const updateDimensions = () => {
+      setDimensions({
+        width: el.clientWidth || 900,
+        height: el.clientHeight || 700,
+      });
+    };
+
+    updateDimensions();
+    const ro = new ResizeObserver(updateDimensions);
+    ro.observe(el);
+    return () => ro.disconnect();
   }, [isOpen]);
 
   // Date ranges calculation (core = oldest · outer = newer)
@@ -334,13 +469,7 @@ export default function GalaxyGraphModal({
   useEffect(() => {
     if (isPlayingTimeline) {
       timelineIntervalRef.current = setInterval(() => {
-        setTimelineProgress(prev => {
-          if (prev >= 1) {
-            setIsPlayingTimeline(false);
-            return 1;
-          }
-          return Math.min(1, prev + 0.015);
-        });
+        setTimelineProgress(prev => Math.min(1, prev + 0.015));
       }, 100);
     } else {
       if (timelineIntervalRef.current) {
@@ -351,6 +480,13 @@ export default function GalaxyGraphModal({
       if (timelineIntervalRef.current) clearInterval(timelineIntervalRef.current);
     };
   }, [isPlayingTimeline]);
+
+  // Turn off timeline playback when progress completes
+  useEffect(() => {
+    if (timelineProgress >= 1 && isPlayingTimeline) {
+      setIsPlayingTimeline(false);
+    }
+  }, [timelineProgress, isPlayingTimeline]);
 
   // Filtered nodes based on active filter, timeline progress, and search
   const visibleNodes = useMemo(() => {
@@ -379,12 +515,17 @@ export default function GalaxyGraphModal({
 
   const visibleNodeIds = useMemo(() => new Set(visibleNodes.map(n => n.id)), [visibleNodes]);
 
-  // Hovered / selected connections highlighting
+  // Hovered / selected connections highlighting for edges and neighbors
   const activeFocusNode = useMemo(() => {
     const targetId = hoveredNodeId || selectedNodeId;
     if (!targetId) return null;
     return nodes.find(n => n.id === targetId) || null;
   }, [hoveredNodeId, selectedNodeId, nodes]);
+
+  // HUD node: persistent based on selectedNodeId so moving cursor off the node to click buttons doesn't vanish
+  const hudNode = useMemo(() => {
+    return nodes.find(n => n.id === selectedNodeId) ?? null;
+  }, [nodes, selectedNodeId]);
 
   const activeConnectedIds = useMemo(() => {
     if (!activeFocusNode) return new Set<string>();
@@ -395,6 +536,10 @@ export default function GalaxyGraphModal({
   }, [activeFocusNode]);
 
   // Pan and Drag Handlers
+  const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const pinchStartDistRef = useRef<number | null>(null);
+  const pinchStartZoomRef = useRef<number>(1);
+
   const handleMouseDown = (e: React.MouseEvent) => {
     // If clicking background canvas, clear selected node
     const target = e.target as HTMLElement;
@@ -419,16 +564,65 @@ export default function GalaxyGraphModal({
     setIsDragging(false);
   };
 
-  // Mouse wheel scroll zoom handler
-  const handleWheel = (e: React.WheelEvent) => {
-    e.preventDefault();
-    const zoomFactor = e.deltaY < 0 ? 1.12 : 0.88;
-    setZoomLevel(prev => Math.min(3.2, Math.max(0.35, prev * zoomFactor)));
+  // Touch Handlers for Mobile single-finger pan and 2-finger pinch zoom
+  const handleTouchStart = (e: React.TouchEvent) => {
+    if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      const target = e.target as HTMLElement;
+      if (target.tagName === 'svg' || target.getAttribute('id') === 'galaxy_canvas_bg') {
+        setSelectedNodeId(null);
+      }
+      setIsDragging(true);
+      touchStartRef.current = {
+        x: touch.clientX - panOffset.x,
+        y: touch.clientY - panOffset.y,
+      };
+      pinchStartDistRef.current = null;
+    } else if (e.touches.length === 2) {
+      setIsDragging(false);
+      touchStartRef.current = null;
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      pinchStartDistRef.current = Math.hypot(dx, dy);
+      pinchStartZoomRef.current = zoomLevel;
+    }
   };
 
-  // Zoom handlers
-  const handleZoomIn = () => setZoomLevel(prev => Math.min(2.5, prev + 0.2));
-  const handleZoomOut = () => setZoomLevel(prev => Math.max(0.6, prev - 0.2));
+  const handleTouchMove = (e: React.TouchEvent) => {
+    if (e.touches.length === 1 && touchStartRef.current) {
+      const touch = e.touches[0];
+      setPanOffset({
+        x: touch.clientX - touchStartRef.current.x,
+        y: touch.clientY - touchStartRef.current.y,
+      });
+    } else if (e.touches.length === 2 && pinchStartDistRef.current) {
+      const dx = e.touches[0].clientX - e.touches[1].clientX;
+      const dy = e.touches[0].clientY - e.touches[1].clientY;
+      const currentDist = Math.hypot(dx, dy);
+      const ratio = currentDist / pinchStartDistRef.current;
+      const newZoom = Math.min(3.2, Math.max(0.35, pinchStartZoomRef.current * ratio));
+      setZoomLevel(newZoom);
+    }
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (e.touches.length === 0) {
+      setIsDragging(false);
+      touchStartRef.current = null;
+      pinchStartDistRef.current = null;
+    } else if (e.touches.length === 1) {
+      const touch = e.touches[0];
+      touchStartRef.current = {
+        x: touch.clientX - panOffset.x,
+        y: touch.clientY - panOffset.y,
+      };
+      pinchStartDistRef.current = null;
+    }
+  };
+
+  // Zoom handlers (consistent bounds: 0.35 to 3.2)
+  const handleZoomIn = () => setZoomLevel(prev => Math.min(3.2, prev + 0.25));
+  const handleZoomOut = () => setZoomLevel(prev => Math.max(0.35, prev - 0.25));
   const handleResetView = () => {
     setZoomLevel(1);
     setPanOffset({ x: 0, y: 0 });
@@ -436,23 +630,27 @@ export default function GalaxyGraphModal({
     setTimelineProgress(1);
   };
 
-  if (!isOpen) return null;
-
   return (
     <AnimatePresence>
-      <div 
-        id="galaxy_obsidian_modal_root" 
-        className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/90 backdrop-blur-xl animate-fadeIn select-none"
-        onMouseMove={handleMouseMove}
-        onMouseUp={handleMouseUp}
-      >
-        <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          transition={{ duration: 0.25 }}
-          className="relative w-full max-w-6xl h-[92vh] max-h-[850px] bg-[#07090E] border border-editorial-border/80 flex flex-col overflow-hidden shadow-2xl rounded-none"
+      {isOpen && (
+        <motion.div 
+          key="galaxy_modal"
+          id="galaxy_obsidian_modal_root" 
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={{ duration: 0.16 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/90 select-none overscroll-contain"
+          onMouseMove={handleMouseMove}
+          onMouseUp={handleMouseUp}
         >
+          <motion.div
+            initial={{ opacity: 0, scale: 0.98, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.98, y: 10 }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            className="relative w-[94%] sm:w-full max-w-6xl h-[78svh] sm:h-[92vh] max-h-[80svh] sm:max-h-[850px] bg-[#07090E] border border-editorial-border/80 flex flex-col overflow-hidden shadow-2xl rounded-none overscroll-contain my-auto"
+          >
           {/* TOP HEADER & TIMELINE SCRUBBER */}
           <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between px-3 sm:px-5 py-2.5 bg-[#090C12] border-b border-editorial-border z-20 shrink-0 gap-3">
             
@@ -650,9 +848,12 @@ export default function GalaxyGraphModal({
 
           {/* MAIN GRAPH CANVAS / SVG VIEW */}
           <div 
-            className="relative flex-1 bg-[#06080D] overflow-hidden cursor-grab active:cursor-grabbing select-none"
+            ref={canvasRef}
+            className="relative flex-1 bg-[#06080D] overflow-hidden cursor-grab active:cursor-grabbing select-none touch-none"
             onMouseDown={handleMouseDown}
-            onWheel={handleWheel}
+            onTouchStart={handleTouchStart}
+            onTouchMove={handleTouchMove}
+            onTouchEnd={handleTouchEnd}
           >
             <svg
               ref={svgRef}
@@ -765,98 +966,10 @@ export default function GalaxyGraphModal({
                 />
 
                 {/* RADIAL AXIS SPOKES */}
-                {[0, 45, 90, 135, 180, 225, 270, 315].map((deg) => {
-                  const rad = (deg * Math.PI) / 180;
-                  const x2 = Math.cos(rad) * 360;
-                  const y2 = Math.sin(rad) * 360;
-                  return (
-                    <line
-                      key={deg}
-                      x1="0"
-                      y1="0"
-                      x2={x2}
-                      y2={y2}
-                      stroke="#1e293b"
-                      strokeWidth="0.75"
-                      strokeDasharray="2,8"
-                      opacity="0.35"
-                    />
-                  );
-                })}
+                <RadialSpokes />
 
                 {/* CENTRAL ANIMATED ORGANIC SOLAR CORE (Living Sun / Słońce) */}
-                <g className="pointer-events-none select-none">
-                  {/* Outer Solar Aura Corona Disc (Pulsating) */}
-                  <circle cx="0" cy="0" r="90" fill="url(#sunCoreGlow)" filter="url(#sunGlow)">
-                    <animate attributeName="r" values="80;105;80" dur="5s" repeatCount="indefinite" />
-                    <animate attributeName="opacity" values="0.75;0.95;0.75" dur="5s" repeatCount="indefinite" />
-                  </circle>
-
-                  {/* Outer Clockwise Rotating Solar Flare Beams */}
-                  <g>
-                    <animateTransform
-                      attributeName="transform"
-                      type="rotate"
-                      from="0 0 0"
-                      to="360 0 0"
-                      dur="30s"
-                      repeatCount="indefinite"
-                    />
-                    {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((deg, i) => {
-                      const rad = (deg * Math.PI) / 180;
-                      const x2 = Math.cos(rad) * 80;
-                      const y2 = Math.sin(rad) * 80;
-                      return (
-                        <line
-                          key={i}
-                          x1="0"
-                          y1="0"
-                          x2={x2}
-                          y2={y2}
-                          stroke={i % 2 === 0 ? "#fbbf24" : "#38bdf8"}
-                          strokeWidth={i % 3 === 0 ? "2.5" : "1.2"}
-                          opacity={i % 2 === 0 ? "0.7" : "0.45"}
-                          strokeDasharray={i % 2 === 0 ? "none" : "3,5"}
-                        />
-                      );
-                    })}
-                  </g>
-
-                  {/* Counter-Clockwise Rotating Corona Plasma Ring */}
-                  <g>
-                    <animateTransform
-                      attributeName="transform"
-                      type="rotate"
-                      from="360 0 0"
-                      to="0 0 0"
-                      dur="20s"
-                      repeatCount="indefinite"
-                    />
-                    <circle cx="0" cy="0" r="64" fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="12,6" opacity="0.8" />
-                    <circle cx="0" cy="0" r="54" fill="none" stroke="#38bdf8" strokeWidth="1" strokeDasharray="6,8" opacity="0.7" />
-                    <circle cx="0" cy="0" r="44" fill="none" stroke="#e879f9" strokeWidth="0.8" strokeDasharray="3,6" opacity="0.6" />
-                  </g>
-
-                  {/* Inner Pulsating Solar Plasma Body */}
-                  <circle cx="0" cy="0" r="48" fill="#170d04" stroke="#fbbf24" strokeWidth="2" filter="url(#glow)">
-                    <animate attributeName="r" values="45;52;45" dur="4s" repeatCount="indefinite" />
-                  </circle>
-
-                  {/* Solar Core Energy Plasma Waves */}
-                  <circle cx="0" cy="0" r="32" fill="#d97706" opacity="0.4" filter="url(#sunGlow)">
-                    <animate attributeName="r" values="28;36;28" dur="2.5s" repeatCount="indefinite" />
-                    <animate attributeName="opacity" values="0.3;0.6;0.3" dur="2.5s" repeatCount="indefinite" />
-                  </circle>
-
-                  {/* Central Radiant Sun Nucleus Pupil */}
-                  <circle cx="0" cy="0" r="20" fill="#fbbf24" filter="url(#glow)">
-                    <animate attributeName="r" values="18;23;18" dur="3s" repeatCount="indefinite" />
-                  </circle>
-                  <circle cx="0" cy="0" r="11" fill="#fffbebe6" />
-                  <circle cx="0" cy="0" r="5" fill="#ffffff">
-                    <animate attributeName="r" values="4;6.5;4" dur="2s" repeatCount="indefinite" />
-                  </circle>
-                </g>
+                <SolarCore />
 
                 {/* CONSTELLATION CONNECTION EDGES */}
                 {edges.map((edge) => {
@@ -915,6 +1028,7 @@ export default function GalaxyGraphModal({
                           stroke={node.color}
                           strokeWidth="1.5"
                           className="animate-ping"
+                          style={{ transformBox: 'fill-box', transformOrigin: 'center' }}
                           opacity="0.7"
                         />
                       )}
@@ -962,28 +1076,28 @@ export default function GalaxyGraphModal({
             </svg>
 
             {/* FLOATING HUD TOOLTIP CARD */}
-            {activeFocusNode && (
+            {hudNode && (
               <motion.div
                 initial={{ opacity: 0, y: 8, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.96 }}
-                className="absolute top-4 right-4 z-30 w-72 sm:w-84 bg-[#0B0F19]/95 border border-editorial-border p-3.5 shadow-2xl backdrop-blur-md font-mono text-xs space-y-2.5"
+                className="absolute top-2 sm:top-4 right-2 sm:right-4 z-30 w-[calc(100%-1rem)] sm:w-80 max-h-[50svh] overflow-y-auto bg-[#0B0F19]/95 border border-editorial-border p-3 sm:p-3.5 shadow-2xl backdrop-blur-md font-mono text-xs space-y-2.5 overscroll-contain"
               >
                 {/* HUD Header */}
                 <div className="flex items-center justify-between pb-2 border-b border-editorial-border">
                   <div className="flex items-center gap-2">
                     <span className={`px-2 py-0.5 text-[9.5px] uppercase font-bold ${
-                      activeFocusNode.type === 'tag' 
+                      hudNode.type === 'tag' 
                         ? 'bg-fuchsia-950 text-fuchsia-300 border border-fuchsia-500' 
                         : 'bg-emerald-950 text-emerald-300 border border-emerald-500'
                     }`}>
-                      {activeFocusNode.type === 'tag' ? (lang === 'en' ? 'TAG' : 'TAG') : (lang === 'en' ? 'POST' : 'WPIS / POST')}
+                      {hudNode.type === 'tag' ? (lang === 'en' ? 'TAG' : 'TAG') : (lang === 'en' ? 'POST' : 'WPIS / POST')}
                     </span>
 
-                    {activeFocusNode.dateStr && (
+                    {hudNode.dateStr && (
                       <span className="text-[10px] text-editorial-muted flex items-center gap-1">
                         <Calendar size={10} className="text-editorial-accent" />
-                        {activeFocusNode.dateStr}
+                        {hudNode.dateStr}
                       </span>
                     )}
                   </div>
@@ -1004,11 +1118,11 @@ export default function GalaxyGraphModal({
                 {/* HUD Title & Description */}
                 <div>
                   <h3 className="font-bold text-white text-sm leading-snug mb-1">
-                    {lang === 'en' ? activeFocusNode.labelEn : activeFocusNode.labelPl}
+                    {lang === 'en' ? hudNode.labelEn : hudNode.labelPl}
                   </h3>
-                  {activeFocusNode.excerpt && (
+                  {hudNode.excerpt && (
                     <p className="text-editorial-muted text-[11px] font-sans leading-relaxed line-clamp-3">
-                      {activeFocusNode.excerpt}
+                      {hudNode.excerpt}
                     </p>
                   )}
                 </div>
@@ -1019,7 +1133,7 @@ export default function GalaxyGraphModal({
                     {lang === 'en' ? 'Connected Constellation Nodes:' : 'Połączone Węzły Konstelacji:'}
                   </span>
                   <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
-                    {activeFocusNode.connectedIds.map(id => {
+                    {hudNode.connectedIds.map(id => {
                       const target = nodes.find(n => n.id === id);
                       if (!target) return null;
                       return (
@@ -1038,13 +1152,13 @@ export default function GalaxyGraphModal({
 
                 {/* Action Buttons */}
                 <div className="pt-2 border-t border-editorial-border flex gap-2">
-                  {activeFocusNode.type === 'post' && activeFocusNode.rawPost && (
+                  {hudNode.type === 'post' && hudNode.rawPost && (
                     <>
                       <button
                         type="button"
                         onClick={() => {
-                          if (onSelectBlogPost && activeFocusNode.rawPost) {
-                            onSelectBlogPost(activeFocusNode.rawPost);
+                          if (onSelectBlogPost && hudNode.rawPost) {
+                            onSelectBlogPost(hudNode.rawPost);
                             onClose();
                           }
                         }}
@@ -1058,8 +1172,8 @@ export default function GalaxyGraphModal({
                         <button
                           type="button"
                           onClick={() => {
-                            if (onOpenAiDiscussion && activeFocusNode.rawPost) {
-                              onOpenAiDiscussion(activeFocusNode.rawPost);
+                            if (onOpenAiDiscussion && hudNode.rawPost) {
+                              onOpenAiDiscussion(hudNode.rawPost);
                               onClose();
                             }
                           }}
@@ -1072,12 +1186,12 @@ export default function GalaxyGraphModal({
                     </>
                   )}
 
-                  {activeFocusNode.type === 'tag' && activeFocusNode.rawTag && onSelectTag && (
+                  {hudNode.type === 'tag' && hudNode.rawTag && onSelectTag && (
                     <button
                       type="button"
                       onClick={() => {
-                        if (onSelectTag && activeFocusNode.rawTag) {
-                          onSelectTag(activeFocusNode.rawTag);
+                        if (onSelectTag && hudNode.rawTag) {
+                          onSelectTag(hudNode.rawTag);
                           onClose();
                         }
                       }}
@@ -1091,32 +1205,88 @@ export default function GalaxyGraphModal({
               </motion.div>
             )}
 
-            {/* BOTTOM LEFT LEGEND */}
-            <div className="absolute bottom-4 left-4 z-20 bg-[#090C14]/90 border border-editorial-border p-3 font-mono text-xs space-y-1.5 backdrop-blur-sm pointer-events-auto">
-              <div className="flex items-center gap-2 text-emerald-400">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#4ade80]" />
-                <span className="text-[11px] font-bold uppercase">{lang === 'en' ? 'POST' : 'WPIS / POST'}</span>
+            {/* BOTTOM LEFT LEGEND - Collapsible on mobile, always visible on sm+ screens */}
+            <div className="absolute bottom-3 sm:bottom-4 left-3 sm:left-4 z-20 font-mono text-xs pointer-events-auto">
+              {/* Mobile Toggle Button */}
+              <div className="sm:hidden">
+                {!isLegendOpenMobile ? (
+                  <button
+                    type="button"
+                    id="toggle_mobile_galaxy_legend_btn"
+                    onClick={() => setIsLegendOpenMobile(true)}
+                    className="px-2.5 py-1.5 bg-[#090C14]/95 border border-editorial-border text-editorial-accent font-bold text-[10px] uppercase flex items-center gap-1.5 shadow-xl rounded-none cursor-pointer hover:border-editorial-accent transition-all"
+                  >
+                    <Compass size={12} className="text-editorial-accent shrink-0" />
+                    <span>{lang === 'en' ? 'LEGEND' : 'LEGENDA'}</span>
+                    <span className="text-editorial-muted text-[9px]">▲</span>
+                  </button>
+                ) : (
+                  <div className="bg-[#090C14]/95 border border-editorial-border p-2.5 font-mono text-xs space-y-1.5 backdrop-blur-md shadow-2xl max-w-[220px]">
+                    <div className="flex items-center justify-between pb-1 border-b border-editorial-border/60">
+                      <span className="text-[10px] font-bold uppercase text-editorial-accent">
+                        {lang === 'en' ? 'CONSTELLATION LEGEND' : 'LEGENDA KONSTELACJI'}
+                      </span>
+                      <button
+                        type="button"
+                        onClick={() => setIsLegendOpenMobile(false)}
+                        className="text-editorial-muted hover:text-white p-0.5 cursor-pointer ml-2"
+                        title="Close legend"
+                      >
+                        <X size={12} />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-2 text-emerald-400">
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#4ade80] shrink-0" />
+                      <span className="text-[10px] font-bold uppercase">{lang === 'en' ? 'POST' : 'WPIS / POST'}</span>
+                    </div>
+                    <div className="flex items-center gap-2 text-fuchsia-400">
+                      <span className="w-2.5 h-2.5 rotate-45 bg-fuchsia-400 shadow-[0_0_6px_#c084fc] shrink-0" />
+                      <span className="text-[10px] font-bold uppercase">{lang === 'en' ? 'TAG' : 'TAG'}</span>
+                    </div>
+                    <div className="text-[9px] text-editorial-muted pt-1 border-t border-editorial-border/60">
+                      <span className="text-zinc-400 font-medium">core = oldest · outer = newer</span>
+                    </div>
+                    <div className="text-[9.5px] text-zinc-300 font-bold flex items-center justify-between gap-1 pt-0.5">
+                      <span className="text-emerald-400">
+                        {new Date(minTime).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                      </span>
+                      <span className="text-editorial-muted">→</span>
+                      <span className="text-fuchsia-400">
+                        {new Date(maxTime).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="flex items-center gap-2 text-fuchsia-400">
-                <span className="w-2.5 h-2.5 rotate-45 bg-fuchsia-400 shadow-[0_0_6px_#c084fc]" />
-                <span className="text-[11px] font-bold uppercase">{lang === 'en' ? 'TAG' : 'TAG'}</span>
-              </div>
-              <div className="text-[9.5px] text-editorial-muted pt-1 border-t border-editorial-border/60">
-                <span className="text-zinc-400 font-medium">core = oldest · outer = newer</span>
-              </div>
-              <div className="text-[10px] text-zinc-300 font-bold flex items-center justify-between gap-2 pt-0.5">
-                <span className="text-emerald-400">
-                  {new Date(minTime).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                </span>
-                <span className="text-editorial-muted">→</span>
-                <span className="text-fuchsia-400">
-                  {new Date(maxTime).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
-                </span>
+
+              {/* Desktop Legend Card */}
+              <div className="hidden sm:block bg-[#090C14]/90 border border-editorial-border p-3 space-y-1.5 backdrop-blur-sm shadow-xl">
+                <div className="flex items-center gap-2 text-emerald-400">
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#4ade80]" />
+                  <span className="text-[11px] font-bold uppercase">{lang === 'en' ? 'POST' : 'WPIS / POST'}</span>
+                </div>
+                <div className="flex items-center gap-2 text-fuchsia-400">
+                  <span className="w-2.5 h-2.5 rotate-45 bg-fuchsia-400 shadow-[0_0_6px_#c084fc]" />
+                  <span className="text-[11px] font-bold uppercase">{lang === 'en' ? 'TAG' : 'TAG'}</span>
+                </div>
+                <div className="text-[9.5px] text-editorial-muted pt-1 border-t border-editorial-border/60">
+                  <span className="text-zinc-400 font-medium">core = oldest · outer = newer</span>
+                </div>
+                <div className="text-[10px] text-zinc-300 font-bold flex items-center justify-between gap-2 pt-0.5">
+                  <span className="text-emerald-400">
+                    {new Date(minTime).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                  </span>
+                  <span className="text-editorial-muted">→</span>
+                  <span className="text-fuchsia-400">
+                    {new Date(maxTime).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </span>
+                </div>
               </div>
             </div>
           </div>
         </motion.div>
-      </div>
+      </motion.div>
+      )}
     </AnimatePresence>
   );
 }

@@ -166,7 +166,7 @@ export default function DeveloperStatsModal({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 md:p-6 overflow-y-auto bg-black/80 backdrop-blur-sm">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto bg-black/80 backdrop-blur-sm overscroll-contain">
         {/* Backdrop dismiss click */}
         <div className="fixed inset-0" onClick={onClose} />
 
@@ -177,7 +177,7 @@ export default function DeveloperStatsModal({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.95, y: 15 }}
           transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-          className="relative bg-editorial-bg border-2 border-editorial-border w-full max-w-5xl rounded-none shadow-2xl flex flex-col overflow-hidden max-h-[92vh] sm:max-h-[88vh] h-[92vh] sm:h-[680px]"
+          className="relative bg-editorial-bg border-2 border-editorial-border w-full max-w-5xl rounded-none shadow-2xl flex flex-col overflow-hidden max-h-[80svh] sm:max-h-[88vh] h-[78svh] sm:h-[680px] overscroll-contain my-auto"
         >
           {/* 1. Modal Top Header */}
           <div className="bg-editorial-sidebar-bg border-b border-editorial-border px-3.5 sm:px-6 py-2.5 sm:py-4 flex items-center justify-between shrink-0">
@@ -348,22 +348,22 @@ export default function DeveloperStatsModal({
           </div>
 
           {/* 3. Navigation Tabs within modal */}
-          <div className="flex border-b border-editorial-border bg-[#0E0E0E] px-2 sm:px-4 md:px-6 pt-1.5 sm:pt-2 md:pt-3 shrink-0 gap-1 sm:gap-1.5 md:gap-2 overflow-x-auto font-mono text-[11px] sm:text-xs scrollbar-none w-full">
+          <div className="grid grid-cols-3 sm:flex border-b border-editorial-border bg-[#0E0E0E] px-2 sm:px-4 md:px-6 pt-1 sm:pt-2 md:pt-3 shrink-0 gap-1 sm:gap-2 font-mono text-[10.5px] sm:text-xs w-full">
             <button
               type="button"
               id="stats_tab_new_plugins"
               onClick={() => setActiveTab('new_plugins')}
-              className={`flex-1 md:flex-initial justify-center md:justify-start px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 font-bold uppercase tracking-wider border-t-2 transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+              className={`justify-center px-1.5 sm:px-3 md:px-4 py-2 sm:py-2.5 font-bold uppercase tracking-wider border-t-2 transition-all cursor-pointer flex items-center gap-1 sm:gap-2 whitespace-nowrap min-w-0 ${
                 activeTab === 'new_plugins'
                   ? 'border-editorial-accent text-editorial-accent bg-[#18140E]'
                   : 'border-transparent text-editorial-muted hover:text-white'
               }`}
             >
-              <Sparkles size={13} className={activeTab === 'new_plugins' ? 'text-editorial-accent shrink-0' : 'text-editorial-muted shrink-0'} />
-              <span className="sm:hidden">{lang === 'en' ? 'Plugins' : 'Pluginy'}</span>
+              <Sparkles size={12} className={activeTab === 'new_plugins' ? 'text-editorial-accent shrink-0' : 'text-editorial-muted shrink-0'} />
+              <span className="truncate sm:hidden">{lang === 'en' ? 'Plugins' : 'Pluginy'}</span>
               <span className="hidden sm:inline lg:hidden">{lang === 'en' ? 'Plugins & Releases' : 'Pluginy & Wydania'}</span>
               <span className="hidden lg:inline">{lang === 'en' ? 'New Plugins & Releases' : 'Nowe Pluginy i Projekty'}</span>
-              <span className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.2 bg-neutral-900 border border-editorial-border text-editorial-muted">
+              <span className="text-[8.5px] sm:text-[10px] px-1 sm:px-1.5 py-0.2 bg-neutral-900 border border-editorial-border text-editorial-muted shrink-0">
                 {newestPlugins.length}
               </span>
             </button>
@@ -372,17 +372,17 @@ export default function DeveloperStatsModal({
               type="button"
               id="stats_tab_recent_activity"
               onClick={() => setActiveTab('recent_activity')}
-              className={`flex-1 md:flex-initial justify-center md:justify-start px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 font-bold uppercase tracking-wider border-t-2 transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+              className={`justify-center px-1.5 sm:px-3 md:px-4 py-2 sm:py-2.5 font-bold uppercase tracking-wider border-t-2 transition-all cursor-pointer flex items-center gap-1 sm:gap-2 whitespace-nowrap min-w-0 ${
                 activeTab === 'recent_activity'
                   ? 'border-editorial-accent text-editorial-accent bg-[#18140E]'
                   : 'border-transparent text-editorial-muted hover:text-white'
               }`}
             >
-              <Zap size={13} className={activeTab === 'recent_activity' ? 'text-editorial-accent shrink-0' : 'text-editorial-muted shrink-0'} />
-              <span className="sm:hidden">{lang === 'en' ? 'Changelog' : 'Zmiany'}</span>
+              <Zap size={12} className={activeTab === 'recent_activity' ? 'text-editorial-accent shrink-0' : 'text-editorial-muted shrink-0'} />
+              <span className="truncate sm:hidden">{lang === 'en' ? 'Log' : 'Zmiany'}</span>
               <span className="hidden sm:inline lg:hidden">{lang === 'en' ? 'Activity & Changelog' : 'Aktywność & Dziennik'}</span>
               <span className="hidden lg:inline">{lang === 'en' ? 'Recent Changes & Changelog' : 'Ostatnie Zmiany i Aktywność'}</span>
-              <span className="text-[9px] sm:text-[10px] px-1 sm:px-1.5 py-0.2 bg-neutral-900 border border-editorial-border text-editorial-muted">
+              <span className="text-[8.5px] sm:text-[10px] px-1 sm:px-1.5 py-0.2 bg-neutral-900 border border-editorial-border text-editorial-muted shrink-0">
                 {recentChanges.length}
               </span>
             </button>
@@ -391,21 +391,21 @@ export default function DeveloperStatsModal({
               type="button"
               id="stats_tab_breakdown"
               onClick={() => setActiveTab('breakdown')}
-              className={`flex-1 md:flex-initial justify-center md:justify-start px-2 sm:px-3 md:px-4 py-2 sm:py-2.5 font-bold uppercase tracking-wider border-t-2 transition-all cursor-pointer flex items-center gap-1.5 sm:gap-2 whitespace-nowrap ${
+              className={`justify-center px-1.5 sm:px-3 md:px-4 py-2 sm:py-2.5 font-bold uppercase tracking-wider border-t-2 transition-all cursor-pointer flex items-center gap-1 sm:gap-2 whitespace-nowrap min-w-0 ${
                 activeTab === 'breakdown'
                   ? 'border-editorial-accent text-editorial-accent bg-[#18140E]'
                   : 'border-transparent text-editorial-muted hover:text-white'
               }`}
             >
-              <Layers size={13} className={activeTab === 'breakdown' ? 'text-editorial-accent shrink-0' : 'text-editorial-muted shrink-0'} />
-              <span className="sm:hidden">{lang === 'en' ? 'Matrix' : 'Kategorie'}</span>
+              <Layers size={12} className={activeTab === 'breakdown' ? 'text-editorial-accent shrink-0' : 'text-editorial-muted shrink-0'} />
+              <span className="truncate sm:hidden">{lang === 'en' ? 'Matrix' : 'Matryca'}</span>
               <span className="hidden sm:inline lg:hidden">{lang === 'en' ? 'Tech Matrix' : 'Matryca Tech'}</span>
               <span className="hidden lg:inline">{lang === 'en' ? 'Category & Tech Matrix' : 'Kategorie i Technologie'}</span>
             </button>
           </div>
 
           {/* 4. Tab Body Content */}
-          <div className="flex-1 overflow-y-auto p-4 sm:p-6 space-y-4 sm:space-y-6">
+          <div className="flex-1 overflow-y-auto p-3.5 sm:p-6 space-y-3.5 sm:space-y-6 overscroll-contain">
             {activeTab === 'new_plugins' && (
               <div className="space-y-4">
                 {/* Category quick chips for plugins */}
