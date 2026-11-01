@@ -20,6 +20,7 @@ interface RepoCardProps {
 const RepoCard = React.memo(function RepoCard({ repo, onSelect, lang, compact }: RepoCardProps) {
   const primaryCatKey = repo.cat[0] || 'other';
   const catSpec = CATEGORIES[primaryCatKey] || CATEGORIES.other;
+  const catLabel = lang === 'en' ? catSpec.labelEn : catSpec.labelPl;
   const displayLang = repo.lang && repo.lang.trim() !== '' ? repo.lang : 'Shell/Other';
   const langColor = LANG_COLORS[repo.lang] || LANG_COLORS[displayLang] || '#89e051';
 
@@ -34,26 +35,24 @@ const RepoCard = React.memo(function RepoCard({ repo, onSelect, lang, compact }:
         whileHover={{ backgroundColor: 'rgba(255, 255, 255, 0.04)' }}
         transition={{ duration: 0.15 }}
         onClick={() => onSelect(repo)}
-        className="group relative border border-editorial-border p-3 sm:p-3.5 cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-3 bg-editorial-sidebar-bg hover:border-editorial-accent/60 transition-all rounded-none"
+        className="group relative border border-editorial-border p-3 sm:p-3.5 cursor-pointer flex flex-col gap-2.5 bg-editorial-sidebar-bg hover:border-editorial-accent/60 transition-all rounded-none"
       >
-        <div className="flex items-center gap-3 min-w-0 flex-1">
-          <FolderGit2 size={16} className="text-editorial-muted group-hover:text-editorial-accent transition-colors shrink-0" />
+        {/* Title row: name + badges */}
+        <div className="flex items-start gap-2.5 min-w-0 w-full">
+          <FolderGit2 size={16} className="text-editorial-muted group-hover:text-editorial-accent transition-colors shrink-0 mt-0.5" />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <span className="text-sm font-bold font-mono text-white group-hover:text-editorial-accent transition-colors truncate" translate="no">
                 {repo.name}
               </span>
-              <span className="text-[9px] font-mono uppercase px-1.5 py-0.5 bg-neutral-900 border border-editorial-border text-editorial-accent font-semibold shrink-0">
-                {lang === 'en' ? catSpec.labelEn : catSpec.labelPl}
-              </span>
               {repo.isPrivate && (
-                <span className="inline-flex items-center gap-1 bg-[#1F1111] text-rose-500 border border-rose-500/30 px-1 py-0.5 text-[8.5px] font-mono uppercase font-bold shrink-0">
+                <span className="inline-flex items-center gap-1 bg-[#1F1111] text-rose-500 border border-rose-500/30 px-1 py-0.5 text-[8.5px] font-mono uppercase font-bold shrink-0 whitespace-nowrap">
                   <Lock size={8} />
                   {lang === 'en' ? 'Private' : 'Prywatne'}
                 </span>
               )}
               {repo.isFork && (
-                <span className="inline-flex items-center gap-1 bg-[#1A1028] text-purple-300 border border-purple-500/40 px-1.5 py-0.5 text-[8.5px] font-mono uppercase font-bold shrink-0">
+                <span className="inline-flex items-center gap-1 bg-[#1A1028] text-purple-300 border border-purple-500/40 px-1.5 py-0.5 text-[8.5px] font-mono uppercase font-bold shrink-0 whitespace-nowrap">
                   <GitFork size={8} className="text-purple-400 shrink-0" />
                   <span>
                     {repo.isContributed
@@ -63,34 +62,40 @@ const RepoCard = React.memo(function RepoCard({ repo, onSelect, lang, compact }:
                 </span>
               )}
             </div>
-            <p className="text-editorial-muted text-xs font-sans line-clamp-1 mt-0.5">
-              {lang === 'en' ? repo.desc : (repo.descPl || repo.desc)}
-            </p>
+            {repo.desc && (
+              <p className="text-editorial-muted text-xs font-sans line-clamp-1 mt-0.5">
+                {lang === 'en' ? repo.desc : (repo.descPl || repo.desc)}
+              </p>
+            )}
           </div>
         </div>
 
-        <div className="flex items-center gap-4 shrink-0 font-mono text-xs text-editorial-muted">
+        {/* Wiersz metadanych pod nazwą: flex flex-wrap items-center gap-x-2 gap-y-1.5 min-w-0 w-full */}
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 min-w-0 w-full font-mono text-xs text-editorial-muted pt-2 border-t border-editorial-border/30">
+          <span className="max-w-full truncate shrink min-w-0 text-[9px] font-mono uppercase px-1.5 py-0.5 bg-neutral-900 border border-editorial-border text-editorial-accent font-semibold">
+            {catLabel}
+          </span>
           {repo.createdYear && (
-            <span className="flex items-center gap-1 text-[10px] text-zinc-400 border border-editorial-border/60 px-1.5 py-0.5" title={lang === 'en' ? 'Created year' : 'Rok utworzenia'}>
+            <span className="shrink-0 inline-flex items-center gap-1 text-[10px] text-zinc-400 border border-editorial-border/60 px-1.5 py-0.5" title={lang === 'en' ? 'Created year' : 'Rok utworzenia'}>
               <Calendar size={10} className="text-sky-400 shrink-0" />
               <span>{repo.createdYear}</span>
             </span>
           )}
-          <span className="flex items-center gap-1.5 border border-editorial-border/60 px-2 py-0.5 text-[10px]">
+          <span className="shrink-0 inline-flex items-center gap-1.5 border border-editorial-border/60 px-2 py-0.5 text-[10px]">
             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: langColor }} />
             <span className="text-zinc-300" translate="no">
               {displayLang === 'Shell/Other' ? (lang === 'en' ? 'Shell/Other' : 'Shell/Inne') : displayLang}
             </span>
           </span>
           {!repo.isPrivate && (
-            <span className="flex items-center gap-1 text-[10px]" title="Stars">
+            <span className="shrink-0 inline-flex items-center gap-1 text-[10px]" title="Stars">
               <Star size={10} className="text-amber-500 fill-amber-500/20" />
               <span>{repo.stars}</span>
             </span>
           )}
           <button
             type="button"
-            className="text-editorial-accent group-hover:brightness-110 flex items-center gap-1 text-[10.5px] uppercase font-bold tracking-wider"
+            className="shrink-0 ml-auto text-editorial-accent group-hover:brightness-110 flex items-center gap-1 text-[10.5px] uppercase font-bold tracking-wider"
           >
             {lang === 'en' ? 'Details →' : 'Szczegóły →'}
           </button>
@@ -112,21 +117,6 @@ const RepoCard = React.memo(function RepoCard({ repo, onSelect, lang, compact }:
       className="group relative border border-editorial-border bg-editorial-sidebar-bg hover:border-editorial-accent/60 p-4 sm:p-5 md:p-6 cursor-pointer flex flex-col justify-between h-full transition-all rounded-none overflow-hidden"
     >
       <div>
-        {/* Card Header stats & Icon */}
-        <div className="flex items-center justify-between mb-3 text-editorial-muted font-mono text-[10px] uppercase tracking-wider">
-          <span className="font-semibold text-editorial-accent">
-            {lang === 'en' ? catSpec.labelEn : catSpec.labelPl}
-          </span>
-          <div className="flex items-center gap-3">
-            {!repo.isPrivate && (
-              <span className="flex items-center gap-1" title="Stars">
-                <Star size={11} className="text-amber-500 fill-amber-500/20" />
-                <span>{repo.stars}</span>
-              </span>
-            )}
-          </div>
-        </div>
-
         {/* Title: Monospace */}
         <h3 className="text-base sm:text-lg font-bold font-mono text-white mb-2 group-hover:text-editorial-accent group-hover:translate-x-0.5 transition-all flex flex-wrap items-center gap-2 break-all">
           <FolderGit2 size={16} className="text-editorial-muted group-hover:text-editorial-accent transition-colors shrink-0" />
@@ -155,35 +145,35 @@ const RepoCard = React.memo(function RepoCard({ repo, onSelect, lang, compact }:
         </p>
       </div>
 
-      {/* Footer stats & actions */}
-      <div className="flex flex-wrap items-center justify-between gap-2.5 sm:gap-3 pt-2.5 border-t border-editorial-border/30 font-mono text-xs text-editorial-muted w-full min-w-0">
-        <div className="flex items-center gap-2 sm:gap-3 flex-wrap min-w-0">
-          {repo.createdYear && (
-            <span className="flex items-center gap-1.5 border border-sky-500/30 bg-sky-950/20 px-2 py-0.5 rounded text-[10px] font-mono text-sky-300 font-medium tracking-wide shrink-0" title={lang === 'en' ? 'Created year' : 'Rok utworzenia'}>
-              <Calendar size={11} className="text-sky-400 shrink-0" />
-              <span>{lang === 'en' ? 'Created ' : 'Utworzono '}{repo.createdYear}</span>
-            </span>
-          )}
-          <span className="flex items-center gap-1.5 border border-editorial-border px-2 py-0.5 rounded text-[10px] font-medium tracking-wide shrink-0">
-            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: langColor }} />
-            <span translate="no" className="text-zinc-300 notranslate">
-              {displayLang === 'Shell/Other' ? (lang === 'en' ? 'Shell/Other' : 'Shell/Inne') : displayLang}
-            </span>
+      {/* Wiersz metadanych pod nazwą: flex flex-wrap items-center gap-x-2 gap-y-1.5 min-w-0 w-full */}
+      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pt-2.5 border-t border-editorial-border/30 font-mono text-xs text-editorial-muted w-full min-w-0">
+        <span className="max-w-full truncate shrink min-w-0 text-[10px] font-mono uppercase px-1.5 py-0.5 bg-neutral-900 border border-editorial-border text-editorial-accent font-semibold">
+          {catLabel}
+        </span>
+        {repo.createdYear && (
+          <span className="shrink-0 inline-flex items-center gap-1 text-[10px] text-zinc-400 border border-editorial-border/60 px-1.5 py-0.5" title={lang === 'en' ? 'Created year' : 'Rok utworzenia'}>
+            <Calendar size={10} className="text-sky-400 shrink-0" />
+            <span>{repo.createdYear}</span>
           </span>
-          {repo.pushedAt && (
-            <span className="flex items-center gap-1 text-[10px] text-editorial-muted shrink-0" title={lang === 'en' ? 'Last pushed' : 'Ostatnia zmiana'}>
-              <Calendar size={11} className="text-neutral-500 shrink-0" />
-              <span>{new Date(repo.pushedAt).toISOString().split('T')[0]}</span>
-            </span>
-          )}
-        </div>
-
+        )}
+        <span className="shrink-0 inline-flex items-center gap-1.5 border border-editorial-border px-2 py-0.5 text-[10px]">
+          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: langColor }} />
+          <span translate="no" className="text-zinc-300 notranslate">
+            {displayLang === 'Shell/Other' ? (lang === 'en' ? 'Shell/Other' : 'Shell/Inne') : displayLang}
+          </span>
+        </span>
+        {!repo.isPrivate && (
+          <span className="shrink-0 inline-flex items-center gap-1 text-[10px]" title="Stars">
+            <Star size={10} className="text-amber-500 fill-amber-500/20" />
+            <span>{repo.stars}</span>
+          </span>
+        )}
         <button
           type="button"
           id={`view_details_${repo.name}`}
-          className="text-editorial-accent group-hover:brightness-110 hover:text-white transition-all flex items-center gap-1 text-[11px] font-mono uppercase tracking-widest shrink-0 ml-auto sm:ml-0"
+          className="shrink-0 ml-auto text-editorial-accent group-hover:brightness-110 hover:text-white transition-all flex items-center gap-1 text-[11px] font-mono uppercase tracking-widest"
         >
-          {lang === 'en' ? 'Review Details →' : 'Zobacz szczegóły →'}
+          {lang === 'en' ? 'DETAILS →' : 'SZCZEGÓŁY →'}
         </button>
       </div>
     </motion.div>

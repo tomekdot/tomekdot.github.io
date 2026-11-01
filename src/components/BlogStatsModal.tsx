@@ -567,30 +567,30 @@ export default function BlogStatsModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           onClick={onClose}
-          className="fixed inset-0 bg-black/85 backdrop-blur-md"
+          className="fixed inset-0 bg-black/85"
         />
 
         {/* Modal Window Container */}
         <motion.div
-          initial={{ opacity: 0, scale: 0.96, y: 15 }}
+          initial={{ opacity: 0, scale: 0.98, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.96, y: 15 }}
-          transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-          className="relative bg-editorial-bg border-2 border-editorial-border w-[94%] sm:w-full max-w-4xl rounded-none shadow-2xl flex flex-col overflow-hidden max-h-[80svh] sm:max-h-[90vh] h-[78svh] sm:h-[720px] font-mono text-xs select-text overscroll-contain my-auto"
+          exit={{ opacity: 0, scale: 0.98, y: 10 }}
+          transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+          className="relative bg-[#07090E] border-2 border-editorial-border w-[calc(100vw-1rem)] sm:w-[min(42rem,calc(100vw-4rem))] lg:w-[min(48rem,calc(100vw-6rem))] h-[calc(100svh-1rem)] sm:h-[min(720px,calc(100svh-2rem))] max-h-[calc(100svh-1rem)] flex flex-col overflow-hidden min-w-0 font-mono text-xs select-text rounded-none shadow-2xl my-auto"
         >
-          {/* Header Bar */}
-          <div className="bg-editorial-sidebar-bg border-b-2 border-editorial-border p-2.5 sm:p-4 flex items-center justify-between shrink-0">
-            <div className="flex items-center gap-2.5">
-              <div className="p-1.5 bg-[#1A1128] border border-fuchsia-500/50 text-fuchsia-400">
+          {/* nagłówek */}
+          <div className="shrink-0 px-3 sm:px-6 py-1.5 sm:py-3.5 border-b border-editorial-border bg-editorial-sidebar-bg flex items-start justify-between min-w-0">
+            <div className="flex items-center gap-2.5 min-w-0 flex-1 pr-2">
+              <div className="p-1.5 bg-[#1A1128] border border-fuchsia-500/50 text-fuchsia-400 shrink-0">
                 <FileText size={16} />
               </div>
-              <div>
-                <div className="flex items-center gap-1.5 text-[9px] uppercase text-editorial-muted tracking-wider">
-                  <span className="text-fuchsia-400 font-bold">@tomekdot Dev Log</span>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-1.5 text-[9px] uppercase text-editorial-muted tracking-wider truncate [@media(max-height:500px)]:hidden">
+                  <span className="text-fuchsia-400 font-bold shrink-0">@tomekdot Dev Log</span>
                   <span>•</span>
-                  <span>{lang === 'en' ? 'Journal & AI Inspector' : 'Dziennik & Inspektor AI'}</span>
+                  <span className="truncate">{lang === 'en' ? 'Journal & AI Inspector' : 'Dziennik & Inspektor AI'}</span>
                 </div>
-                <h2 className="text-sm sm:text-base font-bold font-mono text-white tracking-wide uppercase">
+                <h2 className="text-sm sm:text-base font-bold font-mono text-white tracking-wide uppercase break-words leading-tight">
                   {lang === 'en' ? 'BLOG STATS & ARTICLE AI SYNTHESIS' : 'STATYSTYKI BLOGA I SYNTEZA AI'}
                 </h2>
               </div>
@@ -599,68 +599,68 @@ export default function BlogStatsModal({
             <button
               type="button"
               onClick={onClose}
-              className="text-editorial-muted hover:text-white hover:bg-neutral-900 p-1.5 border border-editorial-border transition-all cursor-pointer shrink-0"
+              className="w-8 h-8 sm:w-9 sm:h-9 text-rose-400 hover:text-white hover:bg-rose-950/40 rounded-none transition-all border border-rose-500/50 shrink-0 cursor-pointer flex items-center justify-center shadow-sm"
               title={lang === 'en' ? 'Close window' : 'Zamknij okno'}
             >
               <X size={16} />
             </button>
           </div>
 
-          {/* Top KPI Metrics Bar */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 divide-x divide-y sm:divide-y-0 divide-editorial-border border-b border-editorial-border bg-neutral-950/80 font-mono text-center shrink-0">
-            <div className="p-2 sm:p-2.5">
+          {/* statystyki */}
+          <div className="shrink-0 grid grid-cols-4 divide-x divide-editorial-border border-b border-editorial-border bg-neutral-950/80 font-mono text-center min-w-0 max-w-full [@media(max-height:500px)]:hidden">
+            <div className="p-1.5 sm:p-2.5">
               <span className="text-editorial-muted text-[8.5px] uppercase tracking-wider block">
                 {lang === 'en' ? 'Total Articles' : 'Wszystkie Artykuły'}
               </span>
-              <span className="text-base sm:text-lg font-black text-fuchsia-400 mt-0.5 block">
+              <span className="text-sm sm:text-lg font-black text-fuchsia-400 mt-0.5 block">
                 <AnimatedNumber value={metrics.totalPosts} />
               </span>
             </div>
 
-            <div className="p-2 sm:p-2.5">
+            <div className="p-1.5 sm:p-2.5">
               <span className="text-editorial-muted text-[8.5px] uppercase tracking-wider block">
                 {lang === 'en' ? 'Total Words' : 'Słowa Ogółem'}
               </span>
-              <span className="text-base sm:text-lg font-black text-zinc-300 mt-0.5 block">
+              <span className="text-sm sm:text-lg font-black text-zinc-300 mt-0.5 block">
                 <AnimatedNumber value={metrics.totalWords} />
               </span>
             </div>
 
-            <div className="p-2 sm:p-2.5">
+            <div className="p-1.5 sm:p-2.5">
               <span className="text-editorial-muted text-[8.5px] uppercase tracking-wider block">
                 {lang === 'en' ? 'Reading Time' : 'Czas Czytania'}
               </span>
-              <span className="text-base sm:text-lg font-black text-emerald-400 mt-0.5 block">
+              <span className="text-sm sm:text-lg font-black text-emerald-400 mt-0.5 block">
                 ~{metrics.estMinutesTotal} min
               </span>
             </div>
 
-            <div className="p-2 sm:p-2.5">
+            <div className="p-1.5 sm:p-2.5">
               <span className="text-editorial-muted text-[8.5px] uppercase tracking-wider block">
                 {lang === 'en' ? 'AI Versioning' : 'Wersje AI Draft'}
               </span>
-              <span className="text-base sm:text-lg font-black text-cyan-400 mt-0.5 block">
+              <span className="text-sm sm:text-lg font-black text-cyan-400 mt-0.5 block">
                 {metrics.totalAiRevisions} / {metrics.totalPosts}
               </span>
             </div>
           </div>
 
-          {/* Navigation Tabs - Full width segmented on mobile, all tabs clearly visible */}
-          <div className="flex border-b border-editorial-border bg-editorial-bg px-1 sm:px-6 overflow-x-auto scrollbar-none shrink-0 h-11 sm:h-12 w-full font-mono text-xs">
+          {/* zakładki: zawsze wszystkie 3 widoczne w jednej linii bez zawijania */}
+          <div className="shrink-0 flex border-b border-editorial-border bg-editorial-bg min-w-0 font-mono text-xs overflow-x-auto scrollbar-none">
             <button
               type="button"
               id="blog_modal_tab_synthesis"
               onClick={() => setActiveTab('synthesis')}
-              className={`flex-1 sm:flex-initial flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 px-2 sm:px-4 h-full text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wider sm:tracking-widest border-b-2 transition-all cursor-pointer whitespace-nowrap box-border ${
+              className={`flex-1 min-w-0 sm:flex-initial h-9 sm:h-10 px-2 sm:px-4 text-[10px] sm:text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 ${
                 activeTab === 'synthesis'
                   ? 'border-fuchsia-500 text-fuchsia-300 bg-fuchsia-500/10'
                   : 'border-transparent text-editorial-muted hover:text-white hover:bg-neutral-900/40'
               }`}
             >
-              <GitCompare size={14} className="text-fuchsia-400 shrink-0" />
-              <span className="sm:hidden">{lang === 'en' ? 'Synthesis' : 'Synteza'}</span>
-              <span className="hidden sm:inline">{lang === 'en' ? 'AI Article Synthesis' : 'Synteza Artykułów'}</span>
-              <span className="hidden sm:inline-block text-[9px] font-mono px-1.5 py-0.5 leading-none bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/40 uppercase font-bold tracking-wider shrink-0">
+              <GitCompare size={13} className="text-fuchsia-400 shrink-0" />
+              <span className="md:hidden">{lang === 'en' ? 'SYNTHESIS' : 'SYNTEZA'}</span>
+              <span className="hidden md:inline">{lang === 'en' ? 'AI ARTICLE SYNTHESIS' : 'SYNTEZA ARTYKUŁÓW AI'}</span>
+              <span className="hidden sm:inline-block text-[8.5px] font-mono px-1.5 py-0.2 leading-none bg-fuchsia-500/20 text-fuchsia-300 border border-fuchsia-500/40 uppercase font-bold tracking-wider shrink-0">
                 AI
               </span>
             </button>
@@ -669,16 +669,16 @@ export default function BlogStatsModal({
               type="button"
               id="blog_modal_tab_chat"
               onClick={() => setActiveTab('interactive_chat')}
-              className={`flex-1 sm:flex-initial flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 px-2 sm:px-4 h-full text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wider sm:tracking-widest border-b-2 transition-all cursor-pointer whitespace-nowrap box-border ${
+              className={`flex-1 min-w-0 sm:flex-initial h-9 sm:h-10 px-2 sm:px-4 text-[10px] sm:text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 ${
                 activeTab === 'interactive_chat'
                   ? 'border-cyan-400 text-cyan-300 bg-cyan-400/10'
                   : 'border-transparent text-editorial-muted hover:text-white hover:bg-neutral-900/40'
               }`}
             >
-              <Bot size={14} className="text-cyan-400 shrink-0" />
-              <span className="sm:hidden">{lang === 'en' ? 'AI Chat' : 'Czat AI'}</span>
-              <span className="hidden sm:inline">{lang === 'en' ? 'Article AI Chat' : 'Czat AI z Artykułem'}</span>
-              <span className="hidden sm:inline-block text-[9px] font-mono px-1.5 py-0.5 leading-none bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 uppercase font-bold tracking-wider shrink-0">
+              <Bot size={13} className="text-cyan-400 shrink-0" />
+              <span className="md:hidden">{lang === 'en' ? 'AI CHAT' : 'CZAT AI'}</span>
+              <span className="hidden md:inline">{lang === 'en' ? 'ARTICLE AI CHAT' : 'CZAT AI Z ARTYKUŁEM'}</span>
+              <span className="hidden sm:inline-block text-[8.5px] font-mono px-1.5 py-0.2 leading-none bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 uppercase font-bold tracking-wider shrink-0">
                 AI
               </span>
             </button>
@@ -687,28 +687,28 @@ export default function BlogStatsModal({
               type="button"
               id="blog_modal_tab_index"
               onClick={() => setActiveTab('analytics')}
-              className={`flex-1 sm:flex-initial flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 px-2 sm:px-4 h-full text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wider sm:tracking-widest border-b-2 transition-all cursor-pointer whitespace-nowrap box-border ${
+              className={`flex-1 min-w-0 sm:flex-initial h-9 sm:h-10 px-2 sm:px-4 text-[10px] sm:text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 ${
                 activeTab === 'analytics'
                   ? 'border-editorial-accent text-editorial-accent bg-editorial-accent/10'
                   : 'border-transparent text-editorial-muted hover:text-white hover:bg-neutral-900/40'
               }`}
             >
-              <BookOpen size={14} className="text-editorial-accent shrink-0" />
-              <span className="sm:hidden">{lang === 'en' ? 'Index' : 'Indeks'}</span>
-              <span className="hidden sm:inline">{lang === 'en' ? 'Journal Index & Tags' : 'Indeks i Tagi Artykułów'}</span>
+              <BookOpen size={13} className="text-editorial-accent shrink-0" />
+              <span className="md:hidden">{lang === 'en' ? 'INDEX' : 'INDEKS'}</span>
+              <span className="hidden md:inline">{lang === 'en' ? 'JOURNAL INDEX' : 'INDEKS DZIENNIKA'}</span>
             </button>
           </div>
 
-          {/* Modal Main Content Body */}
-          <div className="flex-grow overflow-y-auto overflow-x-hidden p-3 sm:p-5 bg-editorial-bg min-w-0 overscroll-contain">
+          {/* treść: jedyny element, który się przewija pionowo */}
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-5 space-y-3 bg-editorial-bg min-w-0 w-full scrollbar-thin scrollbar-thumb-neutral-800">
             {/* TAB 1: SYNTHESIS & VERSION COMPARISON */}
             {activeTab === 'synthesis' && (
               <div className="space-y-4 min-w-0">
                 {/* Article Selector & Version Controls */}
                 <div className="bg-editorial-sidebar-bg p-3 border border-editorial-border space-y-2.5 min-w-0">
                   {/* Top Bar: Search, Arrows, and Version Mode */}
-                  <div className="flex flex-col sm:flex-row gap-2.5 justify-between items-stretch sm:items-center min-w-0">
-                    <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <div className="flex flex-wrap items-center gap-2 justify-between min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 flex-1 min-w-0">
                       <span className="text-editorial-muted font-bold uppercase tracking-wider text-[10px] shrink-0 font-mono">
                         {lang === 'en' ? 'Article Navigator:' : 'Pasek Artykułów:'}
                       </span>
@@ -753,42 +753,42 @@ export default function BlogStatsModal({
                     </div>
 
                     {/* Mode Selector (v2.0 AI / v1.0 Draft / Diff) */}
-                    <div className="grid grid-cols-3 sm:flex gap-1 bg-neutral-950 p-1 border border-editorial-border shrink-0">
-                    <button
-                      type="button"
-                      onClick={() => setVersionMode('v2_ai')}
-                      className={`px-2.5 py-1 text-[10px] sm:text-[10.5px] uppercase font-bold text-center transition-all cursor-pointer ${
-                        versionMode === 'v2_ai'
-                          ? 'bg-fuchsia-950 text-fuchsia-300 border border-fuchsia-500'
-                          : 'text-editorial-muted hover:text-white'
-                      }`}
-                    >
-                      v2.0 AI
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setVersionMode('v1_draft')}
-                      className={`px-2.5 py-1 text-[10px] sm:text-[10.5px] uppercase font-bold text-center transition-all cursor-pointer ${
-                        versionMode === 'v1_draft'
-                          ? 'bg-amber-950 text-amber-300 border border-amber-500'
-                          : 'text-editorial-muted hover:text-white'
-                      }`}
-                    >
-                      v1.0 Draft
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setVersionMode('diff')}
-                      className={`px-2.5 py-1 text-[10px] sm:text-[10.5px] uppercase font-bold text-center transition-all cursor-pointer ${
-                        versionMode === 'diff'
-                          ? 'bg-cyan-950 text-cyan-300 border border-cyan-500'
-                          : 'text-editorial-muted hover:text-white'
-                      }`}
-                    >
-                      Diff View
-                    </button>
+                    <div className="flex flex-wrap items-center gap-1 p-0.5 bg-neutral-950 border border-editorial-border shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setVersionMode('v2_ai')}
+                        className={`shrink-0 px-2 sm:px-2.5 py-1 text-[10px] sm:text-[10.5px] uppercase font-bold text-center transition-all cursor-pointer ${
+                          versionMode === 'v2_ai'
+                            ? 'bg-fuchsia-950 text-fuchsia-300 border border-fuchsia-500'
+                            : 'text-editorial-muted hover:text-white'
+                        }`}
+                      >
+                        v2.0 AI
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setVersionMode('v1_draft')}
+                        className={`shrink-0 px-2 sm:px-2.5 py-1 text-[10px] sm:text-[10.5px] uppercase font-bold text-center transition-all cursor-pointer ${
+                          versionMode === 'v1_draft'
+                            ? 'bg-amber-950 text-amber-300 border border-amber-500'
+                            : 'text-editorial-muted hover:text-white'
+                        }`}
+                      >
+                        v1.0 Draft
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setVersionMode('diff')}
+                        className={`shrink-0 px-2 sm:px-2.5 py-1 text-[10px] sm:text-[10.5px] uppercase font-bold text-center transition-all cursor-pointer ${
+                          versionMode === 'diff'
+                            ? 'bg-cyan-950 text-cyan-300 border border-cyan-500'
+                            : 'text-editorial-muted hover:text-white'
+                        }`}
+                      >
+                        Diff View
+                      </button>
+                    </div>
                   </div>
-                </div>
 
                   {/* Search Input Bar if toggled */}
                   {showArticleSearchInput && (
@@ -817,7 +817,7 @@ export default function BlogStatsModal({
                   {/* Horizontal Scroll Slider Bar ("Pasek suwak z artykułami") */}
                   <div 
                     ref={sliderRef}
-                    className="flex items-stretch gap-2 overflow-x-auto py-1 scroll-smooth select-none scrollbar-thin scrollbar-thumb-neutral-800 overscroll-contain"
+                    className="flex gap-3 overflow-x-auto pb-2 pt-1 scroll-smooth select-none scrollbar-thin scrollbar-thumb-neutral-800 overscroll-contain snap-x snap-mandatory min-w-0 max-w-full w-full"
                   >
                     {filteredPosts.length === 0 ? (
                       <div className="p-3 text-[11px] font-mono text-editorial-muted text-center w-full">
@@ -828,11 +828,12 @@ export default function BlogStatsModal({
                         const isSelected = p.id === selectedPostId;
                         const pTitle = lang === 'en' ? p.titleEn : p.titlePl;
                         return (
-                          <div
+                          <button
+                            type="button"
                             key={p.id}
                             data-article-id={p.id}
                             onClick={() => setSelectedPostId(p.id)}
-                            className={`min-w-[190px] sm:min-w-[220px] max-w-[240px] p-2.5 border transition-all cursor-pointer flex flex-col justify-between shrink-0 text-left ${
+                            className={`snap-start shrink-0 w-[min(260px,78vw)] p-2.5 border transition-all cursor-pointer flex flex-col justify-between text-left ${
                               isSelected
                                 ? 'bg-[#150F1E] border-fuchsia-500 shadow-sm shadow-fuchsia-500/20 ring-1 ring-fuchsia-500/50'
                                 : 'bg-neutral-950/70 border-editorial-border hover:border-editorial-border/90 hover:bg-neutral-900/50'
@@ -868,7 +869,7 @@ export default function BlogStatsModal({
                                 </span>
                               )}
                             </div>
-                          </div>
+                          </button>
                         );
                       })
                     )}
@@ -1252,17 +1253,18 @@ export default function BlogStatsModal({
                   {/* Horizontal Scroll Slider Bar for Chat Tab */}
                   <div 
                     ref={chatSliderRef}
-                    className="flex items-stretch gap-1.5 overflow-x-auto py-0.5 scroll-smooth select-none scrollbar-thin scrollbar-thumb-neutral-800 overscroll-contain"
+                    className="flex gap-2.5 overflow-x-auto pb-2 pt-0.5 scroll-smooth select-none scrollbar-thin scrollbar-thumb-neutral-800 overscroll-contain snap-x snap-mandatory min-w-0 max-w-full w-full"
                   >
                     {postsList.map(p => {
                       const isSelected = p.id === selectedPostId;
                       const pTitle = lang === 'en' ? p.titleEn : p.titlePl;
                       return (
-                        <div
+                        <button
+                          type="button"
                           key={p.id}
                           data-chat-article-id={p.id}
                           onClick={() => setSelectedPostId(p.id)}
-                          className={`min-w-[150px] sm:min-w-[190px] max-w-[210px] p-2 border transition-all cursor-pointer flex flex-col justify-between shrink-0 text-left ${
+                          className={`snap-start shrink-0 w-[min(260px,78vw)] p-2 border transition-all cursor-pointer flex flex-col justify-between text-left ${
                             isSelected
                               ? 'bg-[#0A1624] border-cyan-400 shadow-sm shadow-cyan-400/20 ring-1 ring-cyan-400/50'
                               : 'bg-neutral-950/80 border-editorial-border hover:border-editorial-border/90 hover:bg-neutral-900/50'
@@ -1272,8 +1274,8 @@ export default function BlogStatsModal({
                             <div className="flex items-center justify-between gap-1 mb-1 text-[8.5px] font-mono">
                               <span className={`px-1 py-0.2 border font-bold ${
                                 isSelected 
-                                  ? 'bg-cyan-950 border-cyan-400 text-cyan-200' 
-                                  : 'bg-neutral-900 border-editorial-border text-editorial-muted'
+                                    ? 'bg-cyan-950 border-cyan-400 text-cyan-200' 
+                                    : 'bg-neutral-900 border-editorial-border text-editorial-muted'
                               }`}>
                                 #{p.id}
                               </span>
@@ -1298,7 +1300,7 @@ export default function BlogStatsModal({
                               </span>
                             )}
                           </div>
-                        </div>
+                        </button>
                       );
                     })}
                   </div>
@@ -1351,7 +1353,7 @@ export default function BlogStatsModal({
                 {/* Chat Stream Window */}
                 <div 
                   ref={chatContainerRef}
-                  className="bg-neutral-950 border border-editorial-border p-3 sm:p-4 h-52 sm:h-84 md:h-96 overflow-y-auto space-y-3 min-w-0 overscroll-contain"
+                  className="bg-neutral-950 border border-editorial-border p-3 sm:p-4 h-[min(14rem,35svh)] sm:h-[min(24rem,45svh)] overflow-y-auto space-y-3 min-w-0 overscroll-contain"
                 >
                   {chatMessages.map(msg => (
                     <div
@@ -1458,10 +1460,10 @@ export default function BlogStatsModal({
 
             {/* TAB 3: JOURNAL INDEX & TAG ANALYTICS */}
             {activeTab === 'analytics' && (
-              <div className="space-y-4 font-mono">
+              <div className="space-y-4 font-mono min-w-0">
                 {/* Tags Filter Strip matching Repo style */}
-                <div className="flex items-center gap-1.5 flex-wrap pb-2.5 border-b border-editorial-border">
-                  <span className="text-editorial-muted text-[9.5px] uppercase font-bold tracking-wider mr-1">
+                <div className="flex items-center gap-1.5 flex-wrap pb-2.5 border-b border-editorial-border min-w-0">
+                  <span className="text-editorial-muted text-[10px] sm:text-xs uppercase font-bold tracking-wider mr-1 shrink-0 font-mono">
                     {lang === 'en' ? 'Open Galaxy Graph for tag:' : 'Otwórz Galaxy Graph dla tagu:'}
                   </span>
                   <button
@@ -1469,7 +1471,7 @@ export default function BlogStatsModal({
                     onClick={() => {
                       if (onOpenGalaxyGraph) onOpenGalaxyGraph('all');
                     }}
-                    className="text-[9px] font-mono uppercase px-2 py-0.5 border transition-all cursor-pointer font-semibold bg-neutral-900 text-editorial-muted border-editorial-border hover:text-white"
+                    className="shrink-0 text-[10px] sm:text-xs font-mono uppercase px-2 py-1 border transition-all cursor-pointer font-semibold bg-neutral-900 text-editorial-muted border-editorial-border hover:text-white"
                   >
                     # ALL ({postsList.length})
                   </button>
@@ -1482,7 +1484,7 @@ export default function BlogStatsModal({
                         onClick={() => {
                           if (onOpenGalaxyGraph) onOpenGalaxyGraph(tag);
                         }}
-                        className="text-[9px] font-mono uppercase px-2 py-0.5 border transition-all cursor-pointer font-semibold bg-neutral-900 text-editorial-muted border-editorial-border hover:text-white"
+                        className="shrink-0 text-[10px] sm:text-xs font-mono uppercase px-2 py-1 border transition-all cursor-pointer font-semibold bg-neutral-900 text-editorial-muted border-editorial-border hover:text-white"
                       >
                         #{tag.toUpperCase()} ({count})
                       </button>
@@ -1491,7 +1493,7 @@ export default function BlogStatsModal({
                 </div>
 
                 {/* Article List Table matching repo card layout */}
-                <div className="space-y-2">
+                <div className="space-y-2 min-w-0">
                   {filteredPosts.map(post => {
                     const title = lang === 'en' ? post.titleEn : post.titlePl;
                     const excerpt = lang === 'en' ? post.excerptEn : post.excerptPl;
@@ -1505,7 +1507,7 @@ export default function BlogStatsModal({
                           setSelectedPostId(post.id);
                           if (onSelectBlogPost) onSelectBlogPost(post);
                         }}
-                        className="p-3 bg-editorial-sidebar-bg border border-editorial-border hover:border-editorial-accent/60 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 cursor-pointer group hover:bg-neutral-900/60"
+                        className="p-3 bg-editorial-sidebar-bg border border-editorial-border hover:border-editorial-accent/60 transition-all flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 cursor-pointer group hover:bg-neutral-900/60 min-w-0"
                       >
                         <div className="space-y-0.5 flex-1 min-w-0">
                           <div className="flex flex-wrap items-center gap-1.5">
@@ -1546,6 +1548,39 @@ export default function BlogStatsModal({
                 </div>
               </div>
             )}
+          </div>
+
+          {/* stopka z przyciskami */}
+          <div className="shrink-0 border-t border-editorial-border px-3 sm:px-5 py-2 flex items-center justify-between gap-2 bg-editorial-sidebar-bg min-w-0 font-mono text-xs">
+            <div className="hidden sm:flex text-[10px] sm:text-xs text-editorial-muted uppercase tracking-wider items-center gap-1.5 min-w-0 flex-1 max-w-[50%]">
+              <span className="w-2 h-2 rounded-full bg-fuchsia-400 animate-pulse shrink-0" />
+              <span className="truncate">
+                {selectedPost
+                  ? `${lang === 'en' ? 'SELECTED' : 'WYBRANO'}: #${selectedPost.id} - ${lang === 'en' ? selectedPost.titleEn : selectedPost.titlePl}`
+                  : `${metrics.totalPosts} ${lang === 'en' ? 'ARTICLES' : 'ARTYKUŁÓW'}`}
+              </span>
+            </div>
+
+            <div className="flex items-center gap-2 shrink-0 ml-auto">
+              {onOpenGalaxyGraph && (
+                <button
+                  type="button"
+                  onClick={() => onOpenGalaxyGraph('all')}
+                  className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-none border border-fuchsia-500/70 text-fuchsia-300 hover:bg-fuchsia-500/10 text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider transition-all cursor-pointer shrink-0"
+                >
+                  <Sparkles size={12} className="text-fuchsia-400" />
+                  <span>{lang === 'en' ? 'GALAXY GRAPH' : 'GRAF GALAKTYKI'}</span>
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={onClose}
+                className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-none border border-editorial-accent text-editorial-accent hover:bg-editorial-accent/10 text-[10px] sm:text-xs font-mono font-bold uppercase tracking-wider transition-all cursor-pointer shrink-0"
+              >
+                <span className="sm:hidden">{lang === 'en' ? 'CLOSE' : 'ZAMKNIJ'}</span>
+                <span className="hidden sm:inline">{lang === 'en' ? 'CLOSE INSPECTOR' : 'ZAMKNIJ INSPEKTOR'}</span>
+              </button>
+            </div>
           </div>
         </motion.div>
       </div>

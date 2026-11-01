@@ -166,24 +166,30 @@ export default function DeveloperStatsModal({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 overflow-y-auto bg-black/80 backdrop-blur-sm overscroll-contain">
-        {/* Backdrop dismiss click */}
-        <div className="fixed inset-0" onClick={onClose} />
+      <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-2 sm:p-4 md:p-6 overscroll-contain">
+        {/* Backdrop */}
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          onClick={onClose}
+          className="fixed inset-0 bg-black/85"
+        />
 
-        {/* Modal Window Container matching BlogModal structure & frame */}
+        {/* Modal Window Container restored to original dimensions */}
         <motion.div
           id="developer_stats_modal"
-          initial={{ opacity: 0, scale: 0.95, y: 15 }}
+          initial={{ opacity: 0, scale: 0.98, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
-          exit={{ opacity: 0, scale: 0.95, y: 15 }}
-          transition={{ type: 'spring', damping: 25, stiffness: 350 }}
-          className="relative bg-editorial-bg border-2 border-editorial-border w-full max-w-5xl rounded-none shadow-2xl flex flex-col overflow-hidden max-h-[80svh] sm:max-h-[88vh] h-[78svh] sm:h-[680px] overscroll-contain my-auto"
+          exit={{ opacity: 0, scale: 0.98, y: 10 }}
+          transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+          className="relative bg-editorial-bg border-2 border-editorial-border w-[calc(100vw-1rem)] sm:w-[min(44rem,calc(100vw-4rem))] lg:w-[min(50rem,calc(100vw-6rem))] h-[calc(100svh-1rem)] sm:h-[min(680px,calc(100svh-2rem))] max-h-[calc(100svh-1rem)] rounded-none shadow-2xl flex flex-col overflow-hidden overscroll-contain my-auto min-w-0 font-mono text-xs select-text"
         >
           {/* 1. Modal Top Header */}
-          <div className="bg-editorial-sidebar-bg border-b border-editorial-border px-3.5 sm:px-6 py-2.5 sm:py-4 flex items-center justify-between shrink-0">
+          <div className="shrink-0 px-3 sm:px-6 py-1.5 sm:py-3.5 border-b border-editorial-border bg-editorial-sidebar-bg flex items-center justify-between min-w-0">
             <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 pr-2">
               <div className="p-1.5 sm:p-2 bg-[#1D170E] border border-editorial-accent/50 text-editorial-accent shrink-0">
-                <Activity size={17} />
+                <Activity size={16} />
               </div>
               <div className="min-w-0">
                 <div className="flex items-center gap-1.5 sm:gap-2 flex-wrap">
@@ -194,7 +200,7 @@ export default function DeveloperStatsModal({
                     @tomekdot
                   </span>
                 </div>
-                <p className="text-[11px] font-mono text-editorial-muted hidden sm:block truncate">
+                <p className="text-[11px] font-mono text-editorial-muted hidden sm:block truncate [@media(max-height:500px)]:!hidden">
                   {lang === 'en'
                     ? 'Trackmania Plugins, PyPlanet Controllers, AI Agents & Code Changelog'
                     : 'Wtyczki Trackmania, Kontrolery PyPlanet, Agenci AI i Historia Zmian'}
@@ -206,164 +212,29 @@ export default function DeveloperStatsModal({
               type="button"
               id="close_stats_modal_btn"
               onClick={onClose}
-              className="p-1.5 sm:p-2 text-editorial-muted hover:text-white hover:bg-neutral-900 border border-editorial-border transition-colors cursor-pointer shrink-0"
+              className="w-8 h-8 sm:w-9 sm:h-9 text-rose-400 hover:text-white hover:bg-rose-950/40 rounded-none transition-all border border-rose-500/50 shrink-0 cursor-pointer flex items-center justify-center shadow-sm"
               title={lang === 'en' ? 'Close (Esc)' : 'Zamknij (Esc)'}
             >
               <X size={16} />
             </button>
           </div>
 
-          {/* 2. Top Summary KPI Highlights Grid (6-col repository metrics) */}
-          <div className="grid grid-cols-3 sm:grid-cols-6 divide-x divide-y sm:divide-y-0 divide-editorial-border border-b border-editorial-border bg-neutral-950/70 shrink-0 text-center font-mono">
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('new_plugins');
-                setFilterCategory('all');
-              }}
-              className={`p-2 sm:p-3 flex flex-col items-center justify-center min-w-0 transition-all cursor-pointer group ${
-                activeTab === 'new_plugins' && filterCategory === 'all'
-                  ? 'bg-neutral-900 ring-1 ring-inset ring-editorial-accent/60'
-                  : 'hover:bg-neutral-900/60'
-              }`}
-              title={lang === 'en' ? 'Show all repositories' : 'Pokaż wszystkie repozytoria'}
-            >
-              <span className="text-base sm:text-xl md:text-2xl font-black text-white group-hover:text-editorial-accent transition-colors leading-tight">
-                <AnimatedNumber value={metrics.totalRepos} />
-              </span>
-              <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-editorial-muted group-hover:text-white mt-0.5 truncate w-full flex items-center justify-center gap-1">
-                <span>{lang === 'en' ? 'Repos' : 'Repozytoria'}</span>
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('new_plugins');
-                setFilterCategory('pyplanet');
-              }}
-              className={`p-2 sm:p-3 flex flex-col items-center justify-center min-w-0 transition-all cursor-pointer group ${
-                activeTab === 'new_plugins' && filterCategory === 'pyplanet'
-                  ? 'bg-emerald-950/40 ring-1 ring-inset ring-emerald-400'
-                  : 'bg-emerald-950/15 hover:bg-emerald-950/30'
-              }`}
-              title={lang === 'en' ? 'Filter PyPlanet plugins' : 'Filtruj pluginy PyPlanet'}
-            >
-              <span className="text-base sm:text-xl md:text-2xl font-black text-emerald-400 group-hover:text-emerald-300 transition-colors leading-tight">
-                <AnimatedNumber value={metrics.pyplanetPlugins} />
-              </span>
-              <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-emerald-300/90 mt-0.5 flex items-center justify-center gap-0.5 truncate w-full">
-                <Gamepad2 size={9} className="shrink-0" />
-                <span className="truncate">PyPlanet</span>
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('new_plugins');
-                setFilterCategory('openplanet');
-              }}
-              className={`p-2 sm:p-3 flex flex-col items-center justify-center min-w-0 transition-all cursor-pointer group ${
-                activeTab === 'new_plugins' && filterCategory === 'openplanet'
-                  ? 'bg-fuchsia-950/40 ring-1 ring-inset ring-fuchsia-400'
-                  : 'bg-fuchsia-950/15 hover:bg-fuchsia-950/30'
-              }`}
-              title={lang === 'en' ? 'Filter Openplanet plugins' : 'Filtruj pluginy Openplanet'}
-            >
-              <span className="text-base sm:text-xl md:text-2xl font-black text-fuchsia-400 group-hover:text-fuchsia-300 transition-colors leading-tight">
-                <AnimatedNumber value={metrics.openplanetPlugins} />
-              </span>
-              <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-fuchsia-300/90 mt-0.5 flex items-center justify-center gap-0.5 truncate w-full">
-                <Globe size={9} className="shrink-0" />
-                <span className="truncate">Openplanet</span>
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('new_plugins');
-                setFilterCategory('ai');
-              }}
-              className={`p-2 sm:p-3 flex flex-col items-center justify-center min-w-0 transition-all cursor-pointer group ${
-                activeTab === 'new_plugins' && filterCategory === 'ai'
-                  ? 'bg-cyan-950/40 ring-1 ring-inset ring-cyan-400'
-                  : 'bg-cyan-950/15 hover:bg-cyan-950/30'
-              }`}
-              title={lang === 'en' ? 'Filter AI & Autonomous Agents' : 'Filtruj agentów AI'}
-            >
-              <span className="text-base sm:text-xl md:text-2xl font-black text-cyan-400 group-hover:text-cyan-300 transition-colors leading-tight">
-                <AnimatedNumber value={metrics.aiAgents} />
-              </span>
-              <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-cyan-300/90 mt-0.5 flex items-center justify-center gap-0.5 truncate w-full">
-                <Bot size={9} className="shrink-0" />
-                <span className="truncate">AI & Agents</span>
-              </span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => {
-                setActiveTab('recent_activity');
-              }}
-              className={`p-2 sm:p-3 flex flex-col items-center justify-center min-w-0 transition-all cursor-pointer group ${
-                activeTab === 'recent_activity'
-                  ? 'bg-[#221A0F] ring-1 ring-inset ring-editorial-accent'
-                  : 'bg-[#17130B]/30 hover:bg-[#17130B]/60'
-              }`}
-              title={lang === 'en' ? 'View commit activity log & changelog' : 'Zobacz dziennik aktywności commitów'}
-            >
-              <span className="text-base sm:text-xl md:text-2xl font-black text-editorial-accent group-hover:text-white transition-colors leading-tight truncate">
-                {metrics.totalCommits >= 1000 ? `${(metrics.totalCommits / 1000).toFixed(1)}k+` : `${metrics.totalCommits}+`}
-              </span>
-              <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-editorial-muted group-hover:text-editorial-accent mt-0.5 flex items-center justify-center gap-0.5 truncate w-full">
-                <GitCommit size={9} className="shrink-0 text-editorial-accent" />
-                <span className="truncate">{lang === 'en' ? 'Commits' : 'Commity'}</span>
-              </span>
-            </button>
-
-            <button
-              type="button"
-              id="stats_kpi_forks_btn"
-              onClick={() => {
-                setActiveTab('new_plugins');
-                setFilterCategory(filterCategory === 'forks' && activeTab === 'new_plugins' ? 'all' : 'forks');
-              }}
-              className={`p-2 sm:p-3 flex flex-col items-center justify-center min-w-0 transition-all cursor-pointer group ${
-                activeTab === 'new_plugins' && filterCategory === 'forks'
-                  ? 'bg-purple-950/50 ring-1 ring-inset ring-purple-400'
-                  : 'bg-purple-950/15 hover:bg-purple-950/35'
-              }`}
-              title={lang === 'en' ? `Filter ${metrics.forkedReposCount} forked repositories` : `Filtruj ${metrics.forkedReposCount} sforkowane repozytoria`}
-            >
-              <span className="text-base sm:text-xl md:text-2xl font-black text-purple-400 group-hover:text-purple-300 transition-colors leading-tight">
-                <AnimatedNumber value={metrics.forkedReposCount} />
-              </span>
-              <span className="text-[8px] sm:text-[9px] uppercase tracking-wider text-purple-300/90 mt-0.5 flex items-center justify-center gap-0.5 truncate w-full">
-                <GitFork size={9} className="shrink-0 text-purple-400" />
-                <span className="truncate">{lang === 'en' ? 'Forked' : 'Forki'}</span>
-              </span>
-            </button>
-          </div>
-
-          {/* 3. Navigation Tabs within modal */}
-          <div className="grid grid-cols-3 sm:flex border-b border-editorial-border bg-[#0E0E0E] px-2 sm:px-4 md:px-6 pt-1 sm:pt-2 md:pt-3 shrink-0 gap-1 sm:gap-2 font-mono text-[10.5px] sm:text-xs w-full">
+          {/* 2. Navigation Tabs within modal */}
+          <div className="shrink-0 flex border-b border-editorial-border bg-editorial-bg min-w-0 font-mono text-xs overflow-x-auto scrollbar-none">
             <button
               type="button"
               id="stats_tab_new_plugins"
               onClick={() => setActiveTab('new_plugins')}
-              className={`justify-center px-1.5 sm:px-3 md:px-4 py-2 sm:py-2.5 font-bold uppercase tracking-wider border-t-2 transition-all cursor-pointer flex items-center gap-1 sm:gap-2 whitespace-nowrap min-w-0 ${
+              className={`flex-1 min-w-0 sm:flex-initial h-9 sm:h-10 px-2 sm:px-4 text-[10px] sm:text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 ${
                 activeTab === 'new_plugins'
-                  ? 'border-editorial-accent text-editorial-accent bg-[#18140E]'
-                  : 'border-transparent text-editorial-muted hover:text-white'
+                  ? 'border-editorial-accent text-editorial-accent bg-editorial-accent/10'
+                  : 'border-transparent text-editorial-muted hover:text-white hover:bg-neutral-900/40'
               }`}
             >
               <Sparkles size={12} className={activeTab === 'new_plugins' ? 'text-editorial-accent shrink-0' : 'text-editorial-muted shrink-0'} />
-              <span className="truncate sm:hidden">{lang === 'en' ? 'Plugins' : 'Pluginy'}</span>
-              <span className="hidden sm:inline lg:hidden">{lang === 'en' ? 'Plugins & Releases' : 'Pluginy & Wydania'}</span>
-              <span className="hidden lg:inline">{lang === 'en' ? 'New Plugins & Releases' : 'Nowe Pluginy i Projekty'}</span>
-              <span className="text-[8.5px] sm:text-[10px] px-1 sm:px-1.5 py-0.2 bg-neutral-900 border border-editorial-border text-editorial-muted shrink-0">
+              <span className="md:hidden">{lang === 'en' ? 'PLUGINS' : 'PLUGINY'}</span>
+              <span className="hidden md:inline">{lang === 'en' ? 'NEW PLUGINS & RELEASES' : 'NOWE PLUGINY I PROJEKTY'}</span>
+              <span className="hidden sm:inline-block text-[9px] font-mono px-1 sm:px-1.5 py-0.2 bg-neutral-900 border border-editorial-border text-editorial-muted shrink-0">
                 {newestPlugins.length}
               </span>
             </button>
@@ -372,17 +243,16 @@ export default function DeveloperStatsModal({
               type="button"
               id="stats_tab_recent_activity"
               onClick={() => setActiveTab('recent_activity')}
-              className={`justify-center px-1.5 sm:px-3 md:px-4 py-2 sm:py-2.5 font-bold uppercase tracking-wider border-t-2 transition-all cursor-pointer flex items-center gap-1 sm:gap-2 whitespace-nowrap min-w-0 ${
+              className={`flex-1 min-w-0 sm:flex-initial h-9 sm:h-10 px-2 sm:px-4 text-[10px] sm:text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 ${
                 activeTab === 'recent_activity'
-                  ? 'border-editorial-accent text-editorial-accent bg-[#18140E]'
-                  : 'border-transparent text-editorial-muted hover:text-white'
+                  ? 'border-editorial-accent text-editorial-accent bg-editorial-accent/10'
+                  : 'border-transparent text-editorial-muted hover:text-white hover:bg-neutral-900/40'
               }`}
             >
               <Zap size={12} className={activeTab === 'recent_activity' ? 'text-editorial-accent shrink-0' : 'text-editorial-muted shrink-0'} />
-              <span className="truncate sm:hidden">{lang === 'en' ? 'Log' : 'Zmiany'}</span>
-              <span className="hidden sm:inline lg:hidden">{lang === 'en' ? 'Activity & Changelog' : 'Aktywność & Dziennik'}</span>
-              <span className="hidden lg:inline">{lang === 'en' ? 'Recent Changes & Changelog' : 'Ostatnie Zmiany i Aktywność'}</span>
-              <span className="text-[8.5px] sm:text-[10px] px-1 sm:px-1.5 py-0.2 bg-neutral-900 border border-editorial-border text-editorial-muted shrink-0">
+              <span className="md:hidden">{lang === 'en' ? 'CHANGELOG' : 'ZMIANY'}</span>
+              <span className="hidden md:inline">{lang === 'en' ? 'RECENT CHANGES & ACTIVITY' : 'OSTATNIE ZMIANY I HISTORIA'}</span>
+              <span className="hidden sm:inline-block text-[9px] font-mono px-1 sm:px-1.5 py-0.2 bg-neutral-900 border border-editorial-border text-editorial-muted shrink-0">
                 {recentChanges.length}
               </span>
             </button>
@@ -391,21 +261,20 @@ export default function DeveloperStatsModal({
               type="button"
               id="stats_tab_breakdown"
               onClick={() => setActiveTab('breakdown')}
-              className={`justify-center px-1.5 sm:px-3 md:px-4 py-2 sm:py-2.5 font-bold uppercase tracking-wider border-t-2 transition-all cursor-pointer flex items-center gap-1 sm:gap-2 whitespace-nowrap min-w-0 ${
+              className={`flex-1 min-w-0 sm:flex-initial h-9 sm:h-10 px-2 sm:px-4 text-[10px] sm:text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 ${
                 activeTab === 'breakdown'
-                  ? 'border-editorial-accent text-editorial-accent bg-[#18140E]'
-                  : 'border-transparent text-editorial-muted hover:text-white'
+                  ? 'border-editorial-accent text-editorial-accent bg-editorial-accent/10'
+                  : 'border-transparent text-editorial-muted hover:text-white hover:bg-neutral-900/40'
               }`}
             >
               <Layers size={12} className={activeTab === 'breakdown' ? 'text-editorial-accent shrink-0' : 'text-editorial-muted shrink-0'} />
-              <span className="truncate sm:hidden">{lang === 'en' ? 'Matrix' : 'Matryca'}</span>
-              <span className="hidden sm:inline lg:hidden">{lang === 'en' ? 'Tech Matrix' : 'Matryca Tech'}</span>
-              <span className="hidden lg:inline">{lang === 'en' ? 'Category & Tech Matrix' : 'Kategorie i Technologie'}</span>
+              <span className="md:hidden">{lang === 'en' ? 'MATRIX' : 'MATRYCA'}</span>
+              <span className="hidden md:inline">{lang === 'en' ? 'TECH & CATEGORY MATRIX' : 'KATEGORIE I TECHNOLOGIE'}</span>
             </button>
           </div>
 
           {/* 4. Tab Body Content */}
-          <div className="flex-1 overflow-y-auto p-3.5 sm:p-6 space-y-3.5 sm:space-y-6 overscroll-contain">
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-5 space-y-3.5 sm:space-y-6 overscroll-contain bg-editorial-bg min-w-0 w-full scrollbar-thin scrollbar-thumb-neutral-800">
             {activeTab === 'new_plugins' && (
               <div className="space-y-4">
                 {/* Category quick chips for plugins */}
@@ -878,19 +747,20 @@ export default function DeveloperStatsModal({
           </div>
 
           {/* 5. Footer Block matching BlogModal */}
-          <div className="bg-editorial-sidebar-bg border-t border-editorial-border px-6 py-4 flex items-center justify-between text-xs font-mono text-editorial-muted shrink-0">
-            <span className="flex items-center gap-1.5 text-editorial-accent font-bold">
+          <div className="shrink-0 border-t border-editorial-border px-3 sm:px-5 py-2 flex items-center justify-between gap-2 bg-editorial-sidebar-bg min-w-0 font-mono text-xs">
+            <span className="hidden sm:flex items-center gap-1.5 text-editorial-accent font-bold truncate">
               <Activity size={14} />
               {lang === 'en' ? 'TOMEKDOT DEVELOPER HUB' : 'CENTRUM TWÓRCY TOMEKDOT'}
             </span>
-            <div className="flex items-center gap-4">
-              <span className="hidden sm:inline">© 2026 @tomekdot</span>
+            <div className="flex items-center gap-2.5 ml-auto shrink-0">
+              <span className="hidden md:inline text-editorial-muted text-[10.5px]">© 2026 @tomekdot</span>
               <button
                 type="button"
                 onClick={onClose}
-                className="px-4 py-1.5 bg-neutral-900 hover:bg-neutral-800 border border-editorial-border hover:border-editorial-accent text-white transition-colors cursor-pointer uppercase text-xs font-mono"
+                className="px-2.5 sm:px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 border border-editorial-border hover:border-editorial-accent text-white transition-colors cursor-pointer uppercase text-[10px] sm:text-xs font-mono shrink-0"
               >
-                {lang === 'en' ? 'Close Window (Esc)' : 'Zamknij (Esc)'}
+                <span className="sm:hidden">{lang === 'en' ? 'CLOSE' : 'ZAMKNIJ'}</span>
+                <span className="hidden sm:inline">{lang === 'en' ? 'CLOSE (ESC)' : 'ZAMKNIJ (ESC)'}</span>
               </button>
             </div>
           </div>

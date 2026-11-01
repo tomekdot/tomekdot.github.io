@@ -1050,9 +1050,9 @@ export default function App() {
     </header>
 
       {/* 3. Core Workspace Section */}
-      <main className="flex-grow grid grid-cols-1 md:grid-cols-[310px_1fr] lg:grid-cols-[340px_1fr] md:divide-x divide-editorial-border border-b border-editorial-border bg-editorial-bg md:overflow-hidden">
+      <main className="flex-grow grid grid-cols-1 md:grid-cols-[310px_1fr] lg:grid-cols-[340px_1fr] md:divide-x divide-editorial-border border-b border-editorial-border bg-editorial-bg md:h-[calc(100svh-7rem)] md:min-h-0">
         {/* Left Sidebar block */}
-        <aside className="p-3.5 sm:p-4 md:p-5 lg:p-6 pb-4 md:pb-44 flex flex-col justify-start gap-3.5 sm:gap-4 md:gap-6 lg:gap-7 bg-editorial-sidebar-bg md:overflow-y-auto">
+        <aside className="p-3.5 sm:p-4 md:p-5 lg:p-6 pb-6 md:pb-8 flex flex-col justify-start gap-3.5 sm:gap-4 md:gap-6 lg:gap-7 bg-editorial-sidebar-bg md:h-full md:overflow-y-auto md:min-h-0">
           <div className="space-y-4 md:space-y-6">
             {/* Main Tabs Navigation */}
             <div className="flex h-[38px] border border-editorial-border p-1 bg-neutral-950 font-mono text-[11px] rounded-none mb-2 sm:mb-3 box-border">
@@ -1446,7 +1446,7 @@ export default function App() {
         </aside>
 
         {/* Right workspace section block */}
-        <section className="p-3.5 sm:p-4 md:p-5 lg:p-6 pb-44 sm:pb-48 md:pb-52 bg-editorial-bg md:overflow-y-auto">
+        <section className="p-3.5 sm:p-4 md:p-5 lg:p-6 pb-40 sm:pb-44 md:pb-52 bg-editorial-bg md:h-full md:overflow-y-auto md:min-h-0">
           {activeWorkspaceTab === 'projects' ? (
             <div className="main-content flex flex-col gap-4 sm:gap-5">
               {/* Header controls, year filter, language spectrum, and active filters container */}
@@ -1820,7 +1820,7 @@ export default function App() {
               </div>
 
               {/* Dedicated bottom clearance buffer to prevent any floating elements from overlapping content */}
-              <div className="h-32 sm:h-24 w-full shrink-0 pointer-events-none" aria-hidden="true" />
+              <div className="h-28 sm:h-24 w-full shrink-0 pointer-events-none" aria-hidden="true" />
             </div>
           ) : (
             <>
@@ -2233,38 +2233,46 @@ export default function App() {
                 )}
 
                 {/* Dedicated bottom clearance buffer to prevent any floating elements from overlapping content */}
-                <div className="h-32 sm:h-24 w-full shrink-0 pointer-events-none" aria-hidden="true" />
+                <div className="h-28 sm:h-24 w-full shrink-0 pointer-events-none" aria-hidden="true" />
               </div>
             </>
           )}
         </section>
       </main>
 
-      {/* 6 & 7 & 8. Modals & Terminal Console */}
-      <RepoModal
-        repo={activeSelectedRepo}
-        onClose={() => {
-          setSelectedRepo(null);
-          setIsRepoMinimized(false);
-        }}
-        lang={appLang}
-        isMinimized={isRepoMinimized}
-        onMinimize={() => setIsRepoMinimized(true)}
-        onRestore={() => setIsRepoMinimized(false)}
-        onUpdateRepo={handleUpdateRepo}
-      />
-      <BlogModal
-        post={selectedBlogPost}
-        onClose={() => {
-          setSelectedBlogPost(null);
-          setIsBlogMinimized(false);
-        }}
-        lang={appLang}
-        isMinimized={isBlogMinimized}
-        onMinimize={() => setIsBlogMinimized(true)}
-        onRestore={() => setIsBlogMinimized(false)}
-      />
-      <TerminalConsole onSelectCategory={(cat) => setSelectedCategory(cat as any)} lang={appLang} repos={reposList} isModalOpen={isAnyModalOpen} />
+      {/* 6 & 7 & 8. Bottom Control Bar: Dock Slot + Terminal Console */}
+      <div className="fixed inset-x-0 bottom-0 z-40 pointer-events-none px-2 pb-2 sm:px-6 sm:pb-6 [@media(max-height:520px)]:pb-2 sm:[@media(max-height:520px)]:pb-2 sm:[@media(max-height:520px)]:px-4">
+        <div className="flex items-end justify-between gap-2 pointer-events-auto">
+          <div id="bottom_dock_slot" className="min-w-0 w-[min(22rem,calc(100vw-9rem))] [@media(max-height:520px)]:w-[min(18rem,calc(100vw-11rem))]">
+            <RepoModal
+              repo={activeSelectedRepo}
+              onClose={() => {
+                setSelectedRepo(null);
+                setIsRepoMinimized(false);
+              }}
+              lang={appLang}
+              isMinimized={isRepoMinimized}
+              onMinimize={() => setIsRepoMinimized(true)}
+              onRestore={() => setIsRepoMinimized(false)}
+              onUpdateRepo={handleUpdateRepo}
+            />
+            <BlogModal
+              post={selectedBlogPost}
+              onClose={() => {
+                setSelectedBlogPost(null);
+                setIsBlogMinimized(false);
+              }}
+              lang={appLang}
+              isMinimized={isBlogMinimized}
+              onMinimize={() => setIsBlogMinimized(true)}
+              onRestore={() => setIsBlogMinimized(false)}
+            />
+          </div>
+          <div className="shrink-0">
+            <TerminalConsole onSelectCategory={(cat) => setSelectedCategory(cat as any)} lang={appLang} repos={reposList} isModalOpen={isAnyModalOpen} />
+          </div>
+        </div>
+      </div>
 
       {/* 9. Full Developer Statistics & Changelog Modal for Repos */}
       <DeveloperStatsModal

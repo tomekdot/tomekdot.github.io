@@ -203,10 +203,14 @@ export default function GalaxyGraphModal({
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [isLegendOpenMobile, setIsLegendOpenMobile] = useState(false);
   
+  // High-performance direct DOM transform tracking
+  const groupRef = useRef<SVGGElement | null>(null);
+  const transformRef = useRef({ x: 0, y: 0, z: 1 });
+  const rafIdRef = useRef<number | null>(null);
+  const debounceTimerRef = useRef<any>(null);
+
   // Timeline playback state
   const [isPlayingTimeline, setIsPlayingTimeline] = useState(false);
   const [timelineProgress, setTimelineProgress] = useState(1); // 0 to 1
@@ -217,18 +221,42 @@ export default function GalaxyGraphModal({
   const svgRef = useRef<SVGSVGElement | null>(null);
   const [dimensions, setDimensions] = useState({ width: 900, height: 700 });
 
+  // Direct DOM transform without triggering React re-renders
+  const applyTransform = useCallback(() => {
+    if (!groupRef.current) return;
+    const { x, y, z } = transformRef.current;
+    const cx = dimensions.width / 2 + x;
+    const cy = dimensions.height / 2 + y;
+    groupRef.current.setAttribute('transform', `translate(${cx}, ${cy}) scale(${z})`);
+  }, [dimensions.width, dimensions.height]);
+
+  const requestTransformUpdate = useCallback(() => {
+    if (rafIdRef.current !== null) return;
+    rafIdRef.current = requestAnimationFrame(() => {
+      applyTransform();
+      rafIdRef.current = null;
+    });
+  }, [applyTransform]);
+
+  // Sync transform when dimensions change or on mount
+  useEffect(() => {
+    applyTransform();
+  }, [applyTransform, dimensions]);
+
   // Update filter type when modal opens
   useEffect(() => {
     if (isOpen) {
       setFilterType(initialFilterMode);
       setHoveredNodeId(null);
       setSelectedNodeId(null);
+      transformRef.current = { x: 0, y: 0, z: 1 };
+      applyTransform();
       setZoomLevel(1);
       setPanOffset({ x: 0, y: 0 });
       setTimelineProgress(1);
       setIsPlayingTimeline(false);
     }
-  }, [isOpen, initialFilterMode]);
+  }, [isOpen, initialFilterMode, applyTransform]);
 
   // Escape key listener to close modal
   useEffect(() => {
@@ -242,7 +270,7 @@ export default function GalaxyGraphModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [isOpen, onClose]);
 
-  // Native non-passive wheel listener on canvas for smooth zooming without scrolling page
+  // Native non-passive wheel listener on canvas for high-performance direct transform zooming
   useEffect(() => {
     const el = canvasRef.current;
     if (!el || !isOpen) return;
@@ -250,12 +278,23 @@ export default function GalaxyGraphModal({
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const zoomFactor = e.deltaY < 0 ? 1.12 : 0.88;
-      setZoomLevel(prev => Math.min(3.2, Math.max(0.35, prev * zoomFactor)));
+      const nextZoom = Math.min(3.2, Math.max(0.35, transformRef.current.z * zoomFactor));
+      transformRef.current.z = nextZoom;
+      requestTransformUpdate();
+
+      // Debounce commit to React state to prevent re-rendering during wheel gesture
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+      debounceTimerRef.current = setTimeout(() => {
+        setZoomLevel(nextZoom);
+      }, 150);
     };
 
     el.addEventListener('wheel', onWheel, { passive: false });
-    return () => el.removeEventListener('wheel', onWheel);
-  }, [isOpen]);
+    return () => {
+      el.removeEventListener('wheel', onWheel);
+      if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    };
+  }, [isOpen, requestTransformUpdate]);
 
   // ResizeObserver using clientWidth & clientHeight (immune to CSS scale animations)
   useEffect(() => {
@@ -535,7 +574,9 @@ export default function GalaxyGraphModal({
     return set;
   }, [activeFocusNode]);
 
-  // Pan and Drag Handlers
+  // Pan and Drag Handlers with RAF-driven DOM updates
+  const isDraggingRef = useRef(false);
+  const dragStartRef = useRef({ x: 0, y: 0 });
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
   const pinchStartDistRef = useRef<number | null>(null);
   const pinchStartZoomRef = useRef<number>(1);
@@ -547,21 +588,27 @@ export default function GalaxyGraphModal({
       setSelectedNodeId(null);
     }
     // Enable dragging anywhere on the canvas or background elements
-    setIsDragging(true);
-    setDragStart({ x: e.clientX - panOffset.x, y: e.clientY - panOffset.y });
+    isDraggingRef.current = true;
+    dragStartRef.current = { 
+      x: e.clientX - transformRef.current.x, 
+      y: e.clientY - transformRef.current.y 
+    };
   };
 
   const handleMouseMove = (e: React.MouseEvent) => {
-    if (isDragging) {
-      setPanOffset({
-        x: e.clientX - dragStart.x,
-        y: e.clientY - dragStart.y
-      });
+    if (isDraggingRef.current) {
+      transformRef.current.x = e.clientX - dragStartRef.current.x;
+      transformRef.current.y = e.clientY - dragStartRef.current.y;
+      requestTransformUpdate();
     }
   };
 
   const handleMouseUp = () => {
-    setIsDragging(false);
+    if (isDraggingRef.current) {
+      isDraggingRef.current = false;
+      // Commit once to React state on mouse up
+      setPanOffset({ x: transformRef.current.x, y: transformRef.current.y });
+    }
   };
 
   // Touch Handlers for Mobile single-finger pan and 2-finger pinch zoom
@@ -572,58 +619,75 @@ export default function GalaxyGraphModal({
       if (target.tagName === 'svg' || target.getAttribute('id') === 'galaxy_canvas_bg') {
         setSelectedNodeId(null);
       }
-      setIsDragging(true);
+      isDraggingRef.current = true;
       touchStartRef.current = {
-        x: touch.clientX - panOffset.x,
-        y: touch.clientY - panOffset.y,
+        x: touch.clientX - transformRef.current.x,
+        y: touch.clientY - transformRef.current.y,
       };
       pinchStartDistRef.current = null;
     } else if (e.touches.length === 2) {
-      setIsDragging(false);
+      isDraggingRef.current = false;
       touchStartRef.current = null;
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       pinchStartDistRef.current = Math.hypot(dx, dy);
-      pinchStartZoomRef.current = zoomLevel;
+      pinchStartZoomRef.current = transformRef.current.z;
     }
   };
 
   const handleTouchMove = (e: React.TouchEvent) => {
-    if (e.touches.length === 1 && touchStartRef.current) {
+    if (e.touches.length === 1 && touchStartRef.current && isDraggingRef.current) {
       const touch = e.touches[0];
-      setPanOffset({
-        x: touch.clientX - touchStartRef.current.x,
-        y: touch.clientY - touchStartRef.current.y,
-      });
+      transformRef.current.x = touch.clientX - touchStartRef.current.x;
+      transformRef.current.y = touch.clientY - touchStartRef.current.y;
+      requestTransformUpdate();
     } else if (e.touches.length === 2 && pinchStartDistRef.current) {
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       const currentDist = Math.hypot(dx, dy);
       const ratio = currentDist / pinchStartDistRef.current;
-      const newZoom = Math.min(3.2, Math.max(0.35, pinchStartZoomRef.current * ratio));
-      setZoomLevel(newZoom);
+      const nextZoom = Math.min(3.2, Math.max(0.35, pinchStartZoomRef.current * ratio));
+      transformRef.current.z = nextZoom;
+      requestTransformUpdate();
     }
   };
 
   const handleTouchEnd = (e: React.TouchEvent) => {
     if (e.touches.length === 0) {
-      setIsDragging(false);
+      isDraggingRef.current = false;
       touchStartRef.current = null;
       pinchStartDistRef.current = null;
+      // Single state sync after touch ends
+      setPanOffset({ x: transformRef.current.x, y: transformRef.current.y });
+      setZoomLevel(transformRef.current.z);
     } else if (e.touches.length === 1) {
       const touch = e.touches[0];
       touchStartRef.current = {
-        x: touch.clientX - panOffset.x,
-        y: touch.clientY - panOffset.y,
+        x: touch.clientX - transformRef.current.x,
+        y: touch.clientY - transformRef.current.y,
       };
       pinchStartDistRef.current = null;
     }
   };
 
   // Zoom handlers (consistent bounds: 0.35 to 3.2)
-  const handleZoomIn = () => setZoomLevel(prev => Math.min(3.2, prev + 0.25));
-  const handleZoomOut = () => setZoomLevel(prev => Math.max(0.35, prev - 0.25));
+  const handleZoomIn = () => {
+    const nextZoom = Math.min(3.2, transformRef.current.z + 0.25);
+    transformRef.current.z = nextZoom;
+    applyTransform();
+    setZoomLevel(nextZoom);
+  };
+
+  const handleZoomOut = () => {
+    const nextZoom = Math.max(0.35, transformRef.current.z - 0.25);
+    transformRef.current.z = nextZoom;
+    applyTransform();
+    setZoomLevel(nextZoom);
+  };
+
   const handleResetView = () => {
+    transformRef.current = { x: 0, y: 0, z: 1 };
+    applyTransform();
     setZoomLevel(1);
     setPanOffset({ x: 0, y: 0 });
     setSelectedNodeId(null);
@@ -900,9 +964,10 @@ export default function GalaxyGraphModal({
                 </filter>
               </defs>
 
-              {/* TRANSFORM CONTAINER WITH PAN & ZOOM */}
+              {/* TRANSFORM CONTAINER WITH PAN & ZOOM (DRIVEN DIRECTLY VIA DOM REF) */}
               <g
-                transform={`translate(${dimensions.width / 2 + panOffset.x}, ${dimensions.height / 2 + panOffset.y}) scale(${zoomLevel})`}
+                ref={groupRef}
+                className="[filter:drop-shadow(0_0_8px_rgba(56,189,248,0.25))]"
               >
                 {/* Central Radial Cosmic Glow */}
                 <circle cx="0" cy="0" r="360" fill="url(#galaxyCoreGlow)" />
@@ -996,13 +1061,21 @@ export default function GalaxyGraphModal({
                   );
                 })}
 
-                {/* GALAXY NODES */}
+                {/* GALAXY NODES WITH VIEWPORT CULLING */}
                 {visibleNodes.map((node) => {
+                  const screenX = dimensions.width / 2 + panOffset.x + node.x * zoomLevel;
+                  const screenY = dimensions.height / 2 + panOffset.y + node.y * zoomLevel;
+                  const isOffscreen = screenX < -50 || screenX > dimensions.width + 50 || screenY < -50 || screenY > dimensions.height + 50;
                   const isHovered = hoveredNodeId === node.id;
                   const isSelected = selectedNodeId === node.id;
+
+                  // Viewport culling: do not render offscreen nodes unless hovered or selected
+                  if (isOffscreen && !isHovered && !isSelected) {
+                    return null;
+                  }
+
                   const isNeighbor = activeConnectedIds.has(node.id);
                   const isDimmed = activeFocusNode && !isNeighbor;
-
                   const nodeLabel = lang === 'en' ? node.labelEn : node.labelPl;
 
                   return (
@@ -1041,7 +1114,6 @@ export default function GalaxyGraphModal({
                           fill={isHovered || isSelected ? '#e879f9' : node.color}
                           stroke="#ffffff"
                           strokeWidth={isHovered || isSelected ? 2 : 1}
-                          filter="url(#glow)"
                         />
                       ) : (
                         /* Green Circle Marker (Article / Skill) */
@@ -1052,7 +1124,6 @@ export default function GalaxyGraphModal({
                           fill={isHovered || isSelected ? '#86efac' : node.color}
                           stroke="#ffffff"
                           strokeWidth={isHovered || isSelected ? 2 : 1}
-                          filter="url(#glow)"
                         />
                       )}
 

@@ -516,13 +516,13 @@ nie ma nic do zatwierdzenia, drzewo robocze czyste`, "success");
       {/* Toggle button - Clean, stable floating button with responsive sizing */}
       <div 
         id="terminal_toggle_wrapper"
-        className="fixed bottom-3 right-3 z-40 flex flex-col items-end gap-1.5 pointer-events-auto"
+        className="flex flex-col items-end gap-1.5 pointer-events-auto shrink-0"
       >
         <button
           type="button"
           id="toggle_terminal_btn"
           onClick={() => setIsOpen(!isOpen)}
-          className={`flex items-center gap-1.5 sm:gap-2 px-3 sm:px-4 py-2 sm:py-2.5 rounded-none border transition-colors duration-200 font-mono text-[11px] sm:text-xs font-semibold uppercase tracking-wider cursor-pointer select-none shadow-2xl backdrop-blur-sm
+          className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 [@media(max-height:520px)]:py-1.5 [@media(max-height:520px)]:px-2.5 rounded-none border transition-colors duration-200 font-mono text-[11px] sm:text-xs [@media(max-height:520px)]:text-[10px] font-semibold uppercase tracking-wider cursor-pointer select-none shadow-2xl backdrop-blur-sm shrink-0 whitespace-nowrap
             ${isOpen 
               ? 'bg-red-950/90 text-red-300 border-red-500/60 hover:bg-red-900' 
               : 'bg-[#0E0E0E]/95 text-editorial-accent border-editorial-border hover:border-editorial-accent font-bold hover:text-white'}`}
@@ -531,22 +531,24 @@ nie ma nic do zatwierdzenia, drzewo robocze czyste`, "success");
           <span className="hidden sm:inline">
             {isOpen ? (lang === 'en' ? 'Close Console' : 'Zamknij Konsolę') : (lang === 'en' ? 'Developer Terminal' : 'Terminal Dewelopera')}
           </span>
-          <span className="sm:hidden">
-            {isOpen ? (lang === 'en' ? 'Close' : 'Zamknij') : 'Terminal'}
-          </span>
+          {isOpen && (
+            <span className="sm:hidden text-[10px]">
+              {lang === 'en' ? 'Close' : 'Zamknij'}
+            </span>
+          )}
         </button>
       </div>
 
-      {/* Console frame - Bounded strictly to mobile screen width and height */}
+      {/* Console frame - Bounded strictly to mobile screen width and height, reduced in landscape */}
       {isOpen && (
         <div 
           id="terminal_console" 
           translate="no" 
-          className="fixed bottom-[4.5rem] left-2.5 right-2.5 sm:left-auto sm:right-3 z-50 sm:w-[480px] h-[min(20rem,calc(100svh-6rem))] bg-[#0A0A0A]/95 backdrop-blur-md border-2 border-editorial-border rounded-none shadow-2xl overflow-hidden flex flex-col font-mono text-xs select-text notranslate overscroll-contain box-border"
+          className="fixed left-2 right-2 sm:left-auto sm:right-6 sm:w-[480px] bottom-16 sm:bottom-20 h-[min(20rem,calc(100svh-7rem))] z-50 max-w-[calc(100vw-1rem)] max-h-[calc(100svh-5rem)] sm:max-h-80 [@media(max-height:520px)]:top-auto [@media(max-height:520px)]:bottom-[3.75rem] sm:[@media(max-height:520px)]:bottom-16 [@media(max-height:520px)]:right-2 sm:[@media(max-height:520px)]:right-4 [@media(max-height:520px)]:h-[min(170px,calc(100svh-5rem))] [@media(max-height:520px)]:max-h-[175px] [@media(orientation:landscape)_and_(max-height:550px)]:top-auto [@media(orientation:landscape)_and_(max-height:550px)]:bottom-[3.75rem] [@media(orientation:landscape)_and_(max-height:550px)]:left-auto [@media(orientation:landscape)_and_(max-height:550px)]:right-2 sm:[@media(orientation:landscape)_and_(max-height:550px)]:right-6 [@media(orientation:landscape)_and_(max-height:550px)]:w-[min(400px,calc(100vw-20rem))] [@media(orientation:landscape)_and_(max-height:550px)]:h-[min(170px,calc(100svh-5rem))] [@media(orientation:landscape)_and_(max-height:550px)]:max-h-[175px] bg-[#0A0A0A]/95 backdrop-blur-md border-2 border-editorial-border rounded-none shadow-2xl overflow-hidden flex flex-col font-mono text-xs select-text notranslate overscroll-contain box-border"
         >
           {/* Header */}
-          <div className="bg-editorial-sidebar-bg px-3 sm:px-4 py-1.5 sm:py-2 border-b border-editorial-border flex items-center justify-between text-editorial-muted shrink-0">
-            <div className="flex items-center gap-1.5 uppercase tracking-wider text-[9.5px] sm:text-[10px]">
+          <div className="bg-editorial-sidebar-bg px-3 sm:px-4 py-1.5 sm:py-2 [@media(max-height:520px)]:py-1 border-b border-editorial-border flex items-center justify-between text-editorial-muted shrink-0">
+            <div className="flex items-center gap-1.5 uppercase tracking-wider text-[9.5px] sm:text-[10px] [@media(max-height:520px)]:text-[9px]">
               <span className="w-2 h-2 bg-neutral-700 inline-block pointer-events-none"></span>
               <span className="w-2 h-2 bg-neutral-600 inline-block pointer-events-none"></span>
               <span className="w-2 h-2 bg-neutral-500 inline-block pointer-events-none"></span>
@@ -566,7 +568,7 @@ nie ma nic do zatwierdzenia, drzewo robocze czyste`, "success");
           <div 
             ref={logsRef} 
             onScroll={handleLogsScroll}
-            className="flex-1 min-h-0 overflow-y-auto p-2.5 sm:p-4 pb-2 space-y-2 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent overscroll-contain"
+            className="flex-1 min-h-0 overflow-y-auto p-2.5 sm:p-4 [@media(max-height:520px)]:p-2 pb-1.5 space-y-1.5 [@media(max-height:520px)]:space-y-1 scrollbar-thin scrollbar-thumb-zinc-800 scrollbar-track-transparent overscroll-contain"
           >
             {(() => {
               const renderLogText = (text: string) => {
@@ -598,7 +600,7 @@ nie ma nic do zatwierdzenia, drzewo robocze czyste`, "success");
                 if (log.type === 'comment') textClass = 'text-editorial-muted';
 
                 return (
-                  <div key={index} className={`${textClass} whitespace-pre-wrap leading-relaxed break-all text-[11px] sm:text-xs`}>
+                  <div key={index} className={`${textClass} whitespace-pre-wrap leading-relaxed break-all text-[11px] sm:text-xs [@media(max-height:520px)]:text-[10px] [@media(max-height:520px)]:leading-tight`}>
                     {renderLogText(log.text)}
                   </div>
                 );
@@ -607,7 +609,7 @@ nie ma nic do zatwierdzenia, drzewo robocze czyste`, "success");
           </div>
 
           {/* Input field */}
-          <form onSubmit={handleCommandSubmit} className="bg-editorial-sidebar-bg p-1.5 sm:p-2 border-t border-editorial-border flex items-center gap-1.5 sm:gap-2 shrink-0">
+          <form onSubmit={handleCommandSubmit} className="bg-editorial-sidebar-bg p-1.5 sm:p-2 [@media(max-height:520px)]:p-1 border-t border-editorial-border flex items-center gap-1.5 sm:gap-2 shrink-0">
             <span className="text-editorial-muted pl-1.5 shrink-0">
               <CornerDownRight size={12} />
             </span>
@@ -617,7 +619,7 @@ nie ma nic do zatwierdzenia, drzewo robocze czyste`, "success");
               value={inputVal}
               onChange={(e) => setInputVal(e.target.value)}
               placeholder={lang === 'en' ? "Type command (e.g. 'help')..." : "Wpisz komendę (np. 'help')..."}
-              className="flex-1 min-w-0 bg-transparent border-0 outline-none text-editorial-accent text-[11px] sm:text-xs placeholder:text-zinc-700 font-mono py-1"
+              className="flex-1 min-w-0 bg-transparent border-0 outline-none text-editorial-accent text-[11px] sm:text-xs [@media(max-height:520px)]:text-[10.5px] placeholder:text-zinc-700 font-mono py-1 [@media(max-height:520px)]:py-0.5"
               autoFocus={typeof window !== 'undefined' && window.matchMedia('(pointer: fine)').matches}
               maxLength={100}
             />

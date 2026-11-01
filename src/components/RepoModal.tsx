@@ -1174,22 +1174,22 @@ export default function RepoModal({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 10, scale: 0.98 }}
           transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-          className="fixed bottom-3 left-3 z-40 w-[calc(100vw-14rem)] max-w-sm min-w-0 bg-[#0D0D0D]/95 border-2 border-cyan-500/80 hover:border-cyan-400 shadow-[0_12px_36px_rgba(0,0,0,0.9)] backdrop-blur-md p-1.5 sm:p-2.5 flex items-center justify-between gap-1.5 sm:gap-2 text-white font-mono cursor-pointer rounded-none"
+          className="relative w-full min-w-0 max-w-full p-1.5 sm:p-2 [@media(max-height:520px)]:p-1 flex items-center gap-1.5 sm:gap-2 bg-[#0D0D0D]/95 border-2 border-cyan-500/80 rounded-none font-mono text-white cursor-pointer shadow-xl"
           onClick={onRestore}
           title={lang === 'en' ? 'Click to restore repository modal' : 'Kliknij, aby przywrócić okno projektu'}
         >
           <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
-            <span className="p-1 sm:p-1.5 bg-neutral-900 border border-editorial-border text-cyan-400 shrink-0">
+            <span className="p-1 sm:p-1.5 [@media(max-height:520px)]:p-1 bg-neutral-900 border border-editorial-border text-cyan-400 shrink-0">
               <FolderGit2 size={12} className="sm:w-[13px] sm:h-[13px]" />
             </span>
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-1 sm:gap-1.5">
-                <span className="text-[11px] sm:text-xs font-bold truncate text-white" translate="no">{repo.name}</span>
+                <span className="text-[11px] sm:text-xs [@media(max-height:520px)]:text-[10px] font-bold truncate text-white" translate="no">{repo.name}</span>
                 <span className="hidden md:inline-block text-[8.5px] uppercase px-1 py-0.2 bg-[#0E1B24] border border-cyan-500/40 text-cyan-400 font-bold shrink-0">
                   {lang === 'en' ? catSpec.labelEn : catSpec.labelPl}
                 </span>
               </div>
-              <p className="text-[8.5px] sm:text-[9.5px] text-editorial-muted truncate font-sans">
+              <p className="text-[8.5px] sm:text-[9.5px] [@media(max-height:520px)]:text-[8px] text-editorial-muted truncate font-sans">
                 {lang === 'en' ? 'Click to restore ↗' : 'Kliknij, by otworzyć ↗'}
               </p>
             </div>
@@ -1203,7 +1203,7 @@ export default function RepoModal({
                 e.stopPropagation();
                 onRestore?.();
               }}
-              className="w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center bg-neutral-900 hover:bg-neutral-800 border border-editorial-border hover:border-cyan-400 text-cyan-400 hover:text-white transition-colors cursor-pointer shrink-0"
+              className="w-6 h-6 sm:w-8 sm:h-8 [@media(max-height:520px)]:w-6.5 [@media(max-height:520px)]:h-6.5 flex items-center justify-center bg-neutral-900 hover:bg-neutral-800 border border-editorial-border hover:border-cyan-400 text-cyan-400 hover:text-white transition-colors cursor-pointer shrink-0"
               title={lang === 'en' ? 'Expand modal' : 'Przywróć okno'}
             >
               <ChevronUp size={13} className="sm:w-3.5 sm:h-3.5" />
@@ -1215,7 +1215,7 @@ export default function RepoModal({
                 e.stopPropagation();
                 onClose();
               }}
-              className="w-6 h-6 sm:w-8 sm:h-8 flex items-center justify-center bg-neutral-900 hover:bg-neutral-800 border border-editorial-border hover:border-rose-500 text-editorial-muted hover:text-rose-400 transition-colors cursor-pointer shrink-0"
+              className="w-6 h-6 sm:w-8 sm:h-8 [@media(max-height:520px)]:w-6.5 [@media(max-height:520px)]:h-6.5 flex items-center justify-center bg-neutral-900 hover:bg-neutral-800 border border-editorial-border hover:border-rose-500 text-editorial-muted hover:text-rose-400 transition-colors cursor-pointer shrink-0"
               title={lang === 'en' ? 'Close' : 'Zamknij'}
             >
               <X size={13} className="sm:w-3.5 sm:h-3.5" />
@@ -1257,7 +1257,7 @@ export default function RepoModal({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.98, y: 10 }}
               transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-              className="relative bg-editorial-bg border-2 border-editorial-border w-[calc(100vw-1rem)] sm:w-full max-w-2xl min-w-0 max-w-full h-[84svh] sm:h-[720px] max-h-[88svh] sm:max-h-[90vh] rounded-none shadow-2xl flex flex-col overflow-hidden my-auto"
+              className="relative bg-editorial-bg border-2 border-editorial-border w-[calc(100vw-1rem)] sm:w-[min(42rem,calc(100vw-4rem))] lg:w-[min(48rem,calc(100vw-6rem))] h-[84svh] sm:h-[720px] max-h-[88svh] sm:max-h-[90vh] rounded-none shadow-2xl flex flex-col overflow-hidden my-auto min-w-0"
             >
             {/* iOS/iPhone-style pull-down handle (clean pill bar, no text) */}
             <div 
