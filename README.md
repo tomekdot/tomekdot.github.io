@@ -6,9 +6,12 @@ Interactive portfolio showcasing GitHub repositories, built with React + Vite.
 
 ## ✨ Features
 
-- 📦 **Repository cards** — stars, forks, language, categories
-- 🔍 **Search & filter** — by name, language, category
+- 📦 **Repository cards** — stars, forks, language, categories (60+ repos)
+- 🔍 **Search & filter** — by name, language, category, year
 - 📊 **Language chart** — visual breakdown of tech stack
+- 🌌 **Galaxy graph** — interactive node graph of repos & tags
+- 🧩 **Architecture UML** — visualized project architecture
+- 📈 **Stats modals** — detailed repository statistics
 - 💻 **Interactive terminal** — browse repos via CLI-style console
 - 🔄 **Live GitHub sync** — fetches latest data from GitHub API
 - 🌍 **PL / EN** — bilingual interface
