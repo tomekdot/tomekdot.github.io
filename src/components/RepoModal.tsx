@@ -1257,7 +1257,7 @@ export default function RepoModal({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.98, y: 10 }}
               transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-              className="relative bg-editorial-bg border-2 border-editorial-border w-[calc(100vw-1rem)] sm:w-[min(42rem,calc(100vw-4rem))] lg:w-[min(48rem,calc(100vw-6rem))] h-[84svh] sm:h-[720px] max-h-[88svh] sm:max-h-[90vh] rounded-none shadow-2xl flex flex-col overflow-hidden my-auto min-w-0"
+              className="relative bg-editorial-bg border-2 border-editorial-border w-[calc(100vw-1rem)] sm:w-[min(42rem,calc(100vw-4rem))] lg:w-[min(48rem,calc(100vw-6rem))] h-[84svh] max-h-[calc(100svh-2rem)] xl:h-[min(720px,calc(100svh-4rem))] rounded-none shadow-2xl flex flex-col overflow-hidden my-auto min-w-0"
             >
             {/* iOS/iPhone-style pull-down handle (clean pill bar, no text) */}
             <div 

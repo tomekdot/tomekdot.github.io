@@ -1050,9 +1050,9 @@ export default function App() {
     </header>
 
       {/* 3. Core Workspace Section */}
-      <main className="flex-grow grid grid-cols-1 md:grid-cols-[310px_1fr] lg:grid-cols-[340px_1fr] md:divide-x divide-editorial-border border-b border-editorial-border bg-editorial-bg md:h-[calc(100svh-7rem)] md:min-h-0">
+      <main className="flex-grow grid grid-cols-1 md:grid-cols-[310px_1fr] lg:grid-cols-[340px_1fr] md:divide-x divide-editorial-border border-b border-editorial-border bg-editorial-bg min-h-0">
         {/* Left Sidebar block */}
-        <aside className="p-3.5 sm:p-4 md:p-5 lg:p-6 pb-6 md:pb-8 flex flex-col justify-start gap-3.5 sm:gap-4 md:gap-6 lg:gap-7 bg-editorial-sidebar-bg md:h-full md:overflow-y-auto md:min-h-0">
+        <aside className="p-3.5 sm:p-4 md:p-5 lg:p-6 pb-6 md:pb-8 flex flex-col justify-start gap-3.5 sm:gap-4 md:gap-6 lg:gap-7 bg-editorial-sidebar-bg md:sticky md:top-12 md:self-start md:max-h-[calc(100svh-3rem)] md:overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-800">
           <div className="space-y-4 md:space-y-6">
             {/* Main Tabs Navigation */}
             <div className="flex h-[38px] border border-editorial-border p-1 bg-neutral-950 font-mono text-[11px] rounded-none mb-2 sm:mb-3 box-border">
@@ -1446,7 +1446,7 @@ export default function App() {
         </aside>
 
         {/* Right workspace section block */}
-        <section className="p-3.5 sm:p-4 md:p-5 lg:p-6 pb-40 sm:pb-44 md:pb-52 bg-editorial-bg md:h-full md:overflow-y-auto md:min-h-0">
+        <section className="p-3.5 sm:p-4 md:p-5 lg:p-6 pb-40 sm:pb-44 md:pb-52 bg-editorial-bg min-w-0 w-full">
           {activeWorkspaceTab === 'projects' ? (
             <div className="main-content flex flex-col gap-4 sm:gap-5">
               {/* Header controls, year filter, language spectrum, and active filters container */}

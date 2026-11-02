@@ -176,17 +176,17 @@ export default function DeveloperStatsModal({
           className="fixed inset-0 bg-black/85"
         />
 
-        {/* Modal Window Container restored to original dimensions */}
+        {/* Modal Window Container aligned with RepoModal standard */}
         <motion.div
           id="developer_stats_modal"
           initial={{ opacity: 0, scale: 0.98, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.98, y: 10 }}
           transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-          className="relative bg-editorial-bg border-2 border-editorial-border w-[calc(100vw-1rem)] sm:w-[min(44rem,calc(100vw-4rem))] lg:w-[min(50rem,calc(100vw-6rem))] h-[calc(100svh-1rem)] sm:h-[min(680px,calc(100svh-2rem))] max-h-[calc(100svh-1rem)] rounded-none shadow-2xl flex flex-col overflow-hidden overscroll-contain my-auto min-w-0 font-mono text-xs select-text"
+          className="relative bg-editorial-bg border-2 border-editorial-border w-[calc(100vw-1rem)] sm:w-[min(42rem,calc(100vw-4rem))] lg:w-[min(48rem,calc(100vw-6rem))] h-[84svh] max-h-[calc(100svh-2rem)] xl:h-[min(720px,calc(100svh-4rem))] rounded-none shadow-2xl flex flex-col overflow-hidden my-auto min-w-0 font-mono text-xs select-text"
         >
           {/* 1. Modal Top Header */}
-          <div className="shrink-0 px-3 sm:px-6 py-1.5 sm:py-3.5 border-b border-editorial-border bg-editorial-sidebar-bg flex items-center justify-between min-w-0">
+          <div className="shrink-0 px-3.5 sm:px-6 py-2.5 sm:py-4 border-b border-editorial-border bg-editorial-sidebar-bg flex items-center justify-between min-w-0">
             <div className="flex items-center gap-2.5 sm:gap-3 min-w-0 pr-2">
               <div className="p-1.5 sm:p-2 bg-[#1D170E] border border-editorial-accent/50 text-editorial-accent shrink-0">
                 <Activity size={16} />
@@ -200,7 +200,7 @@ export default function DeveloperStatsModal({
                     @tomekdot
                   </span>
                 </div>
-                <p className="text-[11px] font-mono text-editorial-muted hidden sm:block truncate [@media(max-height:500px)]:!hidden">
+                <p className="text-[11px] font-mono text-editorial-muted hidden sm:block truncate [@media(max-height:500px)]:hidden">
                   {lang === 'en'
                     ? 'Trackmania Plugins, PyPlanet Controllers, AI Agents & Code Changelog'
                     : 'Wtyczki Trackmania, Kontrolery PyPlanet, Agenci AI i Historia Zmian'}
@@ -219,68 +219,65 @@ export default function DeveloperStatsModal({
             </button>
           </div>
 
-          {/* 2. Navigation Tabs within modal */}
-          <div className="shrink-0 flex border-b border-editorial-border bg-editorial-bg min-w-0 font-mono text-xs overflow-x-auto scrollbar-none">
+          {/* 2. Navigation Tabs - Fixed 3-column grid, short labels default, full only at 2xl */}
+          <div className="shrink-0 grid grid-cols-3 border-b border-editorial-border font-mono bg-editorial-bg">
             <button
               type="button"
               id="stats_tab_new_plugins"
+              title={lang === 'en' ? 'NEW PLUGINS & RELEASES' : 'NOWE PLUGINY I WYDANIA'}
               onClick={() => setActiveTab('new_plugins')}
-              className={`flex-1 min-w-0 sm:flex-initial h-9 sm:h-10 px-2 sm:px-4 text-[10px] sm:text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 ${
+              className={`min-w-0 h-10 xl:h-12 px-1 xl:px-4 flex items-center justify-center gap-1 border-b-2 text-[10px] xl:text-xs font-bold uppercase transition-all cursor-pointer ${
                 activeTab === 'new_plugins'
                   ? 'border-editorial-accent text-editorial-accent bg-editorial-accent/10'
-                  : 'border-transparent text-editorial-muted hover:text-white hover:bg-neutral-900/40'
+                  : 'border-transparent text-editorial-muted hover:text-white'
               }`}
             >
-              <Sparkles size={12} className={activeTab === 'new_plugins' ? 'text-editorial-accent shrink-0' : 'text-editorial-muted shrink-0'} />
-              <span className="md:hidden">{lang === 'en' ? 'PLUGINS' : 'PLUGINY'}</span>
-              <span className="hidden md:inline">{lang === 'en' ? 'NEW PLUGINS & RELEASES' : 'NOWE PLUGINY I PROJEKTY'}</span>
-              <span className="hidden sm:inline-block text-[9px] font-mono px-1 sm:px-1.5 py-0.2 bg-neutral-900 border border-editorial-border text-editorial-muted shrink-0">
-                {newestPlugins.length}
-              </span>
+              <Sparkles size={13} className="shrink-0" />
+              <span className="truncate 2xl:hidden">{lang === 'en' ? 'PLUGINS' : 'PLUGINY'}</span>
+              <span className="hidden 2xl:inline truncate">{lang === 'en' ? 'NEW PLUGINS & RELEASES' : 'NOWE PLUGINY I WYDANIA'}</span>
             </button>
 
             <button
               type="button"
               id="stats_tab_recent_activity"
+              title={lang === 'en' ? 'RECENT CHANGES & ACTIVITY' : 'OSTATNIE ZMIANY I HISTORIA'}
               onClick={() => setActiveTab('recent_activity')}
-              className={`flex-1 min-w-0 sm:flex-initial h-9 sm:h-10 px-2 sm:px-4 text-[10px] sm:text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 ${
+              className={`min-w-0 h-10 xl:h-12 px-1 xl:px-4 flex items-center justify-center gap-1 border-b-2 text-[10px] xl:text-xs font-bold uppercase transition-all cursor-pointer ${
                 activeTab === 'recent_activity'
                   ? 'border-editorial-accent text-editorial-accent bg-editorial-accent/10'
-                  : 'border-transparent text-editorial-muted hover:text-white hover:bg-neutral-900/40'
+                  : 'border-transparent text-editorial-muted hover:text-white'
               }`}
             >
-              <Zap size={12} className={activeTab === 'recent_activity' ? 'text-editorial-accent shrink-0' : 'text-editorial-muted shrink-0'} />
-              <span className="md:hidden">{lang === 'en' ? 'CHANGELOG' : 'ZMIANY'}</span>
-              <span className="hidden md:inline">{lang === 'en' ? 'RECENT CHANGES & ACTIVITY' : 'OSTATNIE ZMIANY I HISTORIA'}</span>
-              <span className="hidden sm:inline-block text-[9px] font-mono px-1 sm:px-1.5 py-0.2 bg-neutral-900 border border-editorial-border text-editorial-muted shrink-0">
-                {recentChanges.length}
-              </span>
+              <Zap size={13} className="shrink-0" />
+              <span className="truncate 2xl:hidden">{lang === 'en' ? 'CHANGES' : 'ZMIANY'}</span>
+              <span className="hidden 2xl:inline truncate">{lang === 'en' ? 'RECENT CHANGES & ACTIVITY' : 'OSTATNIE ZMIANY I HISTORIA'}</span>
             </button>
 
             <button
               type="button"
               id="stats_tab_breakdown"
+              title={lang === 'en' ? 'TECH & CATEGORY MATRIX' : 'MATRYCA KATEGORII I TECHNOLOGII'}
               onClick={() => setActiveTab('breakdown')}
-              className={`flex-1 min-w-0 sm:flex-initial h-9 sm:h-10 px-2 sm:px-4 text-[10px] sm:text-xs font-bold uppercase tracking-wider border-b-2 transition-all cursor-pointer flex items-center justify-center gap-1.5 whitespace-nowrap shrink-0 ${
+              className={`min-w-0 h-10 xl:h-12 px-1 xl:px-4 flex items-center justify-center gap-1 border-b-2 text-[10px] xl:text-xs font-bold uppercase transition-all cursor-pointer ${
                 activeTab === 'breakdown'
                   ? 'border-editorial-accent text-editorial-accent bg-editorial-accent/10'
-                  : 'border-transparent text-editorial-muted hover:text-white hover:bg-neutral-900/40'
+                  : 'border-transparent text-editorial-muted hover:text-white'
               }`}
             >
-              <Layers size={12} className={activeTab === 'breakdown' ? 'text-editorial-accent shrink-0' : 'text-editorial-muted shrink-0'} />
-              <span className="md:hidden">{lang === 'en' ? 'MATRIX' : 'MATRYCA'}</span>
-              <span className="hidden md:inline">{lang === 'en' ? 'TECH & CATEGORY MATRIX' : 'KATEGORIE I TECHNOLOGIE'}</span>
+              <Layers size={13} className="shrink-0" />
+              <span className="truncate 2xl:hidden">{lang === 'en' ? 'MATRIX' : 'MATRYCA'}</span>
+              <span className="hidden 2xl:inline truncate">{lang === 'en' ? 'TECH & CATEGORY MATRIX' : 'MATRYCA KATEGORII'}</span>
             </button>
           </div>
 
           {/* 4. Tab Body Content */}
-          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-5 space-y-3.5 sm:space-y-6 overscroll-contain bg-editorial-bg min-w-0 w-full scrollbar-thin scrollbar-thumb-neutral-800">
+          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-5 space-y-3 bg-editorial-bg min-w-0 w-full scrollbar-thin scrollbar-thumb-neutral-800">
             {activeTab === 'new_plugins' && (
               <div className="space-y-4">
                 {/* Category quick chips for plugins */}
                 <div className="flex flex-wrap items-center justify-between gap-2 pb-2.5 border-b border-editorial-border/60">
                   <div className="flex items-center gap-1.5 text-xs font-mono text-editorial-muted flex-wrap">
-                    <span className="text-[11px] hidden sm:inline">{lang === 'en' ? 'Filter focus:' : 'Filtruj:'}</span>
+                    <span className="text-[11px] hidden xl:inline">{lang === 'en' ? 'Filter focus:' : 'Filtruj:'}</span>
                     <div className="flex gap-1 flex-wrap">
                       <button
                         type="button"
@@ -352,7 +349,7 @@ export default function DeveloperStatsModal({
                     </div>
                   </div>
 
-                  <span className="text-[10px] font-mono text-editorial-muted">
+                  <span className="hidden xl:inline text-[10px] font-mono text-editorial-muted">
                     {newestPlugins.length} {lang === 'en' ? 'projects' : 'projektów'}
                   </span>
                 </div>
@@ -627,10 +624,10 @@ export default function DeveloperStatsModal({
             )}
 
             {activeTab === 'breakdown' && (
-              <div className="space-y-6 max-w-4xl mx-auto">
+              <div className="space-y-4 min-w-0 max-w-full">
                 {/* Category distribution grid with centered header */}
-                <div>
-                  <div className="flex items-center justify-center gap-3 mb-4">
+                <div className="min-w-0 max-w-full">
+                  <div className="flex items-center justify-center gap-3 mb-3">
                     <div className="h-px flex-1 bg-editorial-border" />
                     <h3 className="text-xs font-mono font-bold uppercase tracking-wider text-editorial-accent text-center shrink-0">
                       {lang === 'en' ? 'Category Ecosystem Distribution' : 'Podział Ekosystemu wg Kategorii'}
@@ -638,7 +635,7 @@ export default function DeveloperStatsModal({
                     <div className="h-px flex-1 bg-editorial-border" />
                   </div>
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 font-mono">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 sm:gap-3 min-w-0 font-mono">
                     {Object.values(CATEGORIES).map(cat => {
                       const count = repos.filter(r => r.cat.includes(cat.key)).length;
                       const percentage = metrics.totalRepos > 0 ? Math.round((count / metrics.totalRepos) * 100) : 0;
@@ -650,12 +647,12 @@ export default function DeveloperStatsModal({
                             setActiveTab('new_plugins');
                             setFilterCategory(cat.key);
                           }}
-                          className="p-3.5 bg-neutral-950 hover:bg-neutral-900 border border-editorial-border hover:border-editorial-accent transition-all flex flex-col justify-between gap-2 shadow-sm text-left cursor-pointer group"
+                          className="p-3 sm:p-3.5 bg-neutral-950 hover:bg-neutral-900 border border-editorial-border hover:border-editorial-accent transition-all flex flex-col justify-between gap-2 shadow-sm text-left cursor-pointer group min-w-0"
                           title={lang === 'en' ? `Filter repositories by ${cat.labelEn}` : `Filtruj repozytoria wg ${cat.labelPl}`}
                         >
-                          <div className="flex items-center justify-between gap-2 w-full">
-                            <span className="text-xs font-bold text-white group-hover:text-editorial-accent transition-colors truncate flex items-center gap-1.5">
-                              <span>{lang === 'en' ? cat.labelEn : cat.labelPl}</span>
+                          <div className="flex items-center justify-between gap-2 w-full min-w-0">
+                            <span className="text-xs font-bold text-white group-hover:text-editorial-accent transition-colors truncate min-w-0 flex-1 flex items-center gap-1.5">
+                              <span className="truncate">{lang === 'en' ? cat.labelEn : cat.labelPl}</span>
                               <ArrowUpRight size={12} className="opacity-0 group-hover:opacity-100 text-editorial-accent transition-opacity shrink-0" />
                             </span>
                             <span className={`text-xs font-bold ${cat.colorClass} shrink-0 px-1.5 py-0.2 bg-neutral-900 border border-editorial-border group-hover:border-editorial-accent/50`}>
@@ -681,24 +678,24 @@ export default function DeveloperStatsModal({
                 </div>
 
                 {/* Trackmania & AI Highlight Section - Fully Interactive */}
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 font-mono text-xs">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-3 min-w-0 font-mono text-xs">
                   <button
                     type="button"
                     onClick={() => {
                       setActiveTab('new_plugins');
                       setFilterCategory('plugins');
                     }}
-                    className="p-4 bg-emerald-950/20 hover:bg-emerald-950/35 border border-emerald-800/40 hover:border-emerald-500 space-y-2 text-left cursor-pointer transition-all group"
+                    className="p-3 sm:p-4 bg-emerald-950/20 hover:bg-emerald-950/35 border border-emerald-800/40 hover:border-emerald-500 space-y-2 text-left cursor-pointer transition-all group min-w-0"
                     title={lang === 'en' ? 'Show all Trackmania & Plugins' : 'Pokaż wszystkie wtyczki i projekty Trackmania'}
                   >
-                    <div className="flex items-center justify-between text-emerald-400 font-bold uppercase">
-                      <div className="flex items-center gap-2">
-                        <Gamepad2 size={16} />
-                        <span>{lang === 'en' ? 'Trackmania & Plugins Core' : 'Moduły i Pluginy Trackmania'}</span>
+                    <div className="flex items-center justify-between text-emerald-400 font-bold uppercase min-w-0">
+                      <div className="flex items-center gap-2 min-w-0 truncate">
+                        <Gamepad2 size={16} className="shrink-0" />
+                        <span className="truncate">{lang === 'en' ? 'Trackmania & Plugins Core' : 'Moduły i Pluginy Trackmania'}</span>
                       </div>
-                      <ArrowUpRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <ArrowUpRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-1" />
                     </div>
-                    <p className="text-editorial-muted text-xs font-sans">
+                    <p className="text-editorial-muted text-xs font-sans line-clamp-3 sm:line-clamp-none [@media(max-height:620px)]:hidden">
                       {lang === 'en'
                         ? 'Includes custom server controllers (PyPlanet), in-game HUDs (Openplanet), telemetry processors, anticheat and discord sync bridges.'
                         : 'Obejmuje autorskie wtyczki PyPlanet, rozszerzenia HUD Openplanet, narzędzia telemetryczne, anty-cheat oraz integracje z Discordem.'}
@@ -718,17 +715,17 @@ export default function DeveloperStatsModal({
                       setActiveTab('new_plugins');
                       setFilterCategory('ai');
                     }}
-                    className="p-4 bg-cyan-950/20 hover:bg-cyan-950/35 border border-cyan-800/40 hover:border-cyan-500 space-y-2 text-left cursor-pointer transition-all group"
+                    className="p-3 sm:p-4 bg-cyan-950/20 hover:bg-cyan-950/35 border border-cyan-800/40 hover:border-cyan-500 space-y-2 text-left cursor-pointer transition-all group min-w-0"
                     title={lang === 'en' ? 'Show all AI & Autonomous Agents' : 'Pokaż wszystkich Agentów AI'}
                   >
-                    <div className="flex items-center justify-between text-cyan-400 font-bold uppercase">
-                      <div className="flex items-center gap-2">
-                        <Bot size={16} />
-                        <span>{lang === 'en' ? 'AI & Autonomous Systems' : 'Agenci AI & Automatyzacja'}</span>
+                    <div className="flex items-center justify-between text-cyan-400 font-bold uppercase min-w-0">
+                      <div className="flex items-center gap-2 min-w-0 truncate">
+                        <Bot size={16} className="shrink-0" />
+                        <span className="truncate">{lang === 'en' ? 'AI & Autonomous Systems' : 'Agenci AI & Automatyzacja'}</span>
                       </div>
-                      <ArrowUpRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity" />
+                      <ArrowUpRight size={14} className="opacity-0 group-hover:opacity-100 transition-opacity shrink-0 ml-1" />
                     </div>
-                    <p className="text-editorial-muted text-xs font-sans">
+                    <p className="text-editorial-muted text-xs font-sans line-clamp-3 sm:line-clamp-none [@media(max-height:620px)]:hidden">
                       {lang === 'en'
                         ? 'Autonomous agentic frameworks (Hermes Agent, MCP Servers, Gemini CLI agents) and model integration toolkits.'
                         : 'Autonomiczne systemy agentowe (Hermes Agent, MCP Trackmania Server, agenci Gemini CLI) oraz narzędzia integracji modeli.'}
@@ -746,18 +743,18 @@ export default function DeveloperStatsModal({
             )}
           </div>
 
-          {/* 5. Footer Block matching BlogModal */}
-          <div className="shrink-0 border-t border-editorial-border px-3 sm:px-5 py-2 flex items-center justify-between gap-2 bg-editorial-sidebar-bg min-w-0 font-mono text-xs">
-            <span className="hidden sm:flex items-center gap-1.5 text-editorial-accent font-bold truncate">
-              <Activity size={14} />
-              {lang === 'en' ? 'TOMEKDOT DEVELOPER HUB' : 'CENTRUM TWÓRCY TOMEKDOT'}
+          {/* 5. Footer Block matching RepoModal */}
+          <div className="shrink-0 border-t border-editorial-border px-3 sm:px-6 py-2.5 flex items-center justify-between gap-2 bg-editorial-sidebar-bg min-w-0 font-mono text-xs">
+            <span className="hidden sm:flex items-center gap-1.5 text-editorial-accent font-bold min-w-0 flex-1 truncate">
+              <Activity size={14} className="shrink-0" />
+              <span className="truncate">{lang === 'en' ? 'TOMEKDOT DEVELOPER HUB' : 'CENTRUM TWÓRCY TOMEKDOT'}</span>
             </span>
             <div className="flex items-center gap-2.5 ml-auto shrink-0">
               <span className="hidden md:inline text-editorial-muted text-[10.5px]">© 2026 @tomekdot</span>
               <button
                 type="button"
                 onClick={onClose}
-                className="px-2.5 sm:px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 border border-editorial-border hover:border-editorial-accent text-white transition-colors cursor-pointer uppercase text-[10px] sm:text-xs font-mono shrink-0"
+                className="px-2 sm:px-3 py-1.5 bg-neutral-900 hover:bg-neutral-800 border border-editorial-border hover:border-editorial-accent text-white transition-colors cursor-pointer uppercase text-[10px] sm:text-xs font-mono shrink-0"
               >
                 <span className="sm:hidden">{lang === 'en' ? 'CLOSE' : 'ZAMKNIJ'}</span>
                 <span className="hidden sm:inline">{lang === 'en' ? 'CLOSE (ESC)' : 'ZAMKNIJ (ESC)'}</span>
