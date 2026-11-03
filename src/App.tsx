@@ -49,6 +49,7 @@ import { CategoryKey, Repository, BlogPost } from './types';
 import { CATEGORIES, REPOS, BLOG_POSTS, SHOW_PRIVATE_REPOS_TO_PUBLIC, REPO_BLACKLIST, CONTRIBUTED_FORKS, calculateReadingTime, detectCategories, autoEnrichRepo } from './data';
 import LanguageChart from './components/LanguageChart';
 import RepoCard from './components/RepoCard';
+import BlogCard from './components/BlogCard';
 import RepoModal from './components/RepoModal';
 import BlogModal from './components/BlogModal';
 import DeveloperStatsModal from './components/DeveloperStatsModal';
@@ -1992,72 +1993,22 @@ export default function App() {
                     </button>
                   </div>
                 ) : blogViewLayout === 'compact' ? (
-                  /* Compact 1-column list layout */
-                  <div className="space-y-2 font-mono">
-                    {filteredBlogPosts.map(post => {
-                      const title = appLang === 'en' ? post.titleEn : post.titlePl;
-                      const excerpt = appLang === 'en' ? post.excerptEn : post.excerptPl;
-                      const content = appLang === 'en' ? post.contentEn : post.contentPl;
-                      const explicitReadingTime = appLang === 'en' ? post.readingTimeEn : post.readingTimePl;
-                      const readingTime = explicitReadingTime || calculateReadingTime(content, appLang);
-
-                      return (
-                        <div
-                          key={post.id}
-                          onClick={() => handleSelectBlogPost(post)}
-                          className="border border-editorial-border hover:border-editorial-accent/60 bg-editorial-sidebar-bg p-3.5 flex flex-col md:flex-row md:items-center justify-between gap-3 transition-all group cursor-pointer rounded-none hover:bg-neutral-900/60"
-                        >
-                          <div className="flex items-center gap-3 min-w-0 flex-1">
-                            <Newspaper size={16} className="text-editorial-accent shrink-0 group-hover:scale-110 transition-transform" />
-                            <div className="min-w-0 flex-1">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <h3 className="text-sm font-bold text-white group-hover:text-editorial-accent transition-colors truncate">
-                                  {title}
-                                </h3>
-                                <span className="text-[9px] text-editorial-muted border border-editorial-border/60 px-1.5 py-0.5 bg-neutral-950 font-semibold shrink-0">
-                                  {post.date}
-                                </span>
-                              </div>
-                              <p className="text-editorial-muted text-xs font-mono line-clamp-1 mt-0.5">
-                                {excerpt}
-                              </p>
-                            </div>
-                          </div>
-
-                          <div className="flex items-center gap-2.5 shrink-0 text-xs">
-                            <div className="hidden lg:flex items-center gap-1">
-                              {post.tags.slice(0, 2).map(tag => (
-                                <button
-                                  key={tag}
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedBlogTag(tag);
-                                  }}
-                                  className="px-2 py-0.5 text-[10px] sm:text-[11px] font-mono font-bold uppercase tracking-wider bg-neutral-900 border border-editorial-border text-editorial-accent hover:border-cyan-400 hover:text-white transition-all cursor-pointer whitespace-nowrap shrink-0"
-                                >
-                                  #{tag.toUpperCase()}
-                                </button>
-                              ))}
-                            </div>
-                            <span className="inline-flex items-center gap-1 text-[9px] font-mono uppercase px-1.5 py-0.5 bg-neutral-950 border border-editorial-border text-editorial-muted font-semibold whitespace-nowrap shrink-0">
-                              <Clock size={10} className="text-editorial-accent shrink-0" />
-                              {readingTime}
-                            </span>
-                            <button
-                              type="button"
-                              className="px-2.5 py-1 bg-neutral-950 border border-editorial-border text-[10px] font-bold text-editorial-accent uppercase group-hover:border-editorial-accent transition-all shrink-0 whitespace-nowrap"
-                            >
-                              {appLang === 'en' ? 'Read →' : 'Czytaj →'}
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
+                  /* Compact 1-column list layout matching RepoCard compact */
+                  <div className="space-y-2">
+                    {filteredBlogPosts.map(post => (
+                      <BlogCard
+                        key={post.id}
+                        post={post}
+                        onSelect={handleSelectBlogPost}
+                        lang={appLang}
+                        compact={true}
+                        onSelectTag={(tag) => setSelectedBlogTag(tag)}
+                      />
+                    ))}
                   </div>
                 ) : blogViewLayout === 'grouped' ? (
-                  /* Grouped by main tag layout */
-                  <div className="space-y-10 sm:space-y-12 font-mono">
+                  /* Grouped by main tag layout matching repos grouped sections */
+                  <div className="space-y-8 sm:space-y-10">
                     {allBlogTags.filter(tag => selectedBlogTag === 'all' || tag === selectedBlogTag).map(tag => {
                       const groupPosts = filteredBlogPosts.filter(p => p.tags.includes(tag));
                       if (groupPosts.length === 0) return null;
@@ -2067,168 +2018,42 @@ export default function App() {
                           <div className="section-header flex items-center justify-between gap-3 pb-3 sm:pb-3.5 mb-5 sm:mb-6 border-b-2 border-editorial-border w-full min-w-0 relative clear-both">
                             <div className="flex items-center gap-2 min-w-0 flex-1 overflow-hidden">
                               <span className="text-editorial-accent font-bold text-sm md:text-base shrink-0">#</span>
-                              <h2 className="font-bold uppercase tracking-wider text-sm md:text-base text-editorial-accent truncate min-w-0 whitespace-nowrap overflow-hidden">
+                              <h2 className="font-mono font-bold uppercase tracking-wider text-sm md:text-base text-editorial-accent truncate min-w-0 whitespace-nowrap overflow-hidden">
                                 {tag.toUpperCase()}
                               </h2>
                             </div>
-                            <span className="text-[10px] border border-editorial-border px-2 py-0.5 text-editorial-muted font-bold shrink-0 whitespace-nowrap ml-2">
+                            <span className="text-[10px] font-mono border border-editorial-border px-2 py-0.5 text-editorial-muted font-bold shrink-0 whitespace-nowrap ml-2">
                               {groupPosts.length} ARTICLES
                             </span>
                           </div>
 
-                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
-                            {groupPosts.map(post => {
-                              const title = appLang === 'en' ? post.titleEn : post.titlePl;
-                              const excerpt = appLang === 'en' ? post.excerptEn : post.excerptPl;
-                              const content = appLang === 'en' ? post.contentEn : post.contentPl;
-                              const explicitReadingTime = appLang === 'en' ? post.readingTimeEn : post.readingTimePl;
-                              const readingTime = explicitReadingTime || calculateReadingTime(content, appLang);
-
-                              return (
-                                <div
-                                  key={post.id}
-                                  onClick={() => handleSelectBlogPost(post)}
-                                  className="group relative border-b border-editorial-border p-6 cursor-pointer flex flex-col justify-between transition-all bg-transparent hover:bg-white/[0.03]"
-                                >
-                                  <div>
-                                    {/* Card Header stats & tags */}
-                                    <div className="flex items-center justify-between mb-3 text-editorial-muted font-mono text-[10px] uppercase tracking-wider">
-                                      <span className="font-semibold text-editorial-accent">
-                                        #{post.tags[0]?.toUpperCase()}
-                                      </span>
-                                      <div className="flex items-center gap-3">
-                                        <span className="flex items-center gap-1">
-                                          <Calendar size={11} className="text-neutral-500 shrink-0" />
-                                          <span>{post.date}</span>
-                                        </span>
-                                        <span className="flex items-center gap-1">
-                                          <Clock size={11} className="text-neutral-500 shrink-0" />
-                                          <span>{readingTime}</span>
-                                        </span>
-                                      </div>
-                                    </div>
-
-                                    {/* Title: Monospace matching RepoCard */}
-                                    <h3 className="text-base sm:text-lg font-bold font-mono text-white mb-2 group-hover:text-editorial-accent group-hover:translate-x-0.5 transition-all flex flex-wrap items-center gap-2">
-                                      <Newspaper size={16} className="text-editorial-muted group-hover:text-editorial-accent transition-colors shrink-0" />
-                                      <span>{title}</span>
-                                    </h3>
-
-                                    {/* Description */}
-                                    <p className="text-editorial-muted text-sm leading-relaxed mb-4 max-w-2xl font-mono line-clamp-4">
-                                      {excerpt}
-                                    </p>
-                                  </div>
-
-                                  {/* Footer tags & actions */}
-                                  <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-2 border-t border-editorial-border/30 font-mono text-xs text-editorial-muted">
-                                    <div className="flex items-center gap-2 flex-wrap">
-                                      {post.tags.slice(0, 3).map(tag => (
-                                        <button
-                                          key={tag}
-                                          type="button"
-                                          onClick={(e) => {
-                                            e.stopPropagation();
-                                            setSelectedBlogTag(tag);
-                                          }}
-                                          className="flex items-center gap-1.5 border border-editorial-border px-2 py-0.5 text-[10px] font-medium tracking-wide text-zinc-300 hover:border-editorial-accent hover:text-white transition-colors cursor-pointer uppercase shrink-0"
-                                        >
-                                          #{tag.toUpperCase()}
-                                        </button>
-                                      ))}
-                                    </div>
-
-                                    <button
-                                      type="button"
-                                      onClick={() => handleSelectBlogPost(post)}
-                                      className="text-editorial-accent group-hover:brightness-110 transition-all flex items-center gap-1 text-[11px] font-mono uppercase tracking-widest shrink-0 self-start sm:self-auto cursor-pointer"
-                                    >
-                                      {appLang === 'en' ? 'Read Journal →' : 'Czytaj wpis →'}
-                                    </button>
-                                  </div>
-                                </div>
-                              );
-                            })}
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+                            {groupPosts.map(post => (
+                              <BlogCard
+                                key={post.id}
+                                post={post}
+                                onSelect={handleSelectBlogPost}
+                                lang={appLang}
+                                onSelectTag={(t) => setSelectedBlogTag(t)}
+                              />
+                            ))}
                           </div>
                         </div>
                       );
                     })}
                   </div>
                 ) : (
-                  /* Standard Grid View layout matching Repos 2-column layout */
-                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                    {filteredBlogPosts.map(post => {
-                      const title = appLang === 'en' ? post.titleEn : post.titlePl;
-                      const excerpt = appLang === 'en' ? post.excerptEn : post.excerptPl;
-                      const content = appLang === 'en' ? post.contentEn : post.contentPl;
-                      const explicitReadingTime = appLang === 'en' ? post.readingTimeEn : post.readingTimePl;
-                      const readingTime = explicitReadingTime || calculateReadingTime(content, appLang);
-
-                      return (
-                        <div
-                          key={post.id}
-                          onClick={() => handleSelectBlogPost(post)}
-                          className="group relative border-b border-editorial-border p-6 cursor-pointer flex flex-col justify-between transition-all bg-transparent hover:bg-white/[0.03]"
-                        >
-                          <div>
-                            {/* Card Header stats & tags */}
-                            <div className="flex items-center justify-between mb-3 text-editorial-muted font-mono text-[10px] uppercase tracking-wider">
-                              <span className="font-semibold text-editorial-accent">
-                                #{post.tags[0]?.toUpperCase()}
-                              </span>
-                              <div className="flex items-center gap-3">
-                                <span className="flex items-center gap-1">
-                                  <Calendar size={11} className="text-neutral-500 shrink-0" />
-                                  <span>{post.date}</span>
-                                </span>
-                                <span className="flex items-center gap-1">
-                                  <Clock size={11} className="text-neutral-500 shrink-0" />
-                                  <span>{readingTime}</span>
-                                </span>
-                              </div>
-                            </div>
-
-                            {/* Title: Monospace matching RepoCard */}
-                            <h3 className="text-base sm:text-lg font-bold font-mono text-white mb-2 group-hover:text-editorial-accent group-hover:translate-x-0.5 transition-all flex flex-wrap items-center gap-2">
-                              <Newspaper size={16} className="text-editorial-muted group-hover:text-editorial-accent transition-colors shrink-0" />
-                              <span>{title}</span>
-                            </h3>
-
-                            {/* Description */}
-                            <p className="text-editorial-muted text-sm leading-relaxed mb-4 max-w-2xl font-mono line-clamp-4">
-                              {excerpt}
-                            </p>
-                          </div>
-
-                          {/* Footer tags & actions */}
-                          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between pt-2 border-t border-editorial-border/30 font-mono text-xs text-editorial-muted">
-                            <div className="flex items-center gap-2 flex-wrap">
-                              {post.tags.slice(0, 3).map(tag => (
-                                <button
-                                  key={tag}
-                                  type="button"
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    setSelectedBlogTag(tag);
-                                  }}
-                                  className="flex items-center gap-1.5 border border-editorial-border px-2 py-0.5 text-[10px] font-medium tracking-wide text-zinc-300 hover:border-editorial-accent hover:text-white transition-colors cursor-pointer uppercase shrink-0"
-                                >
-                                  #{tag.toUpperCase()}
-                                </button>
-                              ))}
-                            </div>
-
-                            <button
-                              type="button"
-                              onClick={() => handleSelectBlogPost(post)}
-                              className="text-editorial-accent group-hover:brightness-110 transition-all flex items-center gap-1 text-[11px] font-mono uppercase tracking-widest shrink-0 self-start sm:self-auto cursor-pointer"
-                            >
-                              {appLang === 'en' ? 'Read Journal →' : 'Czytaj wpis →'}
-                            </button>
-                          </div>
-                        </div>
-                      );
-                    })}
+                  /* Flat Grid view layout matching repos 2-column grid */
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+                    {filteredBlogPosts.map(post => (
+                      <BlogCard
+                        key={post.id}
+                        post={post}
+                        onSelect={handleSelectBlogPost}
+                        lang={appLang}
+                        onSelectTag={(t) => setSelectedBlogTag(t)}
+                      />
+                    ))}
                   </div>
                 )}
 

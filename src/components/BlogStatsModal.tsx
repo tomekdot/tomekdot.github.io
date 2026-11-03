@@ -577,6 +577,15 @@ export default function BlogStatsModal({
           transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
           className="relative bg-editorial-bg border-2 border-editorial-border w-[calc(100vw-1rem)] sm:w-[min(42rem,calc(100vw-4rem))] lg:w-[min(48rem,calc(100vw-6rem))] short:w-[min(56rem,calc(100vw-1rem))] h-[min(84dvh,720px)] max-h-[calc(100dvh-2rem)] short:h-[calc(100dvh-0.5rem)] short:max-h-[calc(100dvh-0.5rem)] rounded-none shadow-2xl flex flex-col overflow-hidden my-auto min-w-0 font-mono text-xs select-text"
         >
+          {/* iOS/iPhone-style pull-down handle (clean pill bar, no text) */}
+          <div 
+            className="w-full flex items-center justify-center pt-2.5 pb-2 short:pt-1 short:pb-1 bg-editorial-sidebar-bg cursor-pointer select-none shrink-0 group border-b border-editorial-border/30 touch-none"
+            onClick={onClose}
+            title={lang === 'en' ? 'Close window' : 'Zamknij okno'}
+          >
+            <div className="w-10 h-1 rounded-full bg-neutral-600 group-hover:bg-fuchsia-400 transition-colors" />
+          </div>
+
           {/* nagłówek */}
           <div className="shrink-0 px-3.5 sm:px-6 py-2.5 sm:py-4 short:py-1.5 border-b border-editorial-border bg-editorial-sidebar-bg flex items-center justify-between min-w-0">
             <div className="flex items-center gap-2.5 min-w-0 flex-1 pr-2">

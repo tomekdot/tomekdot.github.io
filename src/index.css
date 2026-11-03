@@ -131,4 +131,26 @@ input[type="range"].range-slider-thumb::-moz-range-thumb:active {
   }
 }
 
+/* Marquee / Auto-Scrolling Ping-Pong Text Animation */
+@keyframes marquee-pingpong {
+  0%, 28% {
+    transform: translateX(0px);
+  }
+  68%, 82% {
+    transform: translateX(var(--max-scroll, -40px));
+  }
+  100% {
+    transform: translateX(0px);
+  }
+}
+
+.animate-marquee-pingpong {
+  display: inline-block;
+  white-space: nowrap;
+  animation: marquee-pingpong var(--marquee-duration, 8s) ease-in-out infinite;
+  will-change: transform;
+}
+
+
+
 

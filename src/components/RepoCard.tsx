@@ -20,7 +20,7 @@ interface RepoCardProps {
 const RepoCard = React.memo(function RepoCard({ repo, onSelect, lang, compact }: RepoCardProps) {
   const primaryCatKey = repo.cat[0] || 'other';
   const catSpec = CATEGORIES[primaryCatKey] || CATEGORIES.other;
-  const catLabel = lang === 'en' ? catSpec.labelEn : catSpec.labelPl;
+  const catLabel = lang === 'en' ? (catSpec.shortLabelEn || catSpec.labelEn) : (catSpec.shortLabelPl || catSpec.labelPl);
   const displayLang = repo.lang && repo.lang.trim() !== '' ? repo.lang : 'Shell/Other';
   const langColor = LANG_COLORS[repo.lang] || LANG_COLORS[displayLang] || '#89e051';
 

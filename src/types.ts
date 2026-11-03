@@ -9,6 +9,9 @@ export interface CategorySpec {
   key: CategoryKey;
   labelEn: string;
   labelPl: string;
+  shortLabelEn?: string;
+  shortLabelPl?: string;
+  abbr?: string;
   icon: string;
   colorClass: string;
   bgClass: string;
