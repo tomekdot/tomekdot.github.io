@@ -47,7 +47,6 @@ import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { BlogPost } from '../types';
 import { BLOG_POSTS as FALLBACK_BLOG_POSTS, calculateReadingTime } from '../data';
-import AnimatedNumber from './AnimatedNumber';
 import {
   getLocalAIKey,
   getLocalAIModel,
@@ -110,7 +109,15 @@ export default function BlogStatsModal({
   const [isAiThinking, setIsAiThinking] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatContainerRef = useRef<HTMLDivElement>(null);
+  const modalBodyRef = useRef<HTMLDivElement>(null);
   const abortControllerRef = useRef<AbortController | null>(null);
+
+  // Reset scroll on tab change or modal open
+  useEffect(() => {
+    if (modalBodyRef.current) {
+      modalBodyRef.current.scrollTop = 0;
+    }
+  }, [activeTab, isOpen]);
 
   // Stop AI Generation / Analysis
   const handleStopAi = () => {
@@ -206,21 +213,13 @@ export default function BlogStatsModal({
     return postsList.find(p => p.id === selectedPostId) || postsList[0];
   }, [postsList, selectedPostId]);
 
-  // Compute Blog Metrics
+  // Compute Blog Metrics (used by index tab and footer)
   const metrics = useMemo(() => {
     const totalPosts = postsList.length;
     const allTags = Array.from(new Set(postsList.flatMap(p => p.tags)));
-    const totalWords = postsList.reduce((acc, p) => {
-      const text = (p.contentEn || '') + ' ' + (p.contentPl || '');
-      return acc + text.trim().split(/\s+/).filter(Boolean).length;
-    }, 0);
-    const totalAiRevisions = postsList.filter(p => p.aiVersionNote || p.draftVersionContent).length;
     return {
       totalPosts,
       allTags,
-      totalWords,
-      totalAiRevisions,
-      estMinutesTotal: Math.ceil(totalWords / 250)
     };
   }, [postsList]);
 
@@ -560,7 +559,7 @@ export default function BlogStatsModal({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 overflow-y-auto flex items-center justify-center p-2 sm:p-4 overscroll-contain">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-2 short:p-1 overflow-hidden overscroll-contain">
         {/* Backdrop */}
         <motion.div
           initial={{ opacity: 0 }}
@@ -576,10 +575,10 @@ export default function BlogStatsModal({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.98, y: 10 }}
           transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-          className="relative bg-editorial-bg border-2 border-editorial-border w-[calc(100vw-1rem)] sm:w-[min(42rem,calc(100vw-4rem))] lg:w-[min(48rem,calc(100vw-6rem))] h-[84svh] max-h-[calc(100svh-2rem)] xl:h-[min(720px,calc(100svh-4rem))] rounded-none shadow-2xl flex flex-col overflow-hidden my-auto min-w-0 font-mono text-xs select-text"
+          className="relative bg-editorial-bg border-2 border-editorial-border w-[calc(100vw-1rem)] sm:w-[min(42rem,calc(100vw-4rem))] lg:w-[min(48rem,calc(100vw-6rem))] short:w-[min(56rem,calc(100vw-1rem))] h-[min(84dvh,720px)] max-h-[calc(100dvh-2rem)] short:h-[calc(100dvh-0.5rem)] short:max-h-[calc(100dvh-0.5rem)] rounded-none shadow-2xl flex flex-col overflow-hidden my-auto min-w-0 font-mono text-xs select-text"
         >
           {/* nagłówek */}
-          <div className="shrink-0 px-3.5 sm:px-6 py-2.5 sm:py-4 border-b border-editorial-border bg-editorial-sidebar-bg flex items-center justify-between min-w-0">
+          <div className="shrink-0 px-3.5 sm:px-6 py-2.5 sm:py-4 short:py-1.5 border-b border-editorial-border bg-editorial-sidebar-bg flex items-center justify-between min-w-0">
             <div className="flex items-center gap-2.5 min-w-0 flex-1 pr-2">
               <div className="p-1.5 bg-[#1A1128] border border-fuchsia-500/50 text-fuchsia-400 shrink-0">
                 <FileText size={16} />
@@ -589,9 +588,6 @@ export default function BlogStatsModal({
                   <span className="text-fuchsia-400 font-bold shrink-0">@tomekdot Dev Log</span>
                   <span>•</span>
                   <span className="truncate">{lang === 'en' ? 'Journal & AI Inspector' : 'Dziennik & Inspektor AI'}</span>
-                  <span className="sm:hidden font-mono text-[8.5px] text-fuchsia-300 shrink-0">
-                    ({metrics.totalPosts} {lang === 'en' ? 'posts' : 'artyk.'} • ~{metrics.estMinutesTotal} min)
-                  </span>
                 </div>
                 <h2 className="text-sm sm:text-base font-bold font-mono text-white tracking-wide uppercase break-words leading-tight">
                   {lang === 'en' ? 'BLOG STATS & ARTICLE AI SYNTHESIS' : 'STATYSTYKI BLOGA I SYNTEZA AI'}
@@ -602,50 +598,11 @@ export default function BlogStatsModal({
             <button
               type="button"
               onClick={onClose}
-              className="w-8 h-8 sm:w-9 sm:h-9 text-rose-400 hover:text-white hover:bg-rose-950/40 rounded-none transition-all border border-rose-500/50 shrink-0 cursor-pointer flex items-center justify-center shadow-sm"
+              className="w-8 h-8 sm:w-9 sm:h-9 short:w-7 short:h-7 text-rose-400 hover:text-white hover:bg-rose-950/40 rounded-none transition-all border border-rose-500/50 shrink-0 cursor-pointer flex items-center justify-center shadow-sm"
               title={lang === 'en' ? 'Close window' : 'Zamknij okno'}
             >
               <X size={16} />
             </button>
-          </div>
-
-          {/* statystyki - ukryte na telefonie (poniżej sm) i przy małej wysokości ekranu (max-height: 620px) */}
-          <div className="hidden sm:grid shrink-0 grid-cols-4 divide-x divide-editorial-border border-b border-editorial-border bg-neutral-950/80 font-mono text-center min-w-0 max-w-full [@media(max-height:620px)]:hidden">
-            <div className="p-1.5 sm:p-2">
-              <span className="text-editorial-muted text-[8px] sm:text-[8.5px] uppercase tracking-wider block">
-                {lang === 'en' ? 'Total Articles' : 'Wszystkie Artykuły'}
-              </span>
-              <span className="text-sm sm:text-base font-black text-fuchsia-400 mt-0.5 block">
-                <AnimatedNumber value={metrics.totalPosts} />
-              </span>
-            </div>
-
-            <div className="p-1.5 sm:p-2">
-              <span className="text-editorial-muted text-[8px] sm:text-[8.5px] uppercase tracking-wider block">
-                {lang === 'en' ? 'Total Words' : 'Słowa Ogółem'}
-              </span>
-              <span className="text-sm sm:text-base font-black text-zinc-300 mt-0.5 block">
-                <AnimatedNumber value={metrics.totalWords} />
-              </span>
-            </div>
-
-            <div className="p-1.5 sm:p-2">
-              <span className="text-editorial-muted text-[8px] sm:text-[8.5px] uppercase tracking-wider block">
-                {lang === 'en' ? 'Reading Time' : 'Czas Czytania'}
-              </span>
-              <span className="text-sm sm:text-base font-black text-emerald-400 mt-0.5 block">
-                ~{metrics.estMinutesTotal} min
-              </span>
-            </div>
-
-            <div className="p-1.5 sm:p-2">
-              <span className="text-editorial-muted text-[8px] sm:text-[8.5px] uppercase tracking-wider block">
-                {lang === 'en' ? 'AI Versioning' : 'Wersje AI Draft'}
-              </span>
-              <span className="text-sm sm:text-base font-black text-cyan-400 mt-0.5 block">
-                {metrics.totalAiRevisions} / {metrics.totalPosts}
-              </span>
-            </div>
           </div>
 
           {/* zakładki: 3 równe kolumny w siatce CSS grid-cols-3, krótkie etykiety domyślnie, pełne dopiero od 2xl */}
@@ -655,7 +612,7 @@ export default function BlogStatsModal({
               id="blog_modal_tab_synthesis"
               title={lang === 'en' ? 'AI ARTICLE SYNTHESIS' : 'SYNTEZA ARTYKUŁÓW AI'}
               onClick={() => setActiveTab('synthesis')}
-              className={`min-w-0 h-10 xl:h-12 px-1 xl:px-4 flex items-center justify-center gap-1 border-b-2 text-[10px] xl:text-xs font-bold uppercase transition-all cursor-pointer ${
+              className={`min-w-0 h-10 xl:h-12 short:h-9 px-1 xl:px-4 flex items-center justify-center gap-1 border-b-2 text-[10px] xl:text-xs font-bold uppercase transition-all cursor-pointer ${
                 activeTab === 'synthesis'
                   ? 'border-fuchsia-500 text-fuchsia-300 bg-fuchsia-500/10'
                   : 'border-transparent text-editorial-muted hover:text-white'
@@ -671,7 +628,7 @@ export default function BlogStatsModal({
               id="blog_modal_tab_chat"
               title={lang === 'en' ? 'ARTICLE AI CHAT' : 'CZAT AI Z ARTYKUŁEM'}
               onClick={() => setActiveTab('interactive_chat')}
-              className={`min-w-0 h-10 xl:h-12 px-1 xl:px-4 flex items-center justify-center gap-1 border-b-2 text-[10px] xl:text-xs font-bold uppercase transition-all cursor-pointer ${
+              className={`min-w-0 h-10 xl:h-12 short:h-9 px-1 xl:px-4 flex items-center justify-center gap-1 border-b-2 text-[10px] xl:text-xs font-bold uppercase transition-all cursor-pointer ${
                 activeTab === 'interactive_chat'
                   ? 'border-cyan-400 text-cyan-300 bg-cyan-400/10'
                   : 'border-transparent text-editorial-muted hover:text-white'
@@ -687,7 +644,7 @@ export default function BlogStatsModal({
               id="blog_modal_tab_index"
               title={lang === 'en' ? 'JOURNAL INDEX' : 'INDEKS DZIENNIKA'}
               onClick={() => setActiveTab('analytics')}
-              className={`min-w-0 h-10 xl:h-12 px-1 xl:px-4 flex items-center justify-center gap-1 border-b-2 text-[10px] xl:text-xs font-bold uppercase transition-all cursor-pointer ${
+              className={`min-w-0 h-10 xl:h-12 short:h-9 px-1 xl:px-4 flex items-center justify-center gap-1 border-b-2 text-[10px] xl:text-xs font-bold uppercase transition-all cursor-pointer ${
                 activeTab === 'analytics'
                   ? 'border-editorial-accent text-editorial-accent bg-editorial-accent/10'
                   : 'border-transparent text-editorial-muted hover:text-white'
@@ -700,7 +657,10 @@ export default function BlogStatsModal({
           </div>
 
           {/* treść: jedyny element, który się przewija pionowo */}
-          <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-5 space-y-3 bg-editorial-bg min-w-0 w-full scrollbar-thin scrollbar-thumb-neutral-800">
+          <div 
+            ref={modalBodyRef}
+            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-5 short:p-2 space-y-3 short:space-y-2 bg-editorial-bg min-w-0 w-full scrollbar-thin scrollbar-thumb-neutral-800 overscroll-contain"
+          >
             {/* TAB 1: SYNTHESIS & VERSION COMPARISON */}
             {activeTab === 'synthesis' && (
               <div className="space-y-4 min-w-0">
@@ -1551,7 +1511,7 @@ export default function BlogStatsModal({
           </div>
 
           {/* stopka z przyciskami */}
-          <div className="shrink-0 border-t border-editorial-border px-3 sm:px-6 py-2.5 flex items-center justify-between gap-2 bg-editorial-sidebar-bg min-w-0 font-mono text-xs">
+          <div className="shrink-0 border-t border-editorial-border px-3 sm:px-6 py-2.5 flex items-center justify-between gap-2 bg-editorial-sidebar-bg min-w-0 font-mono text-xs short:hidden">
             <div className="hidden sm:flex text-[10px] sm:text-xs text-editorial-muted uppercase tracking-wider items-center gap-1.5 min-w-0 flex-1 truncate">
               <span className="w-2 h-2 rounded-full bg-fuchsia-400 animate-pulse shrink-0" />
               <span className="truncate">

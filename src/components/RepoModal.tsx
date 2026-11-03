@@ -396,6 +396,9 @@ export default function RepoModal({
   const [activeTab, setActiveTab] = useState<'info' | 'code' | 'ai'>('info');
   const dragControls = useDragControls();
 
+  // Mobile stat tiles collapse toggle
+  const [showStats, setShowStats] = useState(true);
+
   const startDrag = (e: React.PointerEvent) => {
     if ((e.target as HTMLElement).closest('button, a, input, select, textarea')) return;
     dragControls.start(e);
@@ -1230,7 +1233,7 @@ export default function RepoModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.16 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 overflow-hidden"
+          className="fixed inset-0 z-50 flex items-center justify-center p-2 short:p-1 overflow-hidden"
         >
           {/* Backdrop overlay */}
           <motion.div
@@ -1257,11 +1260,11 @@ export default function RepoModal({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.98, y: 10 }}
               transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-              className="relative bg-editorial-bg border-2 border-editorial-border w-[calc(100vw-1rem)] sm:w-[min(42rem,calc(100vw-4rem))] lg:w-[min(48rem,calc(100vw-6rem))] h-[84svh] max-h-[calc(100svh-2rem)] xl:h-[min(720px,calc(100svh-4rem))] rounded-none shadow-2xl flex flex-col overflow-hidden my-auto min-w-0"
+              className="relative bg-editorial-bg border-2 border-editorial-border w-[calc(100vw-1rem)] sm:w-[min(42rem,calc(100vw-4rem))] lg:w-[min(48rem,calc(100vw-6rem))] short:w-[min(56rem,calc(100vw-1rem))] h-[min(84dvh,720px)] max-h-[calc(100dvh-2rem)] short:h-[calc(100dvh-0.5rem)] short:max-h-[calc(100dvh-0.5rem)] rounded-none shadow-2xl flex flex-col overflow-hidden min-w-0 my-auto"
             >
             {/* iOS/iPhone-style pull-down handle (clean pill bar, no text) */}
             <div 
-              className="w-full flex items-center justify-center pt-2.5 pb-2 bg-editorial-sidebar-bg cursor-grab active:cursor-grabbing select-none shrink-0 group border-b border-editorial-border/30 touch-none"
+              className="w-full flex items-center justify-center pt-2.5 pb-2 short:pt-1 short:pb-1 bg-editorial-sidebar-bg cursor-grab active:cursor-grabbing select-none shrink-0 group border-b border-editorial-border/30 touch-none"
               style={{ touchAction: 'none' }}
               onPointerDown={startDrag}
               title={lang === 'en' ? 'Drag down to minimize' : 'Przeciągnij w dół, aby zminimalizować'}
@@ -1271,12 +1274,12 @@ export default function RepoModal({
 
             {/* Header Block - draggable from blank areas */}
             <div 
-              className="bg-editorial-sidebar-bg border-b border-editorial-border px-3.5 sm:px-6 py-2.5 sm:py-4 flex items-start justify-between shrink-0 select-none cursor-grab active:cursor-grabbing touch-none"
+              className="shrink-0 border-b border-editorial-border bg-editorial-sidebar-bg px-3.5 sm:px-6 py-2.5 sm:py-4 short:py-1.5 flex items-start justify-between select-none cursor-grab active:cursor-grabbing touch-none"
               style={{ touchAction: 'none' }}
               onPointerDown={startDrag}
             >
             <div className="min-w-0 flex-1 pr-2">
-              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2">
+              <div className="flex flex-wrap items-center gap-1.5 sm:gap-2 mb-1.5 sm:mb-2 short:hidden">
                 {repo.cat.map(catKey => {
                   const spec = CATEGORIES[catKey] || CATEGORIES.other;
                   return (
@@ -1293,7 +1296,7 @@ export default function RepoModal({
                 )}
               </div>
 
-              <h2 className="text-base sm:text-2xl font-bold font-mono text-white flex flex-wrap items-center gap-1.5 sm:gap-2 break-words uppercase tracking-wider leading-snug">
+              <h2 className="text-base sm:text-2xl short:text-sm font-bold font-mono text-white flex flex-wrap items-center gap-1.5 sm:gap-2 break-words uppercase tracking-wider leading-snug">
                 <span translate="no" className="notranslate">{repo.name}</span>
                 {repo.isPrivate && (
                   <span className="inline-flex items-center gap-1 bg-[#1F1111] text-rose-500 border border-rose-500/30 px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] font-mono uppercase tracking-wider font-bold shrink-0 whitespace-nowrap">
@@ -1317,7 +1320,7 @@ export default function RepoModal({
                 type="button"
                 id="minimize_modal_btn"
                 onClick={onMinimize}
-                className="w-8 h-8 sm:w-9 sm:h-9 text-cyan-400 hover:text-white hover:bg-cyan-950/40 rounded-none transition-all border border-cyan-500/50 shrink-0 cursor-pointer flex items-center justify-center shadow-sm"
+                className="w-8 h-8 sm:w-9 sm:h-9 short:w-7 short:h-7 text-cyan-400 hover:text-white hover:bg-cyan-950/40 rounded-none transition-all border border-cyan-500/50 shrink-0 cursor-pointer flex items-center justify-center shadow-sm"
                 title={lang === 'en' ? 'Minimize' : 'Zminimalizuj'}
               >
                 <Minimize2 size={16} />
@@ -1326,7 +1329,7 @@ export default function RepoModal({
                 type="button"
                 id="close_modal_btn"
                 onClick={onClose}
-                className="w-8 h-8 sm:w-9 sm:h-9 text-rose-400 hover:text-white hover:bg-rose-950/40 rounded-none transition-all border border-rose-500/50 shrink-0 cursor-pointer flex items-center justify-center shadow-sm"
+                className="w-8 h-8 sm:w-9 sm:h-9 short:w-7 short:h-7 text-rose-400 hover:text-white hover:bg-rose-950/40 rounded-none transition-all border border-rose-500/50 shrink-0 cursor-pointer flex items-center justify-center shadow-sm"
                 title={lang === 'en' ? 'Close (Esc)' : 'Zamknij (Esc)'}
               >
                 <X size={16} />
@@ -1335,7 +1338,7 @@ export default function RepoModal({
           </div>
 
           {/* Navigation Tabs - Full width segmented on mobile, all tabs clearly visible */}
-          <div className="flex border-b border-editorial-border bg-editorial-bg px-1 sm:px-6 overflow-x-auto scrollbar-none shrink-0 h-11 sm:h-12 w-full">
+          <div className="flex border-b border-editorial-border bg-editorial-bg px-1 sm:px-6 overflow-x-auto scrollbar-none shrink-0 w-full h-11 sm:h-12 short:h-9">
             <button
               type="button"
               id="tab_info_btn"
@@ -1386,42 +1389,62 @@ export default function RepoModal({
           {/* Body Content */}
           <div 
             ref={modalBodyRef}
-            className="flex-1 overflow-y-auto overflow-x-hidden p-3 sm:p-5 space-y-3 sm:space-y-4 scrollbar-thin scrollbar-thumb-neutral-800 min-w-0 w-full"
+            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain p-3 sm:p-5 short:p-2 space-y-3 sm:space-y-4 short:space-y-2 scrollbar-thin scrollbar-thumb-neutral-800 min-w-0 w-full"
           >
             {activeTab === 'info' ? (
-              <div className="space-y-6 animate-fadeIn font-sans">
-                {/* Statistics panel */}
-                {!repo.isPrivate ? (
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="bg-editorial-sidebar-bg border border-editorial-border p-3.5 rounded-none text-center">
-                      <div className="flex justify-center mb-1 text-editorial-accent">
-                        <Star size={16} />
-                      </div>
-                      <div className="text-sm font-mono font-bold text-white"><AnimatedNumber value={repo.stars} /></div>
-                      <div className="text-[10px] text-editorial-muted font-mono uppercase tracking-wider mt-0.5">Stars</div>
-                    </div>
+              <div className="space-y-3 sm:space-y-6 animate-fadeIn font-sans">
+                {/* Mobile stats collapse bar (visible only on small screens) */}
+                <div className="flex sm:hidden items-center justify-between px-3 py-1.5 border border-editorial-border bg-editorial-sidebar-bg shrink-0">
+                  <span className="text-[10px] font-mono uppercase text-editorial-muted tracking-wider">
+                    {lang === 'en' ? 'Repository Stats' : 'Statystyki Repozytorium'}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setShowStats(v => !v)}
+                    className="text-[10px] font-mono uppercase text-editorial-accent hover:text-white cursor-pointer px-2 py-0.5 border border-editorial-accent/40 bg-editorial-accent/10 transition-colors"
+                  >
+                    {showStats ? (lang === 'en' ? 'Hide ▲' : 'Zwiń ▲') : (lang === 'en' ? 'Show ▼' : 'Pokaż ▼')}
+                  </button>
+                </div>
 
-                    <div className="bg-editorial-sidebar-bg border border-editorial-border p-3.5 rounded-none text-center">
-                      <div className="flex justify-center mb-1 text-editorial-accent">
-                        <Code size={16} />
+                {/* Statistics panel - collapsible on mobile via showStats, always visible on desktop */}
+                <div className={`grid transition-[grid-template-rows,opacity] duration-200 sm:!grid-rows-[1fr] sm:!opacity-100 ${
+                  showStats ? 'grid-rows-[1fr] opacity-100' : 'grid-rows-[0fr] opacity-0'
+                }`}>
+                  <div className="overflow-hidden">
+                    {!repo.isPrivate ? (
+                      <div className="grid grid-cols-2 gap-2 sm:gap-4 pb-0.5">
+                        <div className="bg-editorial-sidebar-bg border border-editorial-border p-2.5 sm:p-3.5 short:p-1.5 rounded-none text-center">
+                          <div className="flex justify-center mb-1 short:hidden text-editorial-accent">
+                            <Star size={16} />
+                          </div>
+                          <div className="text-sm font-mono font-bold text-white"><AnimatedNumber value={repo.stars} /></div>
+                          <div className="text-[10px] text-editorial-muted font-mono uppercase tracking-wider mt-0.5">Stars</div>
+                        </div>
+
+                        <div className="bg-editorial-sidebar-bg border border-editorial-border p-2.5 sm:p-3.5 short:p-1.5 rounded-none text-center">
+                          <div className="flex justify-center mb-1 short:hidden text-editorial-accent">
+                            <Code size={16} />
+                          </div>
+                          <div className="text-sm font-mono font-bold text-white"><AnimatedNumber value={repo.commitsCount || 0} /></div>
+                          <div className="text-[10px] text-editorial-muted font-mono uppercase tracking-wider mt-0.5 font-bold">Commits</div>
+                        </div>
                       </div>
-                      <div className="text-sm font-mono font-bold text-white"><AnimatedNumber value={repo.commitsCount || 0} /></div>
-                      <div className="text-[10px] text-editorial-muted font-mono uppercase tracking-wider mt-0.5 font-bold">Commits</div>
-                    </div>
+                    ) : (
+                      <div className="bg-neutral-950/60 border border-rose-900/50 p-4 sm:p-5 rounded-none text-center flex flex-col items-center justify-center space-y-1.5 pb-0.5">
+                        <Lock size={18} className="text-rose-500 mb-0.5" />
+                        <div className="text-xs font-mono font-bold uppercase tracking-wider text-rose-400">
+                          {lang === 'en' ? 'Private Repository' : 'Prywatne Repozytorium'}
+                        </div>
+                        <div className="text-[11px] text-editorial-muted font-mono max-w-md leading-relaxed">
+                          {lang === 'en' 
+                            ? 'Source code, repository commits, and README.md documentation are kept private and restricted.' 
+                            : 'Kod źródłowy, commity oraz dokumentacja README.md są prywatne i niedostępne publicznie.'}
+                        </div>
+                      </div>
+                    )}
                   </div>
-                ) : (
-                  <div className="bg-neutral-950/60 border border-rose-900/50 p-5 rounded-none text-center flex flex-col items-center justify-center space-y-2">
-                    <Lock size={20} className="text-rose-500 mb-0.5" />
-                    <div className="text-xs font-mono font-bold uppercase tracking-wider text-rose-400">
-                      {lang === 'en' ? 'Private Repository' : 'Prywatne Repozytorium'}
-                    </div>
-                    <div className="text-[11px] text-editorial-muted font-mono max-w-md leading-relaxed">
-                      {lang === 'en' 
-                        ? 'Source code, repository commits, and README.md documentation are kept private and restricted.' 
-                        : 'Kod źródłowy, commity oraz dokumentacja README.md są prywatne i niedostępne publicznie.'}
-                    </div>
-                  </div>
-                )}
+                </div>
 
                 {/* Narrative Detail / Archival Summary */}
                 <div className="space-y-2">
@@ -1440,8 +1463,8 @@ export default function RepoModal({
                       </span>
                     )}
                   </div>
-                  <div className="p-4 rounded-none bg-editorial-sidebar-bg border border-editorial-border space-y-2.5">
-                    <p className="text-sm leading-relaxed text-editorial-text font-serif italic">
+                  <div className="p-3 sm:p-4 rounded-none bg-editorial-sidebar-bg border border-editorial-border space-y-2.5">
+                    <p className="text-[13px] sm:text-sm leading-relaxed text-editorial-text font-serif italic">
                       {(() => {
                         const raw = lang === 'en' 
                           ? (repo.longDescEn || repo.desc || '') 
@@ -1482,7 +1505,7 @@ export default function RepoModal({
 
                 {/* Plugin Technical Specification Banner for PyPlanet / Openplanet plugins (Public repos only) */}
                 {!repo.isPrivate && (repo.cat.includes('pyplanet') || repo.cat.includes('openplanet')) && !repo.cat.includes('kul') && (
-                  <div className="p-3.5 bg-[#0e0c08] border border-editorial-accent/40 space-y-2">
+                  <div className="p-3 sm:p-3.5 bg-[#0e0c08] border border-editorial-accent/40 space-y-2">
                     <div className="flex items-center justify-between border-b border-editorial-accent/20 pb-1.5">
                       <div className="flex items-center gap-2">
                         <span className="p-1 bg-editorial-accent/10 border border-editorial-accent/40 text-editorial-accent">
@@ -2311,7 +2334,7 @@ export default function RepoModal({
                 {/* Chat conversation history window */}
                 <div 
                   ref={chatMessagesContainerRef}
-                  className="bg-neutral-950 border border-editorial-border p-3 sm:p-4 min-h-[160px] sm:min-h-[220px] max-h-[360px] overflow-y-auto space-y-3 sm:space-y-3.5 scrollbar-thin scrollbar-thumb-neutral-800"
+                  className="bg-neutral-950 border border-editorial-border p-3 sm:p-4 short:p-2 min-h-[160px] sm:min-h-[220px] short:min-h-[120px] max-h-[360px] short:max-h-[45dvh] overflow-y-auto space-y-3 sm:space-y-3.5 short:space-y-2 scrollbar-thin scrollbar-thumb-neutral-800"
                 >
                   {chatMessages.map((msg, index) => (
                     <div
@@ -2433,7 +2456,7 @@ export default function RepoModal({
           </div>
 
           {/* Actions / Buttons Footer */}
-          <div className="bg-editorial-sidebar-bg border-t border-editorial-border px-6 py-4.5 flex flex-wrap items-center justify-between gap-3 font-medium">
+          <div className="shrink-0 bg-editorial-sidebar-bg border-t border-editorial-border px-3.5 sm:px-6 py-2.5 sm:py-3.5 flex flex-wrap items-center justify-between gap-2.5 font-medium min-w-0 short:hidden">
             <div className="text-xs text-editorial-muted font-mono uppercase tracking-wider">
               {repo.isPrivate ? (
                 lang === 'en' ? '🔒 Private Archive' : '🔒 Prywatne Archiwum'

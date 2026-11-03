@@ -2269,7 +2269,13 @@ export default function App() {
             />
           </div>
           <div className="shrink-0">
-            <TerminalConsole onSelectCategory={(cat) => setSelectedCategory(cat as any)} lang={appLang} repos={reposList} isModalOpen={isAnyModalOpen} />
+            <TerminalConsole 
+              onSelectCategory={(cat) => setSelectedCategory(cat as any)} 
+              lang={appLang} 
+              repos={reposList} 
+              isModalOpen={isAnyModalOpen} 
+              onOpenRepo={handleSelectRepo}
+            />
           </div>
         </div>
       </div>
