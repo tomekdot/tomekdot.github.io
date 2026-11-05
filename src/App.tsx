@@ -1231,9 +1231,9 @@ export default function App() {
                   <div className="p-1 bg-[#1D170E] border border-editorial-accent/50 text-editorial-accent shrink-0">
                     <Sparkles size={12} />
                   </div>
-                  <h3 className="text-[11.5px] sm:text-xs font-bold uppercase font-mono text-editorial-accent tracking-wide whitespace-nowrap">
+                  <h2 className="text-[11.5px] sm:text-xs font-bold uppercase font-mono text-editorial-accent tracking-wide whitespace-nowrap">
                     {appLang === 'en' ? 'Developer Stats' : 'Statystyki Twórcy'}
-                  </h3>
+                  </h2>
                 </div>
                 <span className="text-[8.5px] font-mono font-bold uppercase px-1.5 py-0.5 bg-neutral-900 border border-editorial-border text-editorial-muted shrink-0 ml-1">
                   @tomekdot
@@ -1409,9 +1409,9 @@ export default function App() {
                   <div className="p-1 bg-[#1D170E] border border-editorial-accent/50 text-editorial-accent shrink-0">
                     <Sparkles size={12} />
                   </div>
-                  <h3 className="text-[11.5px] sm:text-xs font-bold uppercase font-mono text-editorial-accent tracking-wide whitespace-nowrap">
+                  <h2 className="text-[11.5px] sm:text-xs font-bold uppercase font-mono text-editorial-accent tracking-wide whitespace-nowrap">
                     {appLang === 'en' ? 'Journal Stats' : 'Statystyki Bloga'}
-                  </h3>
+                  </h2>
                 </div>
                 <span className="text-[8.5px] font-mono font-bold uppercase px-1.5 py-0.5 bg-neutral-900 border border-editorial-border text-editorial-muted shrink-0 ml-1">
                   DEV LOG
@@ -1622,10 +1622,14 @@ export default function App() {
 
                     {/* Language Droplist */}
                     <div className="relative flex items-center min-w-0">
+                      <label htmlFor="language_filter_select" className="sr-only">
+                        {appLang === 'en' ? 'Filter repositories by language' : 'Filtruj repozytoria według języka'}
+                      </label>
                       <select
                         id="language_filter_select"
                         value={filterLang}
                         onChange={(e) => setFilterLang(e.target.value)}
+                        aria-label={appLang === 'en' ? 'Filter repositories by programming language' : 'Filtruj repozytoria według języka programowania'}
                         translate="no"
                         className="w-full bg-editorial-sidebar-bg border border-editorial-border text-[10.5px] sm:text-xs text-white font-mono py-1.5 pl-2 sm:pl-3 pr-5 sm:pr-7 rounded-none focus:border-editorial-accent focus:outline-none transition-colors notranslate appearance-none cursor-pointer truncate"
                       >
@@ -1645,10 +1649,14 @@ export default function App() {
 
                     {/* Sorting selection dropdown */}
                     <div className="relative flex items-center min-w-0">
+                      <label htmlFor="sort_filter_select" className="sr-only">
+                        {appLang === 'en' ? 'Sort repositories' : 'Sortuj repozytoria'}
+                      </label>
                       <select
                         id="sort_filter_select"
                         value={sortBy}
                         onChange={(e) => setSortBy(e.target.value as any)}
+                        aria-label={appLang === 'en' ? 'Sort repositories' : 'Sortuj repozytoria'}
                         className="w-full bg-editorial-sidebar-bg border border-editorial-border text-[10.5px] sm:text-xs text-white font-mono py-1.5 pl-2 sm:pl-3 pr-5 sm:pr-7 rounded-none focus:border-editorial-accent focus:outline-none transition-colors appearance-none cursor-pointer truncate"
                       >
                         <option value="stars">{appLang === 'en' ? '★ STARS' : '★ GWIAZDKI'}</option>
@@ -1947,10 +1955,14 @@ export default function App() {
                   <div className="grid grid-cols-2 gap-1.5 sm:flex sm:flex-wrap sm:items-center sm:gap-2 w-full sm:w-auto">
                     {/* Tag filter dropdown - styled identical to Repos Language Droplist */}
                     <div className="relative flex items-center min-w-0">
+                      <label htmlFor="blog_tag_filter_select" className="sr-only">
+                        {appLang === 'en' ? 'Filter blog posts by tag' : 'Filtruj wpisy bloga według tagu'}
+                      </label>
                       <select
                         id="blog_tag_filter_select"
                         value={selectedBlogTag}
                         onChange={(e) => setSelectedBlogTag(e.target.value)}
+                        aria-label={appLang === 'en' ? 'Filter blog posts by tag' : 'Filtruj wpisy bloga według tagu'}
                         className="w-full bg-editorial-sidebar-bg border border-editorial-border text-[10.5px] sm:text-xs text-white font-mono py-1.5 pl-2 sm:pl-3 pr-5 sm:pr-7 rounded-none focus:border-editorial-accent focus:outline-none transition-colors appearance-none cursor-pointer uppercase truncate"
                       >
                         <option value="all">{appLang === 'en' ? 'ALL TAGS' : 'WSZYSTKIE'}</option>
@@ -1965,10 +1977,14 @@ export default function App() {
 
                     {/* Sort dropdown - styled identical to Repos Sort Droplist */}
                     <div className="relative flex items-center min-w-0">
+                      <label htmlFor="blog_sort_filter_select" className="sr-only">
+                        {appLang === 'en' ? 'Sort blog posts' : 'Sortuj wpisy bloga'}
+                      </label>
                       <select
                         id="blog_sort_filter_select"
                         value={blogSortBy}
                         onChange={(e) => setBlogSortBy(e.target.value as any)}
+                        aria-label={appLang === 'en' ? 'Sort blog posts' : 'Sortuj wpisy bloga'}
                         className="w-full bg-editorial-sidebar-bg border border-editorial-border text-[10.5px] sm:text-xs text-white font-mono py-1.5 pl-2 sm:pl-3 pr-5 sm:pr-7 rounded-none focus:border-editorial-accent focus:outline-none transition-colors appearance-none cursor-pointer uppercase truncate"
                       >
                         <option value="latest">{appLang === 'en' ? '🕒 NEWEST' : '🕒 NAJNOWSZE'}</option>

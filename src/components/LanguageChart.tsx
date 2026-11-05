@@ -49,9 +49,9 @@ export default function LanguageChart({ repos, lang, selectedLang, onSelectLang 
       {/* Header with Title and Language Filter Reset */}
       <div className="flex flex-wrap items-center justify-between gap-1.5 mb-2 sm:mb-2.5">
         <div className="flex items-center gap-2">
-          <h3 className="text-white font-mono text-[11px] sm:text-xs font-bold tracking-widest uppercase flex items-center gap-1.5">
+          <h2 className="text-white font-mono text-[11px] sm:text-xs font-bold tracking-widest uppercase flex items-center gap-1.5">
             <span>{lang === 'en' ? 'Languages Breakdown' : 'Podział Języków Programowania'}</span>
-          </h3>
+          </h2>
           <span className="text-[9px] sm:text-[10px] text-editorial-muted font-mono uppercase tracking-wider hidden md:inline">
             ({lang === 'en' ? 'Click language button to filter' : 'Kliknij przycisk języka, aby przefiltrować'})
           </span>
@@ -75,6 +75,7 @@ export default function LanguageChart({ repos, lang, selectedLang, onSelectLang 
               onClick={() => onSelectLang && onSelectLang('all')}
               className="text-[10px] font-mono font-bold text-rose-400 hover:text-white bg-rose-950/40 hover:bg-rose-900/60 border border-rose-800/60 px-2 py-0.5 flex items-center gap-1 cursor-pointer transition-colors"
               title={lang === 'en' ? 'Clear language filter' : 'Wyczyść filtr języka'}
+              aria-label={lang === 'en' ? 'Clear language filter' : 'Wyczyść filtr języka'}
             >
               <X size={11} />
               <span>{lang === 'en' ? 'Show All Languages' : 'Pokaż wszystkie'}</span>
@@ -89,7 +90,7 @@ export default function LanguageChart({ repos, lang, selectedLang, onSelectLang 
 
       {/* Modern Interactive Continuous Bar Spectrum */}
       <div 
-        className="w-full h-2 sm:h-2.5 overflow-hidden flex bg-neutral-900 mb-2 sm:mb-2.5 rounded-none border border-editorial-border/40 shadow-inner"
+        className="w-full h-3 sm:h-3.5 overflow-hidden flex bg-neutral-900 mb-2 sm:mb-2.5 rounded-none border border-editorial-border/40 shadow-inner"
         role="group"
         aria-label={lang === 'en' ? 'Language spectrum bar' : 'Pasek spektrum języków'}
       >
@@ -108,11 +109,8 @@ export default function LanguageChart({ repos, lang, selectedLang, onSelectLang 
               className={`h-full transition-all duration-200 cursor-pointer focus:outline-none hover:brightness-125 ${
                 isDimmed ? 'opacity-30 hover:opacity-85' : 'opacity-100 hover:scale-y-110'
               }`}
-              title={`${displayName}: ${stat.percentage}% (${stat.count} ${stat.count === 1 ? 'repo' : 'repos'}) — ${
-                isSelected 
-                  ? (lang === 'en' ? 'Click to deselect' : 'Kliknij, aby odznaczyć') 
-                  : (lang === 'en' ? 'Click to filter' : 'Kliknij, aby przefiltrować')
-              }`}
+              title={`${displayName}: ${stat.percentage}% (${stat.count} ${stat.count === 1 ? 'repo' : 'repos'})`}
+              aria-label={`${displayName}: ${stat.percentage}% (${stat.count} ${stat.count === 1 ? 'repo' : 'repos'})`}
             />
           );
         })}
@@ -131,13 +129,14 @@ export default function LanguageChart({ repos, lang, selectedLang, onSelectLang 
               type="button"
               key={stat.name}
               onClick={() => onSelectLang && onSelectLang(isSelected ? 'all' : stat.name)}
-              className={`group flex flex-col justify-between p-2 sm:p-2.5 text-left transition-all duration-150 cursor-pointer rounded-none border focus:outline-none ${
+              className={`group flex flex-col justify-between p-2 sm:p-2.5 min-h-[44px] text-left transition-all duration-150 cursor-pointer rounded-none border focus:outline-none ${
                 isSelected
                   ? 'border-editorial-accent bg-editorial-accent/15 shadow-[0_0_12px_rgba(230,175,46,0.25)] ring-1 ring-editorial-accent scale-[1.02]'
                   : isDimmed
                     ? 'border-editorial-border/40 bg-neutral-950/20 opacity-60 hover:opacity-100 hover:border-editorial-accent/60 hover:bg-neutral-900/60'
                     : 'border-editorial-border bg-neutral-950/40 hover:border-editorial-accent/60 hover:bg-neutral-900/70 hover:shadow-sm'
               }`}
+              aria-label={`${displayName}: ${stat.percentage}%, ${stat.count} ${stat.count === 1 ? 'repo' : 'repos'}`}
               title={
                 isSelected 
                   ? (lang === 'en' ? `Active filter: ${displayName}. Click to clear filter.` : `Aktywny filtr: ${displayName}. Kliknij, aby wyczyścić filtr.`)
