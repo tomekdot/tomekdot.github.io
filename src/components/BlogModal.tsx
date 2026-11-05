@@ -34,7 +34,7 @@ export default function BlogModal({
   const post = inputPost ?? lastPostRef.current;
   const isOpen = Boolean(inputPost);
 
-  const [isTitleExpanded, setIsTitleExpanded] = useState(false);
+  const [isShortTitleExpanded, setIsShortTitleExpanded] = useState(false);
   const dragControls = useDragControls();
   const modalBodyRef = useRef<HTMLDivElement>(null);
 
@@ -58,12 +58,12 @@ export default function BlogModal({
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [onClose]);
 
-  // Scroll to top and reset title expansion when opening an article
+  // Scroll to top and reset short title expansion when opening an article
   useEffect(() => {
     if (modalBodyRef.current) {
       modalBodyRef.current.scrollTop = 0;
     }
-    setIsTitleExpanded(false);
+    setIsShortTitleExpanded(false);
   }, [post?.id, isOpen]);
 
   if (!post) return null;
@@ -185,78 +185,96 @@ export default function BlogModal({
             {/* Header Block - draggable from blank areas */}
             <div 
               className={`shrink-0 border-b border-editorial-border bg-editorial-sidebar-bg px-3.5 sm:px-6 transition-all duration-200 flex items-start justify-between select-none cursor-grab active:cursor-grabbing touch-none ${
-                isTitleExpanded ? 'py-2.5 sm:py-4 short:py-2.5' : 'py-2.5 sm:py-4 short:py-2'
+                isShortTitleExpanded ? 'py-2.5 sm:py-4 short:py-2.5' : 'py-2.5 sm:py-4 short:py-2'
               }`}
               style={{ touchAction: 'none' }}
               onPointerDown={startDrag}
             >
-            <div className={`min-w-0 flex-1 pr-2 ${
-              isTitleExpanded 
-                ? 'flex flex-col items-start gap-1 sm:gap-1.5' 
-                : 'short:flex short:items-center short:gap-2.5 short:overflow-hidden'
-            }`}>
-              <div className={`flex flex-wrap items-center gap-1.5 font-mono text-[9px] text-editorial-muted uppercase tracking-wider ${
-                isTitleExpanded 
-                  ? 'order-2 mt-1' 
-                  : 'mb-1.5 sm:mb-2 short:order-2 short:mb-0 short:flex-nowrap short:overflow-hidden short:shrink'
+              <div className={`min-w-0 flex-1 pr-2 flex flex-col items-start gap-1 sm:gap-1.5 ${
+                isShortTitleExpanded
+                  ? 'short:flex-col short:items-start short:gap-1.5'
+                  : 'short:flex-row short:items-center short:gap-2.5 short:overflow-hidden'
               }`}>
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-neutral-950 border border-editorial-border text-zinc-300 font-semibold whitespace-nowrap shrink-0">
-                  <Calendar size={10} className="text-editorial-accent shrink-0" />
-                  {post.date}
-                </span>
-                <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-neutral-950 border border-editorial-border text-editorial-muted font-semibold whitespace-nowrap shrink-0">
-                  <Clock size={10} className="text-editorial-accent shrink-0" />
-                  {readingTime}
-                </span>
-                {isTitleExpanded && (
-                  <button
-                    type="button"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setIsTitleExpanded(false);
-                    }}
-                    className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-cyan-950/60 border border-cyan-500/40 text-cyan-400 text-[9px] font-mono uppercase hover:bg-cyan-900/80 transition-colors cursor-pointer shrink-0"
-                    title={lang === 'en' ? 'Collapse title' : 'Zwiń tytuł'}
-                  >
-                    <span>▲ {lang === 'en' ? 'COLLAPSE' : 'ZWIŃ'}</span>
-                  </button>
-                )}
-              </div>
-
-              {/* Title element with click-to-expand */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsTitleExpanded(prev => !prev);
-                }}
-                className={`text-left group/title focus:outline-none cursor-pointer w-full transition-all ${
-                  isTitleExpanded 
-                    ? 'order-1' 
-                    : 'short:order-1 short:flex short:items-center short:flex-nowrap short:shrink short:max-w-[70%]'
-                }`}
-                title={isTitleExpanded 
-                  ? (lang === 'en' ? 'Click to collapse title' : 'Kliknij, aby zwinąć tytuł')
-                  : (lang === 'en' ? 'Click to show full title' : 'Kliknij, aby rozwinąć cały tytuł')
-                }
-              >
-                <h2 className={`font-bold font-mono text-white uppercase tracking-wider transition-colors group-hover/title:text-cyan-300 flex items-center ${
-                  isTitleExpanded
-                    ? 'text-base sm:text-2xl break-words leading-snug whitespace-normal'
-                    : 'text-base sm:text-2xl break-words pr-2 sm:pr-4 leading-snug short:text-sm sm:short:text-base short:truncate'
+                {/* Metadata badge row (Date, Reading Time, and Collapse button on short screens) */}
+                <div className={`flex flex-wrap items-center gap-1.5 font-mono text-[9px] text-editorial-muted uppercase tracking-wider mb-0.5 sm:mb-1 ${
+                  isShortTitleExpanded
+                    ? 'short:order-2 short:mb-0 short:flex-wrap short:gap-1.5'
+                    : 'short:order-2 short:mb-0 short:flex-nowrap short:overflow-hidden short:shrink short:gap-1.5'
                 }`}>
-                  <span className={!isTitleExpanded ? 'short:truncate' : ''}>{title}</span>
-                  {!isTitleExpanded && (
-                    <span 
-                      className="hidden short:inline-flex items-center gap-0.5 ml-1.5 text-[9px] text-cyan-400 font-mono font-normal border border-cyan-500/30 px-1 py-0.2 bg-cyan-950/40 group-hover/title:border-cyan-400 group-hover/title:bg-cyan-900/60 align-middle shrink-0"
-                      title={lang === 'en' ? 'Expand full title' : 'Rozwiń pełny tytuł'}
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-neutral-950 border border-editorial-border text-zinc-300 font-semibold whitespace-nowrap shrink-0">
+                    <Calendar size={10} className="text-editorial-accent shrink-0" />
+                    {post.date}
+                  </span>
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-neutral-950 border border-editorial-border text-editorial-muted font-semibold whitespace-nowrap shrink-0">
+                    <Clock size={10} className="text-editorial-accent shrink-0" />
+                    {readingTime}
+                  </span>
+                  {/* Collapse button: only displayed on short screens when title is expanded */}
+                  {isShortTitleExpanded && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsShortTitleExpanded(false);
+                      }}
+                      className="hidden short:inline-flex items-center gap-1 px-1.5 py-0.5 bg-cyan-950/80 border border-cyan-400 text-cyan-300 text-[9px] font-mono uppercase hover:bg-cyan-900 transition-colors cursor-pointer shrink-0 shadow-sm"
+                      title={lang === 'en' ? 'Collapse title' : 'Zwiń tytuł'}
                     >
-                      ▼ {lang === 'en' ? 'FULL' : 'CAŁOŚĆ'}
-                    </span>
+                      <span>▲ {lang === 'en' ? 'COLLAPSE' : 'ZWIŃ'}</span>
+                    </button>
                   )}
-                </h2>
-              </button>
-            </div>
+                </div>
+
+                {/* Title element: clickable to expand ONLY on short screens */}
+                <div 
+                  className={`w-full min-w-0 ${
+                    isShortTitleExpanded
+                      ? 'short:order-1 short:w-full'
+                      : 'short:order-1 short:shrink short:max-w-[70%]'
+                  }`}
+                  onPointerDown={(e) => e.stopPropagation()}
+                >
+                  <div
+                    onClick={(e) => {
+                      if (window.matchMedia('(max-height: 520px)').matches) {
+                        e.stopPropagation();
+                        setIsShortTitleExpanded(prev => !prev);
+                      }
+                    }}
+                    className={`text-left w-full ${
+                      isShortTitleExpanded
+                        ? 'short:cursor-pointer'
+                        : 'short:cursor-pointer short:flex short:items-center short:gap-1.5 short:min-w-0'
+                    } cursor-text select-text`}
+                    title={
+                      isShortTitleExpanded
+                        ? (lang === 'en' ? 'Click to collapse title' : 'Kliknij, aby zwinąć tytuł')
+                        : (lang === 'en' ? 'Click to expand title' : 'Kliknij, aby rozwinąć tytuł')
+                    }
+                  >
+                    <h2 className={`font-bold font-mono text-white uppercase tracking-wider text-base sm:text-2xl break-words leading-snug ${
+                      isShortTitleExpanded
+                        ? 'short:text-xs sm:short:text-sm short:break-words short:whitespace-normal'
+                        : 'short:text-sm sm:short:text-base short:truncate'
+                    }`}>
+                      <span className={!isShortTitleExpanded ? 'short:truncate' : ''}>{title}</span>
+                    </h2>
+                    {!isShortTitleExpanded && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setIsShortTitleExpanded(true);
+                        }}
+                        className="hidden short:inline-flex items-center gap-0.5 ml-1 text-[9px] text-cyan-400 font-mono font-normal border border-cyan-500/30 px-1 py-0.2 bg-cyan-950/40 hover:border-cyan-400 hover:bg-cyan-900/60 align-middle shrink-0 cursor-pointer"
+                        title={lang === 'en' ? 'Expand full title' : 'Rozwiń pełny tytuł'}
+                      >
+                        ▼ {lang === 'en' ? 'FULL' : 'CAŁOŚĆ'}
+                      </button>
+                    )}
+                  </div>
+                </div>
+              </div>
 
             <div className="flex items-center gap-1.5 shrink-0">
               <button

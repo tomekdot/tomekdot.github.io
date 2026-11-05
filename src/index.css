@@ -151,6 +151,27 @@ input[type="range"].range-slider-thumb::-moz-range-thumb:active {
   will-change: transform;
 }
 
+/* GPU-accelerated rotation for Galaxy Constellation Solar Core */
+@keyframes galaxy-spin-cw {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes galaxy-spin-ccw {
+  to { transform: rotate(-360deg); }
+}
+
+.galaxy-spin-cw {
+  animation: galaxy-spin-cw 30s linear infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
+.galaxy-spin-ccw {
+  animation: galaxy-spin-ccw 20s linear infinite;
+  transform-box: fill-box;
+  transform-origin: center;
+}
+
 
 
 

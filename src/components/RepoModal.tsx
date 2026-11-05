@@ -441,7 +441,7 @@ export default function RepoModal({
   // Dynamic README
   const [readmeContent, setReadmeContent] = useState<string | null>(null);
   const [isLoadingReadme, setIsLoadingReadme] = useState(false);
-  const [isTitleExpanded, setIsTitleExpanded] = useState(false);
+  const [isShortTitleExpanded, setIsShortTitleExpanded] = useState(false);
   
   // Local API Key & Universal Model Configuration State
   const [localApiKey, setLocalApiKey] = useState<string>('');
@@ -590,7 +590,7 @@ export default function RepoModal({
   // Sync descriptions and AI chat welcome when repo changes
   useEffect(() => {
     if (repo) {
-      setIsTitleExpanded(false);
+      setIsShortTitleExpanded(false);
       setCustomDescPl(repo.longDescPl || repo.descPl || repo.desc || '');
       setCustomDescEn(repo.longDescEn || repo.desc || '');
       setSummaryError(null);
@@ -1309,34 +1309,35 @@ export default function RepoModal({
             {/* Header Block - draggable from blank areas */}
             <div 
               className={`shrink-0 border-b border-editorial-border bg-editorial-sidebar-bg px-3.5 sm:px-6 transition-all duration-200 flex items-start justify-between select-none cursor-grab active:cursor-grabbing touch-none ${
-                isTitleExpanded ? 'py-2.5 sm:py-4 short:py-2.5' : 'py-2.5 sm:py-4 short:py-2'
+                isShortTitleExpanded ? 'py-2.5 sm:py-4 short:py-2.5' : 'py-2.5 sm:py-4 short:py-2'
               }`}
               style={{ touchAction: 'none' }}
               onPointerDown={startDrag}
             >
-            <div className={`min-w-0 flex-1 pr-2 ${
-              isTitleExpanded
-                ? 'flex flex-col items-start gap-1 sm:gap-1.5'
-                : 'short:flex short:items-center short:gap-2.5 sm:short:gap-3 short:overflow-hidden'
+            <div className={`min-w-0 flex-1 pr-2 flex flex-col items-start gap-1 sm:gap-1.5 ${
+              isShortTitleExpanded
+                ? 'short:flex-col short:items-start short:gap-1.5'
+                : 'short:flex-row short:items-center short:gap-2.5 sm:short:gap-3 short:overflow-hidden'
             }`}>
-              <div className={`flex flex-wrap items-center gap-1.5 sm:gap-2 ${
-                isTitleExpanded
-                  ? 'order-2 mt-1'
-                  : 'mb-1.5 sm:mb-2 short:order-2 short:mb-0 short:flex-nowrap short:overflow-hidden short:shrink short:gap-1.5'
+              <div className={`flex flex-wrap items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-1 ${
+                isShortTitleExpanded
+                  ? 'short:order-2 short:mb-0 short:flex-wrap short:gap-1.5'
+                  : 'short:order-2 short:mb-0 short:flex-nowrap short:overflow-hidden short:shrink short:gap-1.5'
               }`}>
                 {repo.cat.map(catKey => {
                   const spec = CATEGORIES[catKey] || CATEGORIES.other;
+                  const catLabelText = lang === 'en' ? (spec.shortLabelEn || spec.labelEn) : (spec.shortLabelPl || spec.labelPl);
                   return (
                     <span 
                       key={catKey} 
                       title={lang === 'en' ? spec.labelEn : spec.labelPl}
                       className="inline-flex items-center text-[9px] sm:text-[10px] uppercase tracking-wider font-bold text-editorial-accent bg-[#1D170E] px-1.5 sm:px-2 py-0.5 border border-editorial-accent/30 font-mono whitespace-nowrap shrink-0"
                     >
-                      <span className="hidden short:inline">
+                      <span className="hidden short:inline font-mono uppercase">
                         {spec.abbr || spec.key.toUpperCase()}
                       </span>
-                      <span className="short:hidden">
-                        {lang === 'en' ? (spec.shortLabelEn || spec.labelEn) : (spec.shortLabelPl || spec.labelPl)}
+                      <span className="short:hidden font-mono uppercase">
+                        {catLabelText.toUpperCase()}
                       </span>
                     </span>
                   );
@@ -1345,21 +1346,22 @@ export default function RepoModal({
                   <span 
                     translate="no" 
                     title={repo.lang}
-                    className="inline-flex items-center gap-1 px-1.5 sm:px-2 py-0.5 border border-editorial-border text-editorial-muted text-[9px] sm:text-[10px] font-mono notranslate whitespace-nowrap shrink-0"
+                    className="inline-flex items-center gap-1.5 px-1.5 sm:px-2 py-0.5 border border-editorial-border text-editorial-muted text-[9px] sm:text-[10px] font-mono notranslate uppercase font-bold tracking-wider whitespace-nowrap shrink-0"
                   >
                     <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: langColor }} />
-                    <span className="hidden short:inline">{getShortLang(repo.lang)}</span>
-                    <span className="short:hidden">{repo.lang}</span>
+                    <span className="hidden short:inline font-mono uppercase">{getShortLang(repo.lang)}</span>
+                    <span className="short:hidden font-mono uppercase">{repo.lang.toUpperCase()}</span>
                   </span>
                 )}
-                {isTitleExpanded && (
+                {/* Collapse button: only displayed on short screens when title is expanded */}
+                {isShortTitleExpanded && (
                   <button
                     type="button"
                     onClick={(e) => {
                       e.stopPropagation();
-                      setIsTitleExpanded(false);
+                      setIsShortTitleExpanded(false);
                     }}
-                    className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-cyan-950/60 border border-cyan-500/40 text-cyan-400 text-[9px] font-mono uppercase hover:bg-cyan-900/80 transition-colors cursor-pointer shrink-0"
+                    className="hidden short:inline-flex items-center gap-1 px-1.5 py-0.5 bg-cyan-950/80 border border-cyan-400 text-cyan-300 text-[9px] font-mono uppercase hover:bg-cyan-900 transition-colors cursor-pointer shrink-0 shadow-sm"
                     title={lang === 'en' ? 'Collapse title' : 'Zwiń nazwę'}
                   >
                     <span>▲ {lang === 'en' ? 'COLLAPSE' : 'ZWIŃ'}</span>
@@ -1367,57 +1369,73 @@ export default function RepoModal({
                 )}
               </div>
 
-              {/* Repo Title with click to expand toggle */}
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setIsTitleExpanded(v => !v);
-                }}
-                className={`text-left group/title focus:outline-none cursor-pointer ${
-                  isTitleExpanded 
-                    ? 'order-1 w-full' 
-                    : 'short:order-1 short:flex short:items-center short:shrink short:max-w-[65%]'
+              {/* Repo Title - selectable, clickable only on short screens to expand */}
+              <div 
+                className={`w-full min-w-0 ${
+                  isShortTitleExpanded
+                    ? 'short:order-1 short:w-full'
+                    : 'short:order-1 short:shrink short:max-w-[65%]'
                 }`}
-                title={isTitleExpanded 
-                  ? (lang === 'en' ? 'Click to collapse title' : 'Kliknij, aby zwinąć nazwę')
-                  : (lang === 'en' ? 'Click to show full title' : 'Kliknij, aby rozwinąć pełną nazwę')
-                }
+                onPointerDown={(e) => e.stopPropagation()}
               >
-                <h2 className={`font-bold font-mono text-white flex flex-wrap items-center gap-1.5 sm:gap-2 uppercase tracking-wider leading-snug group-hover/title:text-cyan-300 transition-colors ${
-                  isTitleExpanded
-                    ? 'text-base sm:text-2xl break-words whitespace-normal'
-                    : 'text-base sm:text-2xl break-words short:text-base sm:short:text-lg short:flex-nowrap short:truncate'
-                }`}>
-                  <span translate="no" className={`notranslate ${!isTitleExpanded ? 'short:truncate' : 'break-words'}`}>{repo.name}</span>
-                  {!isTitleExpanded && (
-                    <span 
-                      className="hidden short:inline-flex items-center gap-0.5 ml-1 text-[9px] text-cyan-400 font-mono font-normal border border-cyan-500/30 px-1 py-0.2 bg-cyan-950/40 group-hover/title:border-cyan-400 align-middle shrink-0"
+                <div
+                  onClick={(e) => {
+                    if (window.matchMedia('(max-height: 520px)').matches) {
+                      e.stopPropagation();
+                      setIsShortTitleExpanded(prev => !prev);
+                    }
+                  }}
+                  className={`text-left w-full ${
+                    isShortTitleExpanded
+                      ? 'short:cursor-pointer'
+                      : 'short:cursor-pointer short:flex short:items-center short:gap-1.5 short:min-w-0'
+                  } cursor-text select-text`}
+                  title={
+                    isShortTitleExpanded
+                      ? (lang === 'en' ? 'Click to collapse title' : 'Kliknij, aby zwinąć nazwę')
+                      : (lang === 'en' ? 'Click to expand title' : 'Kliknij, aby rozwinąć nazwę')
+                  }
+                >
+                  <h2 className={`font-bold font-mono text-white flex flex-wrap items-center gap-1.5 sm:gap-2 uppercase tracking-wider leading-snug text-base sm:text-2xl break-words ${
+                    isShortTitleExpanded
+                      ? 'short:text-xs sm:short:text-sm short:break-words short:whitespace-normal'
+                      : 'short:text-base sm:short:text-lg short:flex-nowrap short:truncate'
+                  }`}>
+                    <span translate="no" className={`notranslate ${!isShortTitleExpanded ? 'short:truncate' : 'break-words'}`}>{repo.name}</span>
+                    {repo.isPrivate && (
+                      <span className="inline-flex items-center gap-1 bg-[#1F1111] text-rose-500 border border-rose-500/30 px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] font-mono uppercase tracking-wider font-bold shrink-0 whitespace-nowrap">
+                        <Lock size={10} />
+                        <span className="hidden short:inline">PRIV</span>
+                        <span className="short:hidden">{lang === 'en' ? 'Private' : 'Prywatne'}</span>
+                      </span>
+                    )}
+                    {repo.isFork && (
+                      <span className="inline-flex items-center gap-1 bg-[#181126] text-purple-400 border border-purple-500/40 px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] font-mono uppercase tracking-wider font-bold shrink-0 whitespace-nowrap shadow-[0_0_8px_rgba(168,85,247,0.15)]">
+                        <GitFork size={10} className="text-purple-400 shrink-0" />
+                        <span className="hidden short:inline">FORK</span>
+                        <span className="short:hidden">
+                          {repo.isContributed
+                            ? (lang === 'en' ? 'Contributed Fork' : 'Wkład własny (Fork)')
+                            : (lang === 'en' ? 'Fork' : 'Fork')}
+                        </span>
+                      </span>
+                    )}
+                  </h2>
+                  {!isShortTitleExpanded && (
+                    <button
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setIsShortTitleExpanded(true);
+                      }}
+                      className="hidden short:inline-flex items-center gap-0.5 ml-1 text-[9px] text-cyan-400 font-mono font-normal border border-cyan-500/30 px-1 py-0.2 bg-cyan-950/40 hover:border-cyan-400 align-middle shrink-0 cursor-pointer"
                       title={lang === 'en' ? 'Expand title' : 'Rozwiń nazwę'}
                     >
-                      ▼
-                    </span>
+                      ▼ {lang === 'en' ? 'FULL' : 'CAŁOŚĆ'}
+                    </button>
                   )}
-                  {repo.isPrivate && (
-                    <span className="inline-flex items-center gap-1 bg-[#1F1111] text-rose-500 border border-rose-500/30 px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] font-mono uppercase tracking-wider font-bold shrink-0 whitespace-nowrap">
-                      <Lock size={10} />
-                      <span className="hidden short:inline">PRIV</span>
-                      <span className="short:hidden">{lang === 'en' ? 'Private' : 'Prywatne'}</span>
-                    </span>
-                  )}
-                  {repo.isFork && (
-                    <span className="inline-flex items-center gap-1 bg-[#181126] text-purple-400 border border-purple-500/40 px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] font-mono uppercase tracking-wider font-bold shrink-0 whitespace-nowrap shadow-[0_0_8px_rgba(168,85,247,0.15)]">
-                      <GitFork size={10} className="text-purple-400 shrink-0" />
-                      <span className="hidden short:inline">FORK</span>
-                      <span className="short:hidden">
-                        {repo.isContributed
-                          ? (lang === 'en' ? 'Contributed Fork' : 'Wkład własny (Fork)')
-                          : (lang === 'en' ? 'Fork' : 'Fork')}
-                      </span>
-                    </span>
-                  )}
-                </h2>
-              </button>
+                </div>
+              </div>
             </div>
 
             <div className="flex items-center gap-1.5 shrink-0">
@@ -1573,15 +1591,26 @@ export default function RepoModal({
                   <div className="p-3 sm:p-4 rounded-none bg-editorial-sidebar-bg border border-editorial-border space-y-2.5">
                     <p className="text-[13px] sm:text-sm leading-relaxed text-editorial-text font-serif italic">
                       {(() => {
+                        const isVehicleDetector = repo.name.toLowerCase() === 'vehicle-detector-dev';
                         const raw = lang === 'en' 
                           ? (repo.longDescEn || repo.desc || '') 
                           : (repo.longDescPl || repo.descPl || repo.desc || '');
-                        const clean = raw
+                        let clean = raw
                           .replace(/Engineered with modular architecture, strict error handling, and optimized performance for seamless in-game and developer integration\.?/gi, '')
                           .replace(/Comprehensive TrackMania extension providing live in-game UI overlays, real-time event signal processing, and low-latency state synchronization\.?/gi, '')
                           .replace(/Zaawansowane rozszerzenie dla ekosystemu TrackMania oferujące interaktywne nakładki w grze, bezpośrednią obsługę zdarzeń i niskie narzuty na wydajność silnika\.?/gi, '')
                           .replace(/Stworzony w architekturze modułowej z nastawieniem na wysoką wydajność, niezawodność i łatwą rozbudowę\.?/gi, '')
                           .trim();
+
+                        if (!isVehicleDetector && (
+                          clean.includes('bounding boxes') || 
+                          clean.includes('3D wireframe') || 
+                          clean.includes('YOLO') || 
+                          clean.includes('convolutional neural networks') ||
+                          clean.includes('wyciągający współrzędne 3D aut')
+                        )) {
+                          clean = (lang === 'en' ? repo.desc : (repo.descPl || repo.desc)) || '';
+                        }
                         return clean || repo.desc || '';
                       })()}
                     </p>
@@ -1729,10 +1758,10 @@ export default function RepoModal({
                       <Layers size={12} className="text-editorial-accent" />
                       <span>{lang === 'en' ? 'Ecosystem Capabilities & Stack' : 'Możliwości i Integracje'}</span>
                     </h4>
-                    <div className="flex flex-wrap gap-1.5 text-[10px] font-mono">
+                    <div className="flex flex-wrap gap-1.5 text-[9px] sm:text-[10px] font-mono uppercase tracking-wider font-bold">
                       {repo.capabilities.map((cap, i) => (
-                        <span key={i} className="px-2 py-0.5 bg-neutral-900/90 border border-editorial-border text-zinc-300">
-                          {cap}
+                        <span key={i} className="px-2 py-0.5 bg-neutral-900/90 border border-editorial-border text-zinc-300 uppercase">
+                          {cap.toUpperCase()}
                         </span>
                       ))}
                     </div>
@@ -1744,9 +1773,9 @@ export default function RepoModal({
                   <h4 className="text-[11px] font-bold uppercase font-mono tracking-widest text-[#8b949e]">
                     {lang === 'en' ? 'System Metadata' : 'Metadane Systemowe'}
                   </h4>
-                  <div className="flex flex-wrap gap-2 text-[10px] font-mono uppercase tracking-wider">
-                    <span translate="no" className="bg-neutral-900 border border-editorial-border px-2 py-1 rounded-none text-editorial-muted notranslate">
-                      {repo.lang || 'Git Shell'}
+                  <div className="flex flex-wrap gap-2 text-[9px] sm:text-[10px] font-mono uppercase tracking-wider font-bold">
+                    <span translate="no" className="bg-neutral-900 border border-editorial-border px-2 py-1 rounded-none text-editorial-muted notranslate uppercase">
+                      {(repo.lang || 'Git Shell').toUpperCase()}
                     </span>
                     {repo.isFork && (
                       repo.forkParent ? (

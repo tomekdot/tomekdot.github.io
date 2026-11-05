@@ -72,30 +72,30 @@ const RepoCard = React.memo(function RepoCard({ repo, onSelect, lang, compact }:
 
         {/* Wiersz metadanych pod nazwą: flex flex-wrap items-center gap-x-2 gap-y-1.5 min-w-0 w-full */}
         <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 min-w-0 w-full font-mono text-xs text-editorial-muted pt-2 border-t border-editorial-border/30">
-          <span className="max-w-full truncate shrink min-w-0 text-[9px] font-mono uppercase px-1.5 py-0.5 bg-neutral-900 border border-editorial-border text-editorial-accent font-semibold">
-            {catLabel}
+          <span className="max-w-full truncate shrink min-w-0 text-[9px] font-mono uppercase px-1.5 py-0.5 bg-neutral-900 border border-editorial-border text-editorial-accent font-bold tracking-wider">
+            {catLabel.toUpperCase()}
           </span>
           {repo.createdYear && (
-            <span className="shrink-0 inline-flex items-center gap-1 text-[10px] text-zinc-400 border border-editorial-border/60 px-1.5 py-0.5" title={lang === 'en' ? 'Created year' : 'Rok utworzenia'}>
+            <span className="shrink-0 inline-flex items-center gap-1 text-[9px] font-mono uppercase tracking-wider text-zinc-400 border border-editorial-border/60 px-1.5 py-0.5 font-bold" title={lang === 'en' ? 'Created year' : 'Rok utworzenia'}>
               <Calendar size={10} className="text-sky-400 shrink-0" />
               <span>{repo.createdYear}</span>
             </span>
           )}
-          <span className="shrink-0 inline-flex items-center gap-1.5 border border-editorial-border/60 px-2 py-0.5 text-[10px]">
+          <span className="shrink-0 inline-flex items-center gap-1.5 border border-editorial-border/60 px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-wider font-bold">
             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: langColor }} />
             <span className="text-zinc-300" translate="no">
-              {displayLang === 'Shell/Other' ? (lang === 'en' ? 'Shell/Other' : 'Shell/Inne') : displayLang}
+              {displayLang === 'Shell/Other' ? (lang === 'en' ? 'SHELL / OTHER' : 'SHELL / INNE') : displayLang.toUpperCase()}
             </span>
           </span>
           {!repo.isPrivate && (
-            <span className="shrink-0 inline-flex items-center gap-1 text-[10px]" title="Stars">
+            <span className="shrink-0 inline-flex items-center gap-1 text-[9px] font-mono uppercase font-bold" title="Stars">
               <Star size={10} className="text-amber-500 fill-amber-500/20" />
               <span>{repo.stars}</span>
             </span>
           )}
           <button
             type="button"
-            className="shrink-0 ml-auto text-editorial-accent group-hover:brightness-110 flex items-center gap-1 text-[10.5px] uppercase font-bold tracking-wider"
+            className="shrink-0 ml-auto text-editorial-accent group-hover:brightness-110 flex items-center gap-1 text-[10.5px] uppercase font-bold tracking-wider font-mono"
           >
             {lang === 'en' ? 'Details →' : 'Szczegóły →'}
           </button>
@@ -147,19 +147,19 @@ const RepoCard = React.memo(function RepoCard({ repo, onSelect, lang, compact }:
 
       {/* Wiersz metadanych pod nazwą: flex flex-wrap items-center gap-x-2 gap-y-1.5 min-w-0 w-full */}
       <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pt-2.5 border-t border-editorial-border/30 font-mono text-xs text-editorial-muted w-full min-w-0">
-        <span className="max-w-full truncate shrink min-w-0 text-[10px] font-mono uppercase px-1.5 py-0.5 bg-neutral-900 border border-editorial-border text-editorial-accent font-semibold">
-          {catLabel}
+        <span className="max-w-full truncate shrink min-w-0 text-[9px] sm:text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 bg-neutral-900 border border-editorial-border text-editorial-accent font-bold">
+          {catLabel.toUpperCase()}
         </span>
         {repo.createdYear && (
-          <span className="shrink-0 inline-flex items-center gap-1 text-[10px] text-zinc-400 border border-editorial-border/60 px-1.5 py-0.5" title={lang === 'en' ? 'Created year' : 'Rok utworzenia'}>
+          <span className="shrink-0 inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-zinc-400 border border-editorial-border/60 px-1.5 py-0.5 font-bold" title={lang === 'en' ? 'Created year' : 'Rok utworzenia'}>
             <Calendar size={10} className="text-sky-400 shrink-0" />
             <span>{repo.createdYear}</span>
           </span>
         )}
-        <span className="shrink-0 inline-flex items-center gap-1.5 border border-editorial-border px-2 py-0.5 text-[10px]">
+        <span className="shrink-0 inline-flex items-center gap-1.5 border border-editorial-border px-1.5 py-0.5 text-[9px] sm:text-[10px] font-mono uppercase tracking-wider font-bold">
           <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: langColor }} />
-          <span translate="no" className="text-zinc-300 notranslate">
-            {displayLang === 'Shell/Other' ? (lang === 'en' ? 'Shell/Other' : 'Shell/Inne') : displayLang}
+          <span translate="no" className="text-zinc-300 notranslate font-mono uppercase">
+            {displayLang === 'Shell/Other' ? (lang === 'en' ? 'SHELL / OTHER' : 'SHELL / INNE') : displayLang.toUpperCase()}
           </span>
         </span>
         {!repo.isPrivate && (

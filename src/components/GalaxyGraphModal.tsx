@@ -69,38 +69,28 @@ interface GalaxyEdge {
   targetNode: GalaxyNode;
 }
 
-// Matrix glyph characters for core cybernetic visual texture
-const MATRIX_GLYPHS = [
-  'オ', 'セ', 'ヒ', 'オ', '0', 'パ', 'テ', '4', '=', 'ム', 'マ',
-  'ヌ', 'ホ', 'メ', '6', 'ム', ':', 'ケ', 'モ', 'サ', 'カ', 'ユ',
-  'ヤ', 'ル', 'ワ', 'ユ', 'テ', '★', 'ヒ', '2', 'ナ', 'ウ', 'ヨ',
-  'コ', 'エ', 'ホ', ':', 'タ', 'ヲ', 'ヒ', '2', 'シ', 'ム', 'コ',
-  'カ', 'ヒ', 'X', '5', '5', 'ヒ', '2', 'ア', 'ム', 'コ', 'コ',
-  'マ', 'モ', 'X', 'エ', 'ラ', 'ヨ', 'ヒ', '6', 'ネ', 'ラ', 'マ',
-  'ク', 'ハ', '+', 'ン', '<', '+', 'チ', 'タ', 'シ', 'キ', 'ユ',
-  'フ', '3', '+', '6', 'サ', 'ビ', '0', 'コ', 'ラ'
-];
+// Lightweight Solar Core for low-end / battery saver / reduced motion devices
+const SolarCoreLite = React.memo(function SolarCoreLite() {
+  return (
+    <g className="pointer-events-none select-none">
+      <circle r="90" fill="url(#sunCoreGlow)" opacity="0.8" />
+      <circle r="64" fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="12,6" opacity="0.8" />
+      <circle r="48" fill="#170d04" stroke="#fbbf24" strokeWidth="2" />
+      <circle r="20" fill="#fbbf24" />
+      <circle r="5" fill="#ffffff" />
+    </g>
+  );
+});
 
-// Memoized Solar Core to prevent SVG filter and SMIL animation recalculation on pan/drag
+// Full Solar Core using GPU compositor CSS transform rotation instead of SMIL animateTransform
 const SolarCore = React.memo(function SolarCore() {
   return (
     <g className="pointer-events-none select-none">
-      {/* Outer Solar Aura Corona Disc (Pulsating) */}
-      <circle cx="0" cy="0" r="90" fill="url(#sunCoreGlow)" filter="url(#sunGlow)">
-        <animate attributeName="r" values="80;105;80" dur="5s" repeatCount="indefinite" />
-        <animate attributeName="opacity" values="0.75;0.95;0.75" dur="5s" repeatCount="indefinite" />
-      </circle>
+      {/* Outer Solar Aura Corona Disc */}
+      <circle cx="0" cy="0" r="90" fill="url(#sunCoreGlow)" filter="url(#sunGlow)" opacity="0.85" />
 
-      {/* Outer Clockwise Rotating Solar Flare Beams */}
-      <g>
-        <animateTransform
-          attributeName="transform"
-          type="rotate"
-          from="0 0 0"
-          to="360 0 0"
-          dur="30s"
-          repeatCount="indefinite"
-        />
+      {/* Outer Clockwise Rotating Solar Flare Beams (CSS GPU Transform) */}
+      <g className="galaxy-spin-cw">
         {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((deg, i) => {
           const rad = (deg * Math.PI) / 180;
           const x2 = Math.cos(rad) * 80;
@@ -121,45 +111,28 @@ const SolarCore = React.memo(function SolarCore() {
         })}
       </g>
 
-      {/* Counter-Clockwise Rotating Corona Plasma Ring */}
-      <g>
-        <animateTransform
-          attributeName="transform"
-          type="rotate"
-          from="360 0 0"
-          to="0 0 0"
-          dur="20s"
-          repeatCount="indefinite"
-        />
+      {/* Counter-Clockwise Rotating Corona Plasma Ring (CSS GPU Transform) */}
+      <g className="galaxy-spin-ccw">
         <circle cx="0" cy="0" r="64" fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="12,6" opacity="0.8" />
         <circle cx="0" cy="0" r="54" fill="none" stroke="#38bdf8" strokeWidth="1" strokeDasharray="6,8" opacity="0.7" />
         <circle cx="0" cy="0" r="44" fill="none" stroke="#e879f9" strokeWidth="0.8" strokeDasharray="3,6" opacity="0.6" />
       </g>
 
-      {/* Inner Pulsating Solar Plasma Body */}
-      <circle cx="0" cy="0" r="48" fill="#170d04" stroke="#fbbf24" strokeWidth="2" filter="url(#glow)">
-        <animate attributeName="r" values="45;52;45" dur="4s" repeatCount="indefinite" />
-      </circle>
+      {/* Inner Solar Plasma Body */}
+      <circle cx="0" cy="0" r="48" fill="#170d04" stroke="#fbbf24" strokeWidth="2" filter="url(#glow)" />
 
       {/* Solar Core Energy Plasma Waves */}
-      <circle cx="0" cy="0" r="32" fill="#d97706" opacity="0.4" filter="url(#sunGlow)">
-        <animate attributeName="r" values="28;36;28" dur="2.5s" repeatCount="indefinite" />
-        <animate attributeName="opacity" values="0.3;0.6;0.3" dur="2.5s" repeatCount="indefinite" />
-      </circle>
+      <circle cx="0" cy="0" r="32" fill="#d97706" opacity="0.4" />
 
       {/* Central Radiant Sun Nucleus Pupil */}
-      <circle cx="0" cy="0" r="20" fill="#fbbf24" filter="url(#glow)">
-        <animate attributeName="r" values="18;23;18" dur="3s" repeatCount="indefinite" />
-      </circle>
+      <circle cx="0" cy="0" r="20" fill="#fbbf24" filter="url(#glow)" />
       <circle cx="0" cy="0" r="11" fill="#fffbebe6" />
-      <circle cx="0" cy="0" r="5" fill="#ffffff">
-        <animate attributeName="r" values="4;6.5;4" dur="2s" repeatCount="indefinite" />
-      </circle>
+      <circle cx="0" cy="0" r="5" fill="#ffffff" />
     </g>
   );
 });
 
-// Memoized Radial Spokes background
+// Memoized Radial Spokes background (static - never recalculates on hover/drag)
 const RadialSpokes = React.memo(function RadialSpokes() {
   return (
     <g className="pointer-events-none select-none">
@@ -185,6 +158,152 @@ const RadialSpokes = React.memo(function RadialSpokes() {
   );
 });
 
+// Memoized Orbital Rings layer (static - independent of node hover)
+interface OrbitalRingsProps {
+  orbitalRings: Array<{
+    dateStr: string;
+    timestamp: number;
+    radius: number;
+    label: string;
+  }>;
+  minOrbitalRadius: number;
+  maxOrbitalRadius: number;
+}
+
+const OrbitalRingsLayer = React.memo(function OrbitalRingsLayer({
+  orbitalRings,
+  minOrbitalRadius,
+  maxOrbitalRadius
+}: OrbitalRingsProps) {
+  return (
+    <g className="pointer-events-none select-none">
+      {/* Central Radial Cosmic Glow */}
+      <circle cx="0" cy="0" r="360" fill="url(#galaxyCoreGlow)" />
+
+      {orbitalRings.map((ring, idx) => {
+        const r = ring.radius;
+        return (
+          <g key={ring.dateStr}>
+            {/* Orbital line circle */}
+            <circle
+              cx="0"
+              cy="0"
+              r={r}
+              fill="none"
+              stroke="#1e293b"
+              strokeWidth="1"
+              strokeDasharray={idx % 2 === 0 ? "4,4" : "2,6"}
+              opacity="0.6"
+            />
+
+            {/* Small axis tick on the vertical timeline axis */}
+            <line
+              x1="-5"
+              y1={-r}
+              x2="5"
+              y2={-r}
+              stroke="#475569"
+              strokeWidth="1.2"
+              opacity="0.85"
+            />
+
+            {/* Date label on top axis */}
+            <text
+              x="0"
+              y={-r - 6}
+              textAnchor="middle"
+              fill="#94a3b8"
+              fontSize="9.5"
+              fontFamily="monospace"
+              letterSpacing="1"
+              opacity="0.9"
+            >
+              {ring.label}
+            </text>
+          </g>
+        );
+      })}
+
+      {/* TIMELINE VERTICAL SPINE AXIS (Core -> Outer) */}
+      <line
+        x1="0"
+        y1={-minOrbitalRadius + 15}
+        x2="0"
+        y2={-maxOrbitalRadius - 15}
+        stroke="#334155"
+        strokeWidth="1"
+        strokeDasharray="2,4"
+        opacity="0.5"
+      />
+    </g>
+  );
+});
+
+// Memoized Constellation Edges layer (compiled into optimized single path segments)
+interface ConstellationEdgesProps {
+  edges: GalaxyEdge[];
+  visibleNodeIds: Set<string>;
+  activeFocusNode: GalaxyNode | null;
+}
+
+const ConstellationEdges = React.memo(function ConstellationEdges({
+  edges,
+  visibleNodeIds,
+  activeFocusNode
+}: ConstellationEdgesProps) {
+  // Split into inactive path and active focused path to minimize SVG DOM nodes
+  const { normalPath, focusedPath } = useMemo(() => {
+    let nPath = '';
+    let fPath = '';
+
+    for (let i = 0; i < edges.length; i++) {
+      const edge = edges[i];
+      if (!visibleNodeIds.has(edge.source) || !visibleNodeIds.has(edge.target)) {
+        continue;
+      }
+
+      const isConnectedToFocus = activeFocusNode && 
+        (edge.source === activeFocusNode.id || edge.target === activeFocusNode.id);
+
+      const segment = `M${edge.sourceNode.x.toFixed(1)},${edge.sourceNode.y.toFixed(1)}L${edge.targetNode.x.toFixed(1)},${edge.targetNode.y.toFixed(1)}`;
+      if (isConnectedToFocus) {
+        fPath += segment;
+      } else {
+        nPath += segment;
+      }
+    }
+
+    return { normalPath: nPath, focusedPath: fPath };
+  }, [edges, visibleNodeIds, activeFocusNode]);
+
+  return (
+    <g className="pointer-events-none select-none">
+      {/* Background normal edges */}
+      {normalPath && (
+        <path
+          d={normalPath}
+          stroke="#334155"
+          strokeWidth="0.8"
+          strokeDasharray="3,3"
+          opacity="0.4"
+          fill="none"
+        />
+      )}
+
+      {/* Active/Highlighted focus edges */}
+      {focusedPath && (
+        <path
+          d={focusedPath}
+          stroke="#38bdf8"
+          strokeWidth="1.8"
+          opacity="0.9"
+          fill="none"
+        />
+      )}
+    </g>
+  );
+});
+
 export default function GalaxyGraphModal({
   isOpen,
   onClose,
@@ -196,6 +315,15 @@ export default function GalaxyGraphModal({
   onSelectTag,
   onOpenAiDiscussion
 }: GalaxyGraphModalProps) {
+  // Low-end / mobile / battery-saver detection
+  const isLowEnd = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+    const cores = navigator.hardwareConcurrency ?? 8;
+    const memory = (navigator as any).deviceMemory ?? 8;
+    return !!reducedMotion || cores <= 4 || memory <= 4;
+  }, []);
+
   // State
   const [filterType, setFilterType] = useState<'all' | 'posts' | 'tags'>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -749,7 +877,7 @@ export default function GalaxyGraphModal({
               </div>
             </div>
 
-            {/* Top Center Timeline Bar Scrubber (Now visible on mobile too) */}
+            {/* Top Center Timeline Bar Scrubber */}
             <div className="flex items-center gap-2 bg-[#0E131F] border border-editorial-border px-3 py-1.5 font-mono text-xs w-full lg:max-w-md mx-auto">
               <button
                 type="button"
@@ -765,19 +893,19 @@ export default function GalaxyGraphModal({
                 {/* Background track */}
                 <div className="w-full h-1 bg-neutral-800 relative rounded-full overflow-hidden">
                   <div 
-                    className="h-full bg-gradient-to-r from-emerald-500 via-cyan-400 to-fuchsia-500 transition-all duration-100"
+                    className="h-full bg-gradient-to-r from-emerald-500 via-cyan-400 to-fuchsia-500"
                     style={{ width: `${timelineProgress * 100}%` }}
                   />
                 </div>
 
-                {/* Event points */}
+                {/* Event points (simple, no transition-all to eliminate repaints) */}
                 <div className="absolute inset-0 flex items-center justify-between pointer-events-none px-1">
                   {sortedPosts.map((p) => {
                     const norm = (p.t - minTime) / (maxTime - minTime || 1);
                     return (
                       <div 
                         key={p.id}
-                        className={`w-1.5 h-1.5 rounded-full transition-all ${
+                        className={`w-1.5 h-1.5 rounded-full ${
                           norm <= timelineProgress ? 'bg-emerald-400 shadow-[0_0_6px_#4ade80]' : 'bg-neutral-600'
                         }`}
                         style={{ position: 'absolute', left: `${norm * 96 + 2}%` }}
@@ -947,121 +1075,50 @@ export default function GalaxyGraphModal({
                   <stop offset="100%" stopColor="#000000" stopOpacity="0" />
                 </radialGradient>
 
-                {/* Node filter glow */}
-                <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-                  <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
-                <filter id="sunGlow" x="-100%" y="-100%" width="300%" height="300%">
-                  <feGaussianBlur in="SourceGraphic" stdDeviation="6" result="blur" />
-                  <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                  </feMerge>
-                </filter>
+                {/* Lightweight node filter glow (200% region) */}
+                {!isLowEnd && (
+                  <>
+                    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
+                      <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                      </feMerge>
+                    </filter>
+                    <filter id="sunGlow" x="-50%" y="-50%" width="200%" height="200%">
+                      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
+                      <feMerge>
+                        <feMergeNode in="blur" />
+                        <feMergeNode in="SourceGraphic" />
+                      </feMerge>
+                    </filter>
+                  </>
+                )}
               </defs>
 
-              {/* TRANSFORM CONTAINER WITH PAN & ZOOM (DRIVEN DIRECTLY VIA DOM REF) */}
-              <g
-                ref={groupRef}
-                className="[filter:drop-shadow(0_0_8px_rgba(56,189,248,0.25))]"
-              >
-                {/* Central Radial Cosmic Glow */}
-                <circle cx="0" cy="0" r="360" fill="url(#galaxyCoreGlow)" />
-
-                {/* CONCENTRIC ORBITAL RINGS WITH DATE LABELS */}
-                {orbitalRings.map((ring, idx) => {
-                  const r = ring.radius;
-                  return (
-                    <g key={ring.dateStr} className="pointer-events-none">
-                      {/* Orbital line circle */}
-                      <circle
-                        cx="0"
-                        cy="0"
-                        r={r}
-                        fill="none"
-                        stroke="#1e293b"
-                        strokeWidth="1"
-                        strokeDasharray={idx % 2 === 0 ? "4,4" : "2,6"}
-                        opacity="0.6"
-                      />
-
-                      {/* Small axis tick on the vertical timeline axis */}
-                      <line
-                        x1="-5"
-                        y1={-r}
-                        x2="5"
-                        y2={-r}
-                        stroke="#475569"
-                        strokeWidth="1.2"
-                        opacity="0.85"
-                      />
-
-                      {/* Date label on top axis */}
-                      <text
-                        x="0"
-                        y={-r - 6}
-                        textAnchor="middle"
-                        fill="#94a3b8"
-                        fontSize="9.5"
-                        fontFamily="monospace"
-                        letterSpacing="1"
-                        opacity="0.9"
-                      >
-                        {ring.label}
-                      </text>
-                    </g>
-                  );
-                })}
-
-                {/* TIMELINE VERTICAL SPINE AXIS (Core -> Outer) */}
-                <line
-                  x1="0"
-                  y1={-minOrbitalRadius + 15}
-                  x2="0"
-                  y2={-maxOrbitalRadius - 15}
-                  stroke="#334155"
-                  strokeWidth="1"
-                  strokeDasharray="2,4"
-                  opacity="0.5"
-                  className="pointer-events-none"
+              {/* TRANSFORM CONTAINER WITH PAN & ZOOM (DRIVEN DIRECTLY VIA DOM REF, NO EXPENSIVE DROP-SHADOW ON GROUP) */}
+              <g ref={groupRef}>
+                {/* CONCENTRIC ORBITAL RINGS & TIMELINE AXIS (MEMOIZED LAYER) */}
+                <OrbitalRingsLayer
+                  orbitalRings={orbitalRings}
+                  minOrbitalRadius={minOrbitalRadius}
+                  maxOrbitalRadius={maxOrbitalRadius}
                 />
 
-                {/* RADIAL AXIS SPOKES */}
+                {/* RADIAL AXIS SPOKES (MEMOIZED LAYER) */}
                 <RadialSpokes />
 
-                {/* CENTRAL ANIMATED ORGANIC SOLAR CORE (Living Sun / Słońce) */}
-                <SolarCore />
+                {/* CENTRAL SOLAR CORE (LITE FOR SLOW DEVICES / GPU CSS ROTATION FOR REGULAR) */}
+                {isLowEnd ? <SolarCoreLite /> : <SolarCore />}
 
-                {/* CONSTELLATION CONNECTION EDGES */}
-                {edges.map((edge) => {
-                  const sourceVisible = visibleNodeIds.has(edge.source);
-                  const targetVisible = visibleNodeIds.has(edge.target);
-                  if (!sourceVisible || !targetVisible) return null;
+                {/* CONSTELLATION CONNECTION EDGES (OPTIMIZED BATCHED PATHS) */}
+                <ConstellationEdges
+                  edges={edges}
+                  visibleNodeIds={visibleNodeIds}
+                  activeFocusNode={activeFocusNode}
+                />
 
-                  const isConnectedToFocus = activeFocusNode && 
-                    (edge.source === activeFocusNode.id || edge.target === activeFocusNode.id);
-
-                  return (
-                    <line
-                      key={edge.id}
-                      x1={edge.sourceNode.x}
-                      y1={edge.sourceNode.y}
-                      x2={edge.targetNode.x}
-                      y2={edge.targetNode.y}
-                      stroke={isConnectedToFocus ? '#38bdf8' : '#334155'}
-                      strokeWidth={isConnectedToFocus ? 1.8 : 0.8}
-                      strokeDasharray={isConnectedToFocus ? 'none' : '3,3'}
-                      opacity={isConnectedToFocus ? 0.9 : 0.4}
-                      className="transition-all duration-200"
-                    />
-                  );
-                })}
-
-                {/* GALAXY NODES WITH VIEWPORT CULLING */}
+                {/* GALAXY NODES WITH VIEWPORT CULLING & TARGETED OPACITY TRANSITIONS */}
                 {visibleNodes.map((node) => {
                   const screenX = dimensions.width / 2 + panOffset.x + node.x * zoomLevel;
                   const screenY = dimensions.height / 2 + panOffset.y + node.y * zoomLevel;
@@ -1078,6 +1135,9 @@ export default function GalaxyGraphModal({
                   const isDimmed = activeFocusNode && !isNeighbor;
                   const nodeLabel = lang === 'en' ? node.labelEn : node.labelPl;
 
+                  // Hide text when zoomed out far (< 0.7) unless hovered, selected or neighbor to save CPU/GPU rasterization
+                  const showLabel = zoomLevel >= 0.7 || isHovered || isSelected || isNeighbor;
+
                   return (
                     <g
                       key={node.id}
@@ -1088,11 +1148,11 @@ export default function GalaxyGraphModal({
                         e.stopPropagation();
                         setSelectedNodeId(prev => prev === node.id ? null : node.id);
                       }}
-                      className="cursor-pointer transition-all duration-150"
+                      className="cursor-pointer transition-opacity duration-150"
                       opacity={isDimmed ? 0.25 : 1}
                     >
-                      {/* Outer pulse aura when focused */}
-                      {(isHovered || isSelected) && (
+                      {/* Outer pulse aura when focused (disabled on low-end for battery saving) */}
+                      {!isLowEnd && (isHovered || isSelected) && (
                         <circle
                           cx="0"
                           cy="0"
@@ -1127,32 +1187,34 @@ export default function GalaxyGraphModal({
                         />
                       )}
 
-                      {/* Node Label Text */}
-                      <text
-                        x="0"
-                        y={node.size + 13}
-                        textAnchor="middle"
-                        fill={isHovered || isSelected ? '#ffffff' : isNeighbor ? '#e2e8f0' : '#94a3b8'}
-                        fontSize={node.type === 'tag' ? '10' : '9.5'}
-                        fontFamily="monospace"
-                        fontWeight={isHovered || isSelected || node.type === 'tag' ? 'bold' : 'normal'}
-                        className="pointer-events-none transition-colors duration-150 select-none shadow-black"
-                      >
-                        {node.type === 'tag' ? nodeLabel : nodeLabel.length > 20 ? `${nodeLabel.slice(0, 18)}…` : nodeLabel}
-                      </text>
+                      {/* Node Label Text (Cull at low zoom levels) */}
+                      {showLabel && (
+                        <text
+                          x="0"
+                          y={node.size + 13}
+                          textAnchor="middle"
+                          fill={isHovered || isSelected ? '#ffffff' : isNeighbor ? '#e2e8f0' : '#94a3b8'}
+                          fontSize={node.type === 'tag' ? '10' : '9.5'}
+                          fontFamily="monospace"
+                          fontWeight={isHovered || isSelected || node.type === 'tag' ? 'bold' : 'normal'}
+                          className="pointer-events-none select-none shadow-black"
+                        >
+                          {node.type === 'tag' ? nodeLabel : nodeLabel.length > 20 ? `${nodeLabel.slice(0, 18)}…` : nodeLabel}
+                        </text>
+                      )}
                     </g>
                   );
                 })}
               </g>
             </svg>
 
-            {/* FLOATING HUD TOOLTIP CARD */}
+            {/* FLOATING HUD TOOLTIP CARD (Solid dark background, no GPU-crushing backdrop-blur) */}
             {hudNode && (
               <motion.div
                 initial={{ opacity: 0, y: 8, scale: 0.96 }}
                 animate={{ opacity: 1, y: 0, scale: 1 }}
                 exit={{ opacity: 0, scale: 0.96 }}
-                className="absolute top-2 sm:top-4 right-2 sm:right-4 z-30 w-[calc(100%-1rem)] sm:w-80 max-h-[50svh] overflow-y-auto bg-[#0B0F19]/95 border border-editorial-border p-3 sm:p-3.5 shadow-2xl backdrop-blur-md font-mono text-xs space-y-2.5 overscroll-contain"
+                className="absolute top-2 sm:top-4 right-2 sm:right-4 z-30 w-[calc(100%-1rem)] sm:w-80 max-h-[50svh] overflow-y-auto bg-[#0B0F19] border border-editorial-border p-3 sm:p-3.5 shadow-2xl font-mono text-xs space-y-2.5 overscroll-contain"
               >
                 {/* HUD Header */}
                 <div className="flex items-center justify-between pb-2 border-b border-editorial-border">
@@ -1276,7 +1338,7 @@ export default function GalaxyGraphModal({
               </motion.div>
             )}
 
-            {/* BOTTOM LEFT LEGEND - Collapsible on mobile, always visible on sm+ screens */}
+            {/* BOTTOM LEFT LEGEND - Solid dark background, no backdrop-blur */}
             <div className="absolute bottom-3 sm:bottom-4 left-3 sm:left-4 z-20 font-mono text-xs pointer-events-auto">
               {/* Mobile Toggle Button */}
               <div className="sm:hidden">
@@ -1285,14 +1347,14 @@ export default function GalaxyGraphModal({
                     type="button"
                     id="toggle_mobile_galaxy_legend_btn"
                     onClick={() => setIsLegendOpenMobile(true)}
-                    className="px-2.5 py-1.5 bg-[#090C14]/95 border border-editorial-border text-editorial-accent font-bold text-[10px] uppercase flex items-center gap-1.5 shadow-xl rounded-none cursor-pointer hover:border-editorial-accent transition-all"
+                    className="px-2.5 py-1.5 bg-[#090C14] border border-editorial-border text-editorial-accent font-bold text-[10px] uppercase flex items-center gap-1.5 shadow-xl rounded-none cursor-pointer hover:border-editorial-accent transition-all"
                   >
                     <Compass size={12} className="text-editorial-accent shrink-0" />
                     <span>{lang === 'en' ? 'LEGEND' : 'LEGENDA'}</span>
                     <span className="text-editorial-muted text-[9px]">▲</span>
                   </button>
                 ) : (
-                  <div className="bg-[#090C14]/95 border border-editorial-border p-2.5 font-mono text-xs space-y-1.5 backdrop-blur-md shadow-2xl max-w-[220px]">
+                  <div className="bg-[#090C14] border border-editorial-border p-2.5 font-mono text-xs space-y-1.5 shadow-2xl max-w-[220px]">
                     <div className="flex items-center justify-between pb-1 border-b border-editorial-border/60">
                       <span className="text-[10px] font-bold uppercase text-editorial-accent">
                         {lang === 'en' ? 'CONSTELLATION LEGEND' : 'LEGENDA KONSTELACJI'}
@@ -1331,7 +1393,7 @@ export default function GalaxyGraphModal({
               </div>
 
               {/* Desktop Legend Card */}
-              <div className="hidden sm:block bg-[#090C14]/90 border border-editorial-border p-3 space-y-1.5 backdrop-blur-sm shadow-xl">
+              <div className="hidden sm:block bg-[#090C14] border border-editorial-border p-3 space-y-1.5 shadow-xl">
                 <div className="flex items-center gap-2 text-emerald-400">
                   <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#4ade80]" />
                   <span className="text-[11px] font-bold uppercase">{lang === 'en' ? 'POST' : 'WPIS / POST'}</span>

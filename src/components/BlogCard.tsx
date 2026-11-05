@@ -115,11 +115,11 @@ const BlogCard = React.memo(function BlogCard({
     >
       <div>
         {/* Top header stats */}
-        <div className="flex items-center justify-between mb-2 sm:mb-2.5 text-editorial-muted font-mono text-[9.5px] sm:text-[10px] uppercase tracking-wider">
-          <span className="font-semibold text-editorial-accent bg-neutral-900 border border-editorial-border/70 px-1.5 py-0.5">
+        <div className="flex flex-wrap items-center justify-between gap-1.5 mb-2 sm:mb-2.5 text-editorial-muted font-mono text-[9px] sm:text-[9.5px] uppercase tracking-wider">
+          <span className="font-semibold text-editorial-accent bg-neutral-900 border border-editorial-border/70 px-1.5 py-0.5 shrink-0">
             #{primaryTag.toUpperCase()}
           </span>
-          <div className="flex items-center gap-2 sm:gap-2.5">
+          <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 ml-auto whitespace-nowrap">
             <span className="inline-flex items-center gap-1 text-zinc-400">
               <Calendar size={10} className="text-neutral-500 shrink-0" />
               <span>{post.date}</span>

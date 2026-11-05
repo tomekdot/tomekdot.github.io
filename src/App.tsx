@@ -127,6 +127,16 @@ export default function App() {
               const isContributed = (base && base.isContributed) || r.isContributed || CONTRIBUTED_FORKS.some(cf => cf.toLowerCase() === r.name.toLowerCase());
               const merged: Repository = {
                 ...r,
+                ...(base ? {
+                  desc: base.desc,
+                  descPl: base.descPl,
+                  longDescEn: base.longDescEn,
+                  longDescPl: base.longDescPl,
+                  featuresEn: base.featuresEn,
+                  featuresPl: base.featuresPl,
+                  codeSnippet: base.codeSnippet,
+                  capabilities: base.capabilities,
+                } : {}),
                 isPrivate: base ? (base.isPrivate || base.cat.includes('kul')) : r.isPrivate,
                 isContributed: isContributed,
                 cat: (base ? base.cat : (r.cat && r.cat.length > 0 ? r.cat : ['other'])) as CategoryKey[]
@@ -2027,7 +2037,7 @@ export default function App() {
                             </span>
                           </div>
 
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+                          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
                             {groupPosts.map(post => (
                               <BlogCard
                                 key={post.id}
@@ -2044,7 +2054,7 @@ export default function App() {
                   </div>
                 ) : (
                   /* Flat Grid view layout matching repos 2-column grid */
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 sm:gap-5">
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-5">
                     {filteredBlogPosts.map(post => (
                       <BlogCard
                         key={post.id}
