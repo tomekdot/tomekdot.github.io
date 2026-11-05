@@ -137,6 +137,11 @@ function ReadmeImageRenderer({ src, alt, width, height, repo, lang, ...props }: 
   const candidateUrls = React.useMemo(() => {
     if (!src) return [];
     
+    // Prevent any local file:// attempts which trigger browser security errors on https://
+    if (src.startsWith('file:') || src.startsWith('file:///')) {
+      return [];
+    }
+
     if (src.startsWith('data:') || src.startsWith('blob:')) {
       return [src];
     }
@@ -151,37 +156,51 @@ function ReadmeImageRenderer({ src, alt, width, height, repo, lang, ...props }: 
       return [src];
     }
 
-    const list: string[] = [
-      `https://raw.githubusercontent.com/${owner}/${actualName}/main/${cleanPath}`,
-      `https://raw.githubusercontent.com/${owner}/${actualName}/master/${cleanPath}`,
-      `https://raw.githubusercontent.com/${owner}/${actualName}/dev/${cleanPath}`,
-      `https://raw.githubusercontent.com/${owner}/${actualName}/develop/${cleanPath}`,
-      `https://raw.githubusercontent.com/${owner}/${actualName}/HEAD/${cleanPath}`,
-    ];
+    const preferredBranch = repo?.defaultBranch || (
+      ['tm-green-timer', 'pomodoro-plugin-dev', 'pursuit-maps'].includes(actualName.toLowerCase()) ? 'master' :
+      actualName.toLowerCase() === 'tomekdot' ? 'dev' : 'main'
+    );
+    const branches = preferredBranch === 'master' 
+      ? ['master', 'main', 'dev', 'develop', 'HEAD']
+      : preferredBranch === 'dev'
+        ? ['dev', 'main', 'master', 'develop', 'HEAD']
+        : ['main', 'master', 'dev', 'develop', 'HEAD'];
+
+    const list: string[] = [];
+    for (const b of branches) {
+      list.push(`https://raw.githubusercontent.com/${owner}/${actualName}/${b}/${cleanPath}`);
+    }
 
     if (owner !== 'tomekdot') {
-      list.push(`https://raw.githubusercontent.com/tomekdot/${actualName}/main/${cleanPath}`);
-      list.push(`https://raw.githubusercontent.com/tomekdot/${actualName}/master/${cleanPath}`);
+      for (const b of branches) {
+        list.push(`https://raw.githubusercontent.com/tomekdot/${actualName}/${b}/${cleanPath}`);
+      }
     }
 
     if (repo?.forkParent) {
       const parts = repo.forkParent.split('/');
       if (parts.length === 2) {
-        list.push(`https://raw.githubusercontent.com/${parts[0]}/${parts[1]}/main/${cleanPath}`);
-        list.push(`https://raw.githubusercontent.com/${parts[0]}/${parts[1]}/master/${cleanPath}`);
+        for (const b of branches) {
+          list.push(`https://raw.githubusercontent.com/${parts[0]}/${parts[1]}/${b}/${cleanPath}`);
+        }
       }
     }
 
     return list;
-  }, [src, owner, actualName, repo?.forkParent]);
+  }, [src, owner, actualName, repo?.forkParent, repo?.defaultBranch]);
 
   // Compute direct GitHub web link to view the image
   const githubFileUrl = React.useMemo(() => {
-    if (!src) return repo?.url || '#';
+    if (!src || src.startsWith('file:') || src.startsWith('file:///')) return repo?.url || '#';
+    if (src.startsWith('data:') || src.startsWith('blob:')) return repo?.url || '#';
     if (src.startsWith('http://') || src.startsWith('https://')) return src;
     const cleanPath = src.replace(/^\.?\/+/, '');
-    return `https://github.com/${owner}/${actualName}/blob/main/${cleanPath}`;
-  }, [src, owner, actualName, repo?.url]);
+    const preferredBranch = repo?.defaultBranch || (
+      ['tm-green-timer', 'pomodoro-plugin-dev', 'pursuit-maps'].includes(actualName.toLowerCase()) ? 'master' :
+      actualName.toLowerCase() === 'tomekdot' ? 'dev' : 'main'
+    );
+    return `https://github.com/${owner}/${actualName}/blob/${preferredBranch}/${cleanPath}`;
+  }, [src, owner, actualName, repo?.url, repo?.defaultBranch]);
 
   const currentSrc = candidateUrls[candidateIndex] || src || '';
 
@@ -396,8 +415,10 @@ async function fetchWithTimeout(url: string, options: RequestInit = {}, timeoutM
 
 function sanitizeReadmeMarkdown(raw: string | null): string {
   if (!raw) return '';
+  // Strip local file:// protocol schemes to prevent browser Security Error (mixed origin / local file access)
+  let cleaned = raw.replace(/file:\/\/\/[^\s\)"']*/gi, '#').replace(/file:\/\/[^\s\)"']*/gi, '#');
   // Strip HTML comments (including multi-dash variants like <!---, <!--, <!---- etc.)
-  let cleaned = raw.replace(/<!--+[\s\S]*?--+>/g, '');
+  cleaned = cleaned.replace(/<!--+[\s\S]*?--+>/g, '');
   // Strip unclosed comment markers if any
   cleaned = cleaned.replace(/<!--+[\s\S]*$/g, '');
   // Normalize excessive intra-line whitespace before comments (e.g. in file trees with 15+ spaces)
@@ -1051,12 +1072,22 @@ export default function RepoModal({
           }
         }
 
+        const preferredBranch = repo.defaultBranch || (
+          ['tm-green-timer', 'pomodoro-plugin-dev', 'pursuit-maps'].includes(actualName.toLowerCase()) ? 'master' :
+          actualName.toLowerCase() === 'tomekdot' ? 'dev' : 'main'
+        );
+        const branches = preferredBranch === 'master' 
+          ? ['master', 'main', 'dev']
+          : preferredBranch === 'dev'
+            ? ['dev', 'main', 'master']
+            : ['main', 'master', 'dev'];
+
         const rawUrls: string[] = [];
         for (const candidate of candidateRepos) {
-          rawUrls.push(`https://raw.githubusercontent.com/${candidate.owner}/${candidate.name}/main/README.md`);
-          rawUrls.push(`https://raw.githubusercontent.com/${candidate.owner}/${candidate.name}/main/readme.md`);
-          rawUrls.push(`https://raw.githubusercontent.com/${candidate.owner}/${candidate.name}/master/README.md`);
-          rawUrls.push(`https://raw.githubusercontent.com/${candidate.owner}/${candidate.name}/master/readme.md`);
+          for (const b of branches) {
+            rawUrls.push(`https://raw.githubusercontent.com/${candidate.owner}/${candidate.name}/${b}/README.md`);
+            rawUrls.push(`https://raw.githubusercontent.com/${candidate.owner}/${candidate.name}/${b}/readme.md`);
+          }
         }
 
         let loaded = false;
@@ -1915,17 +1946,23 @@ export default function RepoModal({
                         ol: ({ children }) => <ol className="my-2.5 space-y-1.5 list-decimal pl-5 text-xs text-editorial-text">{children}</ol>,
                         a: ({ href, children }) => {
                           let resolvedHref = href;
-                          if (resolvedHref && !resolvedHref.startsWith('http') && !resolvedHref.startsWith('mailto:') && !resolvedHref.startsWith('#')) {
+                          if (resolvedHref && (resolvedHref.startsWith('file:') || resolvedHref.startsWith('file:///'))) {
+                            resolvedHref = repo?.url || '#';
+                          } else if (resolvedHref && !resolvedHref.startsWith('http') && !resolvedHref.startsWith('mailto:') && !resolvedHref.startsWith('#')) {
                             const cleanHref = resolvedHref.replace(/^\.?\/+/, '');
                             const match = repo?.url?.match(/github\.com\/([^/]+)\/([^/]+)/);
                             const owner = match ? match[1] : (repo?.forkParent ? repo.forkParent.split('/')[0] : 'tomekdot');
                             const actualName = match ? match[2] : (repo?.forkParent ? repo.forkParent.split('/')[1] : repo?.name);
-                            resolvedHref = `https://github.com/${owner}/${actualName}/blob/main/${cleanHref}`;
+                            const preferredBranch = repo?.defaultBranch || (
+                              ['tm-green-timer', 'pomodoro-plugin-dev', 'pursuit-maps'].includes((actualName || '').toLowerCase()) ? 'master' :
+                              (actualName || '').toLowerCase() === 'tomekdot' ? 'dev' : 'main'
+                            );
+                            resolvedHref = `https://github.com/${owner}/${actualName}/blob/${preferredBranch}/${cleanHref}`;
                           }
                           return (
                             <InAnchorContext.Provider value={true}>
                               <a 
-                                href={resolvedHref} 
+                                href={resolvedHref || '#'} 
                                 target="_blank" 
                                 rel="noopener noreferrer" 
                                 className="text-editorial-accent hover:underline decoration-dotted font-mono text-xs inline-flex items-center gap-1 mx-0.5 break-all"

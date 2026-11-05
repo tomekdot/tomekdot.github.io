@@ -69,7 +69,9 @@ export default function BlogModal({
   if (!post) return null;
 
   const title = lang === 'en' ? post.titleEn : post.titlePl;
-  const content = lang === 'en' ? post.contentEn : post.contentPl;
+  const rawContent = lang === 'en' ? post.contentEn : post.contentPl;
+  // Sanitize any accidental local file:/// protocol schemes to prevent browser Security Error on https://
+  const content = rawContent.replace(/file:\/\/\/[^\s\)"']*/gi, '#').replace(/file:\/\/[^\s\)"']*/gi, '#');
   const explicitReadingTime = lang === 'en' ? post.readingTimeEn : post.readingTimePl;
   const readingTime = explicitReadingTime || calculateReadingTime(content, lang);
 
@@ -339,9 +341,25 @@ export default function BlogModal({
                   li: ({ node, ...props }) => (
                     <li className="pl-0.5 font-mono text-xs sm:text-sm leading-relaxed break-words" {...props} />
                   ),
-                  a: ({ node, ...props }) => (
-                    <a className="text-editorial-accent underline hover:text-white font-mono break-all" target="_blank" rel="noopener noreferrer" {...props} />
-                  ),
+                  a: ({ node, href, children, ...props }) => {
+                    const safeHref = (href && !href.startsWith('file:') && !href.startsWith('file:///')) ? href : '#';
+                    return (
+                      <a 
+                        href={safeHref} 
+                        className="text-editorial-accent underline hover:text-white font-mono break-all" 
+                        target="_blank" 
+                        rel="noopener noreferrer" 
+                        {...props}
+                      >
+                        {children}
+                      </a>
+                    );
+                  },
+                  img: ({ node, src, alt, ...props }) => {
+                    const safeSrc = (src && !src.startsWith('file:') && !src.startsWith('file:///')) ? src : '';
+                    if (!safeSrc) return null;
+                    return <img src={safeSrc} alt={alt || ''} className="max-w-full my-3 border border-editorial-border" {...props} />;
+                  },
                   pre: ({ node, ...props }) => (
                     <pre className="pl-3.5 pr-4 sm:pl-4 sm:pr-8 py-2.5 sm:py-3.5 bg-neutral-900 border border-editorial-border font-mono text-[11px] sm:text-xs overflow-x-auto text-[#e6edf3] my-3 rounded-none max-w-full min-w-0 scrollbar-thin scrollbar-thumb-neutral-800" {...props} />
                   ),

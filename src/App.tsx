@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useMemo, useEffect, useCallback } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, Suspense, lazy } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Search, 
@@ -50,13 +50,15 @@ import { CATEGORIES, REPOS, BLOG_POSTS, SHOW_PRIVATE_REPOS_TO_PUBLIC, REPO_BLACK
 import LanguageChart from './components/LanguageChart';
 import RepoCard from './components/RepoCard';
 import BlogCard from './components/BlogCard';
-import RepoModal from './components/RepoModal';
-import BlogModal from './components/BlogModal';
-import DeveloperStatsModal from './components/DeveloperStatsModal';
-import BlogStatsModal from './components/BlogStatsModal';
-import GalaxyGraphModal from './components/GalaxyGraphModal';
-import TerminalConsole from './components/TerminalConsole';
 import YearRangeFilter from './components/YearRangeFilter';
+
+// Lazy-load heavy modals and console to optimize initial bundle size & LCP
+const RepoModal = lazy(() => import('./components/RepoModal'));
+const BlogModal = lazy(() => import('./components/BlogModal'));
+const DeveloperStatsModal = lazy(() => import('./components/DeveloperStatsModal'));
+const BlogStatsModal = lazy(() => import('./components/BlogStatsModal'));
+const GalaxyGraphModal = lazy(() => import('./components/GalaxyGraphModal'));
+const TerminalConsole = lazy(() => import('./components/TerminalConsole'));
 
 export default function App() {
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'projects' | 'blog'>('projects');
@@ -70,6 +72,17 @@ export default function App() {
   const [isGalaxyModalOpen, setIsGalaxyModalOpen] = useState(false);
   const [galaxyFilterMode, setGalaxyFilterMode] = useState<'all' | 'posts' | 'tags'>('all');
 
+  // Lazy loading mount flags so JS modal chunks are only fetched when needed
+  const [statsMounted, setStatsMounted] = useState(false);
+  const [blogStatsMounted, setBlogStatsMounted] = useState(false);
+  const [galaxyMounted, setGalaxyMounted] = useState(false);
+  const [repoMounted, setRepoMounted] = useState(false);
+  const [blogMounted, setBlogMounted] = useState(false);
+
+  useEffect(() => { if (isStatsModalOpen) setStatsMounted(true); }, [isStatsModalOpen]);
+  useEffect(() => { if (isBlogStatsModalOpen) setBlogStatsMounted(true); }, [isBlogStatsModalOpen]);
+  useEffect(() => { if (isGalaxyModalOpen) setGalaxyMounted(true); }, [isGalaxyModalOpen]);
+
   const [selectedCategory, setSelectedCategory] = useState<CategoryKey | 'all' | 'plugins' | 'forked'>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<'name' | 'stars' | 'year' | 'year-asc' | 'commits'>('stars');
@@ -80,6 +93,9 @@ export default function App() {
   const [isRepoMinimized, setIsRepoMinimized] = useState(false);
   const [isBlogMinimized, setIsBlogMinimized] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
+
+  useEffect(() => { if (selectedRepo) setRepoMounted(true); }, [selectedRepo]);
+  useEffect(() => { if (selectedBlogPost) setBlogMounted(true); }, [selectedBlogPost]);
 
   const handleSelectRepo = useCallback((repo: Repository) => {
     setSelectedRepo(repo);
@@ -226,16 +242,18 @@ export default function App() {
     }
   }, [reposList]);
 
-  // Helper to download repos as JSON file
+  // Helper to download repos as JSON file safely without data: URL security blocks
   const handleDownloadJSON = useCallback(() => {
     try {
-      const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(reposList, null, 2));
+      const blob = new Blob([JSON.stringify(reposList, null, 2)], { type: 'application/json;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
       const downloadAnchor = document.createElement('a');
-      downloadAnchor.setAttribute("href", dataStr);
+      downloadAnchor.setAttribute("href", url);
       downloadAnchor.setAttribute("download", "repos.json");
       document.body.appendChild(downloadAnchor);
       downloadAnchor.click();
       downloadAnchor.remove();
+      URL.revokeObjectURL(url);
       setExportSuccess('downloaded');
       setTimeout(() => setExportSuccess(null), 3000);
     } catch (err) {
@@ -466,6 +484,7 @@ export default function App() {
             isFork: isFork,
             isContributed: isContributed,
             forkParent: item.parent?.full_name || item.source?.full_name || matchInStatic?.forkParent,
+            defaultBranch: item.default_branch || matchInStatic?.defaultBranch,
           });
 
           processedMap.set(enrichedRepo.name.toLowerCase(), enrichedRepo);
@@ -520,6 +539,23 @@ export default function App() {
   useEffect(() => {
     fetchGitHubData(false);
   }, [fetchGitHubData]);
+
+  // Prevent browser default navigation when dropping local files onto the page
+  // (Prevents "Security Error: Content at https://... may not load or link to file:///")
+  useEffect(() => {
+    const preventFileDrop = (e: DragEvent) => {
+      e.preventDefault();
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = 'none';
+      }
+    };
+    window.addEventListener('dragover', preventFileDrop);
+    window.addEventListener('drop', preventFileDrop);
+    return () => {
+      window.removeEventListener('dragover', preventFileDrop);
+      window.removeEventListener('drop', preventFileDrop);
+    };
+  }, []);
 
   // Statistics counters (fully synchronized with private visibility filter)
   const stats = useMemo(() => {
@@ -859,8 +895,10 @@ export default function App() {
       <nav id="top_app_navbar" className="sticky top-0 z-40 bg-editorial-bg/95 border-b border-editorial-border px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between backdrop-blur-sm">
         <div className="flex items-center gap-2 sm:gap-3">
           <img 
-            src="https://avatars.githubusercontent.com/tomekdot" 
+            src="https://avatars.githubusercontent.com/tomekdot?s=80" 
             alt="tomekdot avatar mini" 
+            width="28"
+            height="28"
             className="w-6 h-6 sm:w-7 sm:h-7 rounded-full border border-editorial-border"
           />
           <span translate="no" className="font-mono font-bold tracking-tight text-xs sm:text-sm text-white notranslate">
@@ -923,8 +961,10 @@ export default function App() {
           <div className="w-16 h-16 sm:w-20 sm:h-20 md:w-24 md:h-24 rounded-full border-2 border-dashed border-editorial-accent flex items-center justify-center p-1 shrink-0">
             <img 
               className="w-full h-full rounded-full object-cover" 
-              src="https://avatars.githubusercontent.com/tomekdot" 
+              src="https://avatars.githubusercontent.com/tomekdot?s=182" 
               alt="tomekdot profile picture"
+              width="96"
+              height="96"
             />
           </div>
 
@@ -2079,96 +2119,118 @@ export default function App() {
       <div className="fixed inset-x-0 bottom-0 z-40 pointer-events-none px-2 pb-2 sm:px-6 sm:pb-6 [@media(max-height:520px)]:pb-2 sm:[@media(max-height:520px)]:pb-2 sm:[@media(max-height:520px)]:px-4">
         <div className="flex items-end justify-between gap-2 pointer-events-auto">
           <div id="bottom_dock_slot" className="min-w-0 w-[min(22rem,calc(100vw-9rem))] [@media(max-height:520px)]:w-[min(18rem,calc(100vw-11rem))]">
-            <RepoModal
-              repo={activeSelectedRepo}
-              onClose={() => {
-                setSelectedRepo(null);
-                setIsRepoMinimized(false);
-              }}
-              lang={appLang}
-              isMinimized={isRepoMinimized}
-              onMinimize={() => setIsRepoMinimized(true)}
-              onRestore={() => setIsRepoMinimized(false)}
-              onUpdateRepo={handleUpdateRepo}
-            />
-            <BlogModal
-              post={selectedBlogPost}
-              onClose={() => {
-                setSelectedBlogPost(null);
-                setIsBlogMinimized(false);
-              }}
-              lang={appLang}
-              isMinimized={isBlogMinimized}
-              onMinimize={() => setIsBlogMinimized(true)}
-              onRestore={() => setIsBlogMinimized(false)}
-            />
+            {repoMounted && (
+              <Suspense fallback={null}>
+                <RepoModal
+                  repo={activeSelectedRepo}
+                  onClose={() => {
+                    setSelectedRepo(null);
+                    setIsRepoMinimized(false);
+                  }}
+                  lang={appLang}
+                  isMinimized={isRepoMinimized}
+                  onMinimize={() => setIsRepoMinimized(true)}
+                  onRestore={() => setIsRepoMinimized(false)}
+                  onUpdateRepo={handleUpdateRepo}
+                />
+              </Suspense>
+            )}
+            {blogMounted && (
+              <Suspense fallback={null}>
+                <BlogModal
+                  post={selectedBlogPost}
+                  onClose={() => {
+                    setSelectedBlogPost(null);
+                    setIsBlogMinimized(false);
+                  }}
+                  lang={appLang}
+                  isMinimized={isBlogMinimized}
+                  onMinimize={() => setIsBlogMinimized(true)}
+                  onRestore={() => setIsBlogMinimized(false)}
+                />
+              </Suspense>
+            )}
           </div>
           <div className="shrink-0">
-            <TerminalConsole 
-              onSelectCategory={(cat) => setSelectedCategory(cat as any)} 
-              lang={appLang} 
-              repos={reposList} 
-              isModalOpen={isAnyModalOpen} 
-              onOpenRepo={handleSelectRepo}
-            />
+            <Suspense fallback={null}>
+              <TerminalConsole 
+                onSelectCategory={(cat) => setSelectedCategory(cat as any)} 
+                lang={appLang} 
+                repos={reposList} 
+                isModalOpen={isAnyModalOpen} 
+                onOpenRepo={handleSelectRepo}
+              />
+            </Suspense>
           </div>
         </div>
       </div>
 
       {/* 9. Full Developer Statistics & Changelog Modal for Repos */}
-      <DeveloperStatsModal
-        isOpen={isStatsModalOpen}
-        onClose={() => setIsStatsModalOpen(false)}
-        repos={reposList.filter(r => !hidePrivate || !r.isPrivate)}
-        lang={appLang}
-        initialTab="new_plugins"
-        onSelectRepo={(r) => {
-          setIsStatsModalOpen(false);
-          handleSelectRepo(r);
-        }}
-      />
+      {statsMounted && (
+        <Suspense fallback={null}>
+          <DeveloperStatsModal
+            isOpen={isStatsModalOpen}
+            onClose={() => setIsStatsModalOpen(false)}
+            repos={reposList.filter(r => !hidePrivate || !r.isPrivate)}
+            lang={appLang}
+            initialTab="new_plugins"
+            onSelectRepo={(r) => {
+              setIsStatsModalOpen(false);
+              handleSelectRepo(r);
+            }}
+          />
+        </Suspense>
+      )}
 
       {/* 9.5 Full Blog Stats & Interactive AI Synthesis Modal */}
-      <BlogStatsModal
-        isOpen={isBlogStatsModalOpen}
-        onClose={() => setIsBlogStatsModalOpen(false)}
-        blogPosts={BLOG_POSTS}
-        lang={appLang}
-        onSelectBlogPost={(post) => {
-          setIsBlogStatsModalOpen(false);
-          handleSelectBlogPost(post);
-        }}
-        onOpenGalaxyGraph={(tag) => {
-          if (tag && tag !== 'all') {
-            setSelectedBlogTag(tag);
-          }
-          setGalaxyFilterMode('tags');
-          setIsGalaxyModalOpen(true);
-        }}
-      />
+      {blogStatsMounted && (
+        <Suspense fallback={null}>
+          <BlogStatsModal
+            isOpen={isBlogStatsModalOpen}
+            onClose={() => setIsBlogStatsModalOpen(false)}
+            blogPosts={BLOG_POSTS}
+            lang={appLang}
+            onSelectBlogPost={(post) => {
+              setIsBlogStatsModalOpen(false);
+              handleSelectBlogPost(post);
+            }}
+            onOpenGalaxyGraph={(tag) => {
+              if (tag && tag !== 'all') {
+                setSelectedBlogTag(tag);
+              }
+              setGalaxyFilterMode('tags');
+              setIsGalaxyModalOpen(true);
+            }}
+          />
+        </Suspense>
+      )}
 
       {/* 9.6 Obsidian Galaxy Constellation Network Graph Modal */}
-      <GalaxyGraphModal
-        isOpen={isGalaxyModalOpen}
-        onClose={() => setIsGalaxyModalOpen(false)}
-        blogPosts={BLOG_POSTS}
-        repositories={reposList}
-        lang={appLang}
-        initialFilterMode={galaxyFilterMode}
-        onSelectBlogPost={(post) => {
-          setIsGalaxyModalOpen(false);
-          handleSelectBlogPost(post);
-        }}
-        onSelectTag={(tag) => {
-          setSelectedBlogTag(tag);
-          setActiveWorkspaceTab('blog');
-        }}
-        onOpenAiDiscussion={(post) => {
-          setIsGalaxyModalOpen(false);
-          setIsBlogStatsModalOpen(true);
-          handleSelectBlogPost(post);
-        }}
-      />
+      {galaxyMounted && (
+        <Suspense fallback={null}>
+          <GalaxyGraphModal
+            isOpen={isGalaxyModalOpen}
+            onClose={() => setIsGalaxyModalOpen(false)}
+            blogPosts={BLOG_POSTS}
+            repositories={reposList}
+            lang={appLang}
+            initialFilterMode={galaxyFilterMode}
+            onSelectBlogPost={(post) => {
+              setIsGalaxyModalOpen(false);
+              handleSelectBlogPost(post);
+            }}
+            onSelectTag={(tag) => {
+              setSelectedBlogTag(tag);
+              setActiveWorkspaceTab('blog');
+            }}
+            onOpenAiDiscussion={(post) => {
+              setIsGalaxyModalOpen(false);
+              setIsBlogStatsModalOpen(true);
+              handleSelectBlogPost(post);
+            }}
+          />
+        </Suspense>
+      )}
 
       {/* 10. GitHub Token Config Modal */}
       <AnimatePresence>

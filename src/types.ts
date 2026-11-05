@@ -45,6 +45,7 @@ export interface Repository {
   isFork?: boolean;
   isContributed?: boolean;
   forkParent?: string;
+  defaultBranch?: string;
 }
 
 export interface BlogPost {

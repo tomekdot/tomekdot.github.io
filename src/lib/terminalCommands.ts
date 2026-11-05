@@ -484,7 +484,10 @@ export async function executeTerminalCommand(rawInput: string, ctx: TerminalCont
         ctx.onOpenRepo(matchedRepo);
         ctx.addOutput(t.openSuccess(matchedRepo.name), 'success');
       } else {
-        window.open(matchedRepo.url, '_blank', 'noopener,noreferrer');
+        const targetUrl = (matchedRepo.url && !matchedRepo.url.startsWith('file:') && !matchedRepo.url.startsWith('file:///'))
+          ? matchedRepo.url
+          : `https://github.com/tomekdot/${matchedRepo.name}`;
+        window.open(targetUrl, '_blank', 'noopener,noreferrer');
         ctx.addOutput(t.gitOpenRepo(matchedRepo.name), 'success');
       }
       break;
@@ -612,7 +615,10 @@ export async function executeTerminalCommand(rawInput: string, ctx: TerminalCont
           ctx.addOutput('URL: https://github.com/tomekdot', 'success');
         } else {
           const matchedRepo = findRepoByName(repoArg, ctx.repos);
-          const targetUrl = matchedRepo?.url || `https://github.com/tomekdot/${repoArg}`;
+          let targetUrl = matchedRepo?.url || `https://github.com/tomekdot/${repoArg}`;
+          if (targetUrl.startsWith('file:') || targetUrl.startsWith('file:///')) {
+            targetUrl = `https://github.com/tomekdot/${repoArg}`;
+          }
           window.open(targetUrl, '_blank', 'noopener,noreferrer');
           ctx.addOutput(t.gitOpenRepo(repoArg), 'comment');
           ctx.addOutput(`URL: ${targetUrl}`, 'success');

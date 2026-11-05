@@ -328,15 +328,17 @@ export default function BlogStatsModal({
     ? (lang === 'en' ? (selectedPost.aiVersionNoteEn || selectedPost.aiVersionNote) : (selectedPost.aiVersionNotePl || selectedPost.aiVersionNote))
     : undefined;
 
-  const activeDraftContent = selectedPost
+  const rawDraftContent = selectedPost
     ? (lang === 'en'
         ? (selectedPost.draftVersionContentEn || selectedPost.draftVersionContent || selectedPost.excerptEn)
         : (selectedPost.draftVersionContentPl || selectedPost.draftVersionContent || selectedPost.excerptPl))
     : '';
+  const activeDraftContent = rawDraftContent.replace(/file:\/\/\/[^\s\)"']*/gi, '#').replace(/file:\/\/[^\s\)"']*/gi, '#');
 
-  const activeV2Content = selectedPost
+  const rawV2Content = selectedPost
     ? (lang === 'en' ? selectedPost.contentEn : selectedPost.contentPl)
     : '';
+  const activeV2Content = rawV2Content.replace(/file:\/\/\/[^\s\)"']*/gi, '#').replace(/file:\/\/[^\s\)"']*/gi, '#');
 
   // Copy synthesis / content
   const handleCopy = () => {
@@ -937,7 +939,20 @@ export default function BlogStatsModal({
                         </div>
                       ) : (
                         <div className="prose prose-invert max-w-none text-xs leading-relaxed text-zinc-300 font-sans">
-                          <Markdown remarkPlugins={[remarkGfm]}>
+                          <Markdown 
+                            remarkPlugins={[remarkGfm]}
+                            components={{
+                              a: ({ node, href, children, ...props }) => {
+                                const safeHref = (href && !href.startsWith('file:') && !href.startsWith('file:///')) ? href : '#';
+                                return <a href={safeHref} className="text-cyan-400 underline hover:text-white font-mono break-all" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>;
+                              },
+                              img: ({ node, src, alt, ...props }) => {
+                                const safeSrc = (src && !src.startsWith('file:') && !src.startsWith('file:///')) ? src : '';
+                                if (!safeSrc) return null;
+                                return <img src={safeSrc} alt={alt || ''} className="max-w-full my-2 border border-editorial-border" {...props} />;
+                              }
+                            }}
+                          >
                             {versionMode === 'v1_draft' ? activeDraftContent : activeV2Content}
                           </Markdown>
                         </div>
@@ -1348,11 +1363,20 @@ export default function BlogStatsModal({
                             ul: ({ node, ...props }) => <ul className="list-disc pl-4 mb-2 space-y-1" {...props} />,
                             ol: ({ node, ...props }) => <ol className="list-decimal pl-4 mb-2 space-y-1" {...props} />,
                             li: ({ node, ...props }) => <li className="leading-relaxed break-words" {...props} />,
+                            a: ({ node, href, children, ...props }) => {
+                              const safeHref = (href && !href.startsWith('file:') && !href.startsWith('file:///')) ? href : '#';
+                              return <a href={safeHref} className="text-cyan-400 underline hover:text-white font-mono break-all" target="_blank" rel="noopener noreferrer" {...props}>{children}</a>;
+                            },
+                            img: ({ node, src, alt, ...props }) => {
+                              const safeSrc = (src && !src.startsWith('file:') && !src.startsWith('file:///')) ? src : '';
+                              if (!safeSrc) return null;
+                              return <img src={safeSrc} alt={alt || ''} className="max-w-full my-2 border border-editorial-border" {...props} />;
+                            },
                             pre: ({ node, ...props }) => <pre className="p-2 my-2 bg-neutral-900 border border-editorial-border overflow-x-auto text-[10.5px] font-mono text-cyan-300 rounded-none max-w-full" {...props} />,
                             code: ({ node, ...props }) => <code className="px-1 py-0.5 bg-neutral-900 text-fuchsia-300 border border-editorial-border/60 text-[10.5px] font-mono rounded-none" {...props} />,
                           }}
                         >
-                          {msg.text}
+                          {msg.text.replace(/file:\/\/\/[^\s\)"']*/gi, '#').replace(/file:\/\/[^\s\)"']*/gi, '#')}
                         </Markdown>
                       </div>
                     </div>

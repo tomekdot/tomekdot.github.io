@@ -1069,6 +1069,10 @@ export function autoEnrichRepo(repo: Repository): Repository {
     capabilities,
     codeSnippet,
     createdYear,
+    defaultBranch: repo.defaultBranch || staticMatch?.defaultBranch || (
+      ['tm-green-timer', 'pomodoro-plugin-dev', 'pursuit-maps'].includes(nameLower) ? 'master' :
+      nameLower === 'tomekdot' ? 'dev' : 'main'
+    ),
   };
 }
 
@@ -1200,6 +1204,7 @@ class HelloWorldConfig(AppConfig):
       "openplanet"
     ],
     url: "https://github.com/tomekdot/pomodoro-plugin-dev",
+    defaultBranch: "master",
     stars: 1,
     forks: 0,
     longDescEn: "A high-productivity Pomodoro technique timer integrated right into Trackmania's overlay. Includes task checklists, custom session lengths, progress charts, automated track muting, and keyboard shortcuts.",
@@ -1261,6 +1266,7 @@ class HelloWorldConfig(AppConfig):
       "trackmania"
     ],
     url: "https://github.com/tomekdot/pursuit-maps",
+    defaultBranch: "master",
     stars: 0,
     forks: 0,
     longDescEn: "Comprehensive dataset indexing pursuit maps with embedded track validation UIDs, hex headers, high-resolution thumbnail extractions, and original race configurations.",
@@ -2416,6 +2422,7 @@ print(f"Total system failures: {errors.count()}")`
       "other"
     ],
     url: "https://github.com/tomekdot/tomekdot",
+    defaultBranch: "dev",
     stars: 0,
     forks: 0,
     longDescEn: "Automatic entry for tomekdot. This utility has 0 stars and 0 forks on Github.",
@@ -2533,6 +2540,7 @@ print(f"Total system failures: {errors.count()}")`
     isFork: true,
     isContributed: true,
     forkParent: "XertroV/tm-green-timer",
+    defaultBranch: "master",
     longDescEn: "A high-precision green timer and split-delta timing utility designed for Trackmania (TM) runs. Features realtime delta markers, custom font styling, personal best comparisons, and live segment pacing.",
     longDescPl: "Precyzyjny licznik czasu i benchmark międzyczasów (delt) stworzony dla gry Trackmania (TM). Oferuje wskaźniki tempa na żywo, porównanie do rekordu osobistego (PB) oraz pełną konfigurację wyglądu.",
     pushedAt: "2026-06-22T13:15:00Z",
