@@ -8,6 +8,7 @@ import { motion } from 'motion/react';
 import { FolderGit2, Star, GitFork, ChevronRight, Calendar, Lock } from 'lucide-react';
 import { Repository } from '../types';
 import { CATEGORIES, LANG_COLORS } from '../data';
+import { formatStarsCount } from '../lib/pluralize';
 
 interface RepoCardProps {
   repo: Repository;
@@ -88,7 +89,7 @@ const RepoCard = React.memo(function RepoCard({ repo, onSelect, lang, compact }:
             </span>
           </span>
           {!repo.isPrivate && (
-            <span className="shrink-0 inline-flex items-center gap-1 text-[9px] font-mono uppercase font-bold" title="Stars">
+            <span className="shrink-0 inline-flex items-center gap-1 text-[9px] font-mono uppercase font-bold" title={formatStarsCount(repo.stars, lang)}>
               <Star size={10} className="text-amber-500 fill-amber-500/20" />
               <span>{repo.stars}</span>
             </span>
@@ -163,7 +164,7 @@ const RepoCard = React.memo(function RepoCard({ repo, onSelect, lang, compact }:
           </span>
         </span>
         {!repo.isPrivate && (
-          <span className="shrink-0 inline-flex items-center gap-1 text-[10px]" title="Stars">
+          <span className="shrink-0 inline-flex items-center gap-1 text-[10px]" title={formatStarsCount(repo.stars, lang)}>
             <Star size={10} className="text-amber-500 fill-amber-500/20" />
             <span>{repo.stars}</span>
           </span>

@@ -203,11 +203,11 @@ export default function BlogModal({
                     ? 'short:order-2 short:mb-0 short:flex-wrap short:gap-1.5'
                     : 'short:order-2 short:mb-0 short:flex-nowrap short:overflow-hidden short:shrink short:gap-1.5'
                 }`}>
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-neutral-950 border border-editorial-border text-zinc-300 font-semibold whitespace-nowrap shrink-0">
+                  <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 bg-neutral-950 border border-editorial-border text-zinc-300 font-semibold whitespace-nowrap shrink-0">
                     <Calendar size={10} className="text-editorial-accent shrink-0" />
                     {post.date}
                   </span>
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-neutral-950 border border-editorial-border text-editorial-muted font-semibold whitespace-nowrap shrink-0">
+                  <span className="shrink-0 whitespace-nowrap inline-flex items-center gap-1 px-1.5 py-0.5 bg-neutral-950 border border-editorial-border text-editorial-muted font-semibold">
                     <Clock size={10} className="text-editorial-accent shrink-0" />
                     {readingTime}
                   </span>

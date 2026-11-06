@@ -70,11 +70,11 @@ interface GalaxyEdge {
 }
 
 // Lightweight Solar Core for low-end / battery saver / reduced motion devices
-const SolarCoreLite = React.memo(function SolarCoreLite() {
+const SolarCoreLite = React.memo(function SolarCoreLite({ animated = false }: { animated?: boolean }) {
   return (
     <g className="pointer-events-none select-none">
       <circle r="90" fill="url(#sunCoreGlow)" opacity="0.8" />
-      <circle r="64" fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="12,6" opacity="0.8" />
+      <circle r="64" fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="12,6" opacity="0.8" className={animated ? "galaxy-spin-ccw" : undefined} />
       <circle r="48" fill="#170d04" stroke="#fbbf24" strokeWidth="2" />
       <circle r="20" fill="#fbbf24" />
       <circle r="5" fill="#ffffff" />
@@ -83,14 +83,16 @@ const SolarCoreLite = React.memo(function SolarCoreLite() {
 });
 
 // Full Solar Core using GPU compositor CSS transform rotation instead of SMIL animateTransform
-const SolarCore = React.memo(function SolarCore() {
+const SolarCore = React.memo(function SolarCore({ animated = true }: { animated?: boolean }) {
   return (
     <g className="pointer-events-none select-none">
       {/* Outer Solar Aura Corona Disc */}
       <circle cx="0" cy="0" r="90" fill="url(#sunCoreGlow)" filter="url(#sunGlow)" opacity="0.85" />
 
       {/* Outer Clockwise Rotating Solar Flare Beams (CSS GPU Transform) */}
-      <g className="galaxy-spin-cw">
+      <g className={animated ? "galaxy-spin-cw" : undefined}>
+        {/* Invisible symmetric guide circle centered at (0,0) ensures exact rotation origin in Chromium SVG */}
+        <circle cx="0" cy="0" r="80" fill="none" stroke="none" />
         {[0, 30, 60, 90, 120, 150, 180, 210, 240, 270, 300, 330].map((deg, i) => {
           const rad = (deg * Math.PI) / 180;
           const x2 = Math.cos(rad) * 80;
@@ -112,7 +114,7 @@ const SolarCore = React.memo(function SolarCore() {
       </g>
 
       {/* Counter-Clockwise Rotating Corona Plasma Ring (CSS GPU Transform) */}
-      <g className="galaxy-spin-ccw">
+      <g className={animated ? "galaxy-spin-ccw" : undefined}>
         <circle cx="0" cy="0" r="64" fill="none" stroke="#f59e0b" strokeWidth="1.5" strokeDasharray="12,6" opacity="0.8" />
         <circle cx="0" cy="0" r="54" fill="none" stroke="#38bdf8" strokeWidth="1" strokeDasharray="6,8" opacity="0.7" />
         <circle cx="0" cy="0" r="44" fill="none" stroke="#e879f9" strokeWidth="0.8" strokeDasharray="3,6" opacity="0.6" />
@@ -315,13 +317,27 @@ export default function GalaxyGraphModal({
   onSelectTag,
   onOpenAiDiscussion
 }: GalaxyGraphModalProps) {
-  // Low-end / mobile / battery-saver detection
+  // User motion preference (animations are disabled only when prefers-reduced-motion is active)
+  const reducedMotion = useMemo(() => {
+    if (typeof window === 'undefined') return false;
+    return !!window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+  }, []);
+
+  // Truly constrained hardware detection (e.g. <= 2 CPU cores AND <= 2GB RAM)
   const isLowEnd = useMemo(() => {
     if (typeof window === 'undefined') return false;
-    const reducedMotion = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
     const cores = navigator.hardwareConcurrency ?? 8;
     const memory = (navigator as any).deviceMemory ?? 8;
-    return !!reducedMotion || cores <= 4 || memory <= 4;
+    return cores <= 2 && memory <= 2;
+  }, []);
+
+  // Node selection handler with tap debouncing for touch & pointer devices
+  const lastNodeTapTimeRef = useRef(0);
+  const handleNodeSelect = useCallback((nodeId: string) => {
+    const now = Date.now();
+    if (now - lastNodeTapTimeRef.current < 300) return;
+    lastNodeTapTimeRef.current = now;
+    setSelectedNodeId(prev => (prev === nodeId ? null : nodeId));
   }, []);
 
   // State
@@ -948,38 +964,47 @@ export default function GalaxyGraphModal({
           </div>
 
           {/* SECONDARY TOOLBAR: FILTER PILLS, SEARCH, & ZOOM CONTROLS */}
-          <div className="flex flex-wrap items-center justify-between gap-2 px-3 sm:px-5 py-2 bg-[#0A0D14] border-b border-editorial-border/60 z-10 shrink-0 font-mono text-xs">
+          <div className="relative flex flex-wrap items-center justify-between gap-2 px-3 sm:px-5 py-2 bg-[#0A0D14] border-b border-editorial-border/60 z-20 shrink-0 font-mono text-xs">
             {/* Filter Mode Pills matching Repo modal button sizing */}
-            <div className="flex items-center gap-1 bg-neutral-950 p-0.5 border border-editorial-border">
+            <div className="flex items-center gap-1 bg-neutral-950 p-1 sm:p-0.5 border border-editorial-border max-w-full overflow-x-auto no-scrollbar">
               <button
                 type="button"
-                onClick={() => setFilterType('all')}
-                className={`px-2.5 py-1 text-[10.5px] uppercase font-bold transition-all cursor-pointer ${
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFilterType('all');
+                }}
+                className={`min-h-[38px] sm:min-h-0 px-3 sm:px-2.5 py-2 sm:py-1 text-[11px] sm:text-[10.5px] uppercase font-bold transition-all cursor-pointer select-none touch-manipulation active:scale-95 whitespace-nowrap shrink-0 ${
                   filterType === 'all'
                     ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/60'
-                    : 'text-editorial-muted hover:text-white'
+                    : 'text-editorial-muted hover:text-white border border-transparent'
                 }`}
               >
                 {lang === 'en' ? 'All Orbitals' : 'Wszystko'} ({nodes.length})
               </button>
               <button
                 type="button"
-                onClick={() => setFilterType('posts')}
-                className={`px-2.5 py-1 text-[10.5px] uppercase font-bold transition-all cursor-pointer ${
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFilterType('posts');
+                }}
+                className={`min-h-[38px] sm:min-h-0 px-3 sm:px-2.5 py-2 sm:py-1 text-[11px] sm:text-[10.5px] uppercase font-bold transition-all cursor-pointer select-none touch-manipulation active:scale-95 whitespace-nowrap shrink-0 ${
                   filterType === 'posts'
                     ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/60'
-                    : 'text-editorial-muted hover:text-white'
+                    : 'text-editorial-muted hover:text-white border border-transparent'
                 }`}
               >
                 ● {lang === 'en' ? 'Posts' : 'Wpisy'} ({sortedPosts.length})
               </button>
               <button
                 type="button"
-                onClick={() => setFilterType('tags')}
-                className={`px-2.5 py-1 text-[10.5px] uppercase font-bold transition-all cursor-pointer ${
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setFilterType('tags');
+                }}
+                className={`min-h-[38px] sm:min-h-0 px-3 sm:px-2.5 py-2 sm:py-1 text-[11px] sm:text-[10.5px] uppercase font-bold transition-all cursor-pointer select-none touch-manipulation active:scale-95 whitespace-nowrap shrink-0 ${
                   filterType === 'tags'
                     ? 'bg-fuchsia-950 text-fuchsia-300 border border-fuchsia-500/60'
-                    : 'text-editorial-muted hover:text-white'
+                    : 'text-editorial-muted hover:text-white border border-transparent'
                 }`}
               >
                 ◆ {lang === 'en' ? 'Tags' : 'Tagi'} ({allTagsList.length})
@@ -1001,7 +1026,7 @@ export default function GalaxyGraphModal({
                   <button 
                     type="button" 
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white p-0.5"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white p-0.5 cursor-pointer"
                   >
                     <X size={11} />
                   </button>
@@ -1009,11 +1034,11 @@ export default function GalaxyGraphModal({
               </div>
 
               {/* Zoom Buttons matching repo control sizes */}
-              <div className="flex items-center gap-1 bg-neutral-950 p-0.5 border border-editorial-border">
+              <div className="flex items-center gap-1 bg-neutral-950 p-1 sm:p-0.5 border border-editorial-border shrink-0">
                 <button
                   type="button"
                   onClick={handleZoomIn}
-                  className="p-1 text-editorial-muted hover:text-white hover:bg-neutral-900 transition-all cursor-pointer"
+                  className="p-2 sm:p-1 min-w-[34px] sm:min-w-0 min-h-[34px] sm:min-h-0 flex items-center justify-center text-editorial-muted hover:text-white hover:bg-neutral-900 transition-all cursor-pointer touch-manipulation active:scale-95"
                   title="Zoom in"
                 >
                   <ZoomIn size={14} />
@@ -1021,7 +1046,7 @@ export default function GalaxyGraphModal({
                 <button
                   type="button"
                   onClick={handleZoomOut}
-                  className="p-1 text-editorial-muted hover:text-white hover:bg-neutral-900 transition-all cursor-pointer"
+                  className="p-2 sm:p-1 min-w-[34px] sm:min-w-0 min-h-[34px] sm:min-h-0 flex items-center justify-center text-editorial-muted hover:text-white hover:bg-neutral-900 transition-all cursor-pointer touch-manipulation active:scale-95"
                   title="Zoom out"
                 >
                   <ZoomOut size={14} />
@@ -1029,7 +1054,7 @@ export default function GalaxyGraphModal({
                 <button
                   type="button"
                   onClick={handleResetView}
-                  className="p-1 text-editorial-muted hover:text-white hover:bg-neutral-900 transition-all cursor-pointer"
+                  className="p-2 sm:p-1 min-w-[34px] sm:min-w-0 min-h-[34px] sm:min-h-0 flex items-center justify-center text-editorial-muted hover:text-white hover:bg-neutral-900 transition-all cursor-pointer touch-manipulation active:scale-95"
                   title="Reset galaxy coordinate center"
                 >
                   <RotateCcw size={14} />
@@ -1075,25 +1100,21 @@ export default function GalaxyGraphModal({
                   <stop offset="100%" stopColor="#000000" stopOpacity="0" />
                 </radialGradient>
 
-                {/* Lightweight node filter glow (200% region) */}
-                {!isLowEnd && (
-                  <>
-                    <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
-                      <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
-                      <feMerge>
-                        <feMergeNode in="blur" />
-                        <feMergeNode in="SourceGraphic" />
-                      </feMerge>
-                    </filter>
-                    <filter id="sunGlow" x="-50%" y="-50%" width="200%" height="200%">
-                      <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
-                      <feMerge>
-                        <feMergeNode in="blur" />
-                        <feMergeNode in="SourceGraphic" />
-                      </feMerge>
-                    </filter>
-                  </>
-                )}
+                {/* Standard node and sun glow filters (always defined so SVG filter references never break) */}
+                <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur in="SourceGraphic" stdDeviation="3" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
+                <filter id="sunGlow" x="-50%" y="-50%" width="200%" height="200%">
+                  <feGaussianBlur in="SourceGraphic" stdDeviation="4" result="blur" />
+                  <feMerge>
+                    <feMergeNode in="blur" />
+                    <feMergeNode in="SourceGraphic" />
+                  </feMerge>
+                </filter>
               </defs>
 
               {/* TRANSFORM CONTAINER WITH PAN & ZOOM (DRIVEN DIRECTLY VIA DOM REF, NO EXPENSIVE DROP-SHADOW ON GROUP) */}
@@ -1108,8 +1129,8 @@ export default function GalaxyGraphModal({
                 {/* RADIAL AXIS SPOKES (MEMOIZED LAYER) */}
                 <RadialSpokes />
 
-                {/* CENTRAL SOLAR CORE (LITE FOR SLOW DEVICES / GPU CSS ROTATION FOR REGULAR) */}
-                {isLowEnd ? <SolarCoreLite /> : <SolarCore />}
+                {/* CENTRAL SOLAR CORE (Animated by default; pauses only when prefers-reduced-motion is active) */}
+                <SolarCore animated={!reducedMotion} />
 
                 {/* CONSTELLATION CONNECTION EDGES (OPTIMIZED BATCHED PATHS) */}
                 <ConstellationEdges
@@ -1146,7 +1167,11 @@ export default function GalaxyGraphModal({
                       onMouseLeave={() => setHoveredNodeId(null)}
                       onClick={(e) => {
                         e.stopPropagation();
-                        setSelectedNodeId(prev => prev === node.id ? null : node.id);
+                        handleNodeSelect(node.id);
+                      }}
+                      onTouchEnd={(e) => {
+                        e.stopPropagation();
+                        handleNodeSelect(node.id);
                       }}
                       className="cursor-pointer transition-opacity duration-150"
                       opacity={isDimmed ? 0.25 : 1}

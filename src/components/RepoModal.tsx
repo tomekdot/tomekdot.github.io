@@ -46,7 +46,8 @@ import {
   Boxes,
   Minus,
   FolderGit2,
-  Minimize2
+  Minimize2,
+  Maximize2
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
@@ -74,6 +75,7 @@ import {
 } from '../lib/clientAi';
 
 import AnimatedNumber from './AnimatedNumber';
+import { formatGitHubStars, pluralizePolish } from '../lib/pluralize';
 
 const LANG_ACRONYMS: Record<string, string> = {
   'JavaScript': 'JS',
@@ -1253,8 +1255,11 @@ export default function RepoModal({
                   translateNo 
                   className="text-[11px] sm:text-xs [@media(max-height:520px)]:text-[10px] font-bold text-white flex-1 min-w-0" 
                 />
-                <span className="hidden md:inline-block text-[8.5px] uppercase px-1 py-0.2 bg-[#0E1B24] border border-cyan-500/40 text-cyan-400 font-bold shrink-0">
-                  {lang === 'en' ? catSpec.labelEn : catSpec.labelPl}
+                <span 
+                  className="inline-block text-[8.5px] uppercase px-1.5 py-0.5 bg-[#0E1B24] border border-cyan-500/40 text-cyan-400 font-bold shrink-0 font-mono tracking-wider"
+                  title={lang === 'en' ? catSpec.labelEn : catSpec.labelPl}
+                >
+                  {catSpec.abbr || (lang === 'en' ? (catSpec.shortLabelEn || catSpec.labelEn) : (catSpec.shortLabelPl || catSpec.labelPl))}
                 </span>
               </div>
               <p className="text-[8.5px] sm:text-[9.5px] [@media(max-height:520px)]:text-[8px] text-editorial-muted truncate font-sans">
@@ -1325,7 +1330,7 @@ export default function RepoModal({
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.98, y: 10 }}
               transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-              className="relative bg-editorial-bg border-2 border-editorial-border w-[calc(100vw-1rem)] sm:w-[min(42rem,calc(100vw-4rem))] lg:w-[min(48rem,calc(100vw-6rem))] short:w-[min(56rem,calc(100vw-1rem))] h-[min(84dvh,720px)] max-h-[calc(100dvh-2rem)] short:h-[calc(100dvh-0.5rem)] short:max-h-[calc(100dvh-0.5rem)] rounded-none shadow-2xl flex flex-col overflow-hidden min-w-0 my-auto"
+              className="relative bg-editorial-bg border-2 border-editorial-border shadow-2xl flex flex-col overflow-hidden min-w-0 transition-all duration-200 w-[calc(100vw-1rem)] sm:w-[min(42rem,calc(100vw-4rem))] lg:w-[min(48rem,calc(100vw-6rem))] short:w-[min(56rem,calc(100vw-1rem))] h-[min(84dvh,720px)] max-h-[calc(100dvh-2rem)] short:h-[calc(100dvh-0.5rem)] short:max-h-[calc(100dvh-0.5rem)] rounded-none my-auto"
             >
             {/* iOS/iPhone-style pull-down handle (clean pill bar, no text) */}
             <div 
@@ -1353,7 +1358,7 @@ export default function RepoModal({
               <div className={`flex flex-wrap items-center gap-1.5 sm:gap-2 mb-0.5 sm:mb-1 ${
                 isShortTitleExpanded
                   ? 'short:order-2 short:mb-0 short:flex-wrap short:gap-1.5'
-                  : 'short:order-2 short:mb-0 short:flex-nowrap short:overflow-hidden short:shrink short:gap-1.5'
+                  : 'short:order-2 short:mb-0 short:flex-nowrap short:overflow-hidden short:shrink-0 short:gap-1.5'
               }`}>
                 {repo.cat.map(catKey => {
                   const spec = CATEGORIES[catKey] || CATEGORIES.other;
@@ -1472,10 +1477,11 @@ export default function RepoModal({
             <div className="flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
-                id="minimize_modal_btn"
+                id="fullscreen_modal_btn"
                 onClick={onMinimize}
+                aria-label={lang === 'en' ? 'Minimize window' : 'Zminimalizuj okno'}
+                title={lang === 'en' ? 'Minimize window' : 'Zminimalizuj okno'}
                 className="w-8 h-8 sm:w-9 sm:h-9 short:w-7 short:h-7 text-cyan-400 hover:text-white hover:bg-cyan-950/40 rounded-none transition-all border border-cyan-500/50 shrink-0 cursor-pointer flex items-center justify-center shadow-sm"
-                title={lang === 'en' ? 'Minimize' : 'Zminimalizuj'}
               >
                 <Minimize2 size={16} />
               </button>
@@ -1483,8 +1489,9 @@ export default function RepoModal({
                 type="button"
                 id="close_modal_btn"
                 onClick={onClose}
-                className="w-8 h-8 sm:w-9 sm:h-9 short:w-7 short:h-7 text-rose-400 hover:text-white hover:bg-rose-950/40 rounded-none transition-all border border-rose-500/50 shrink-0 cursor-pointer flex items-center justify-center shadow-sm"
+                aria-label={lang === 'en' ? 'Close' : 'Zamknij'}
                 title={lang === 'en' ? 'Close (Esc)' : 'Zamknij (Esc)'}
+                className="w-8 h-8 sm:w-9 sm:h-9 short:w-7 short:h-7 text-rose-400 hover:text-white hover:bg-rose-950/40 rounded-none transition-all border border-rose-500/50 shrink-0 cursor-pointer flex items-center justify-center shadow-sm"
               >
                 <X size={16} />
               </button>
@@ -1573,7 +1580,11 @@ export default function RepoModal({
                             <Star size={16} />
                           </div>
                           <div className="text-sm font-mono font-bold text-white"><AnimatedNumber value={repo.stars} /></div>
-                          <div className="text-[10px] text-editorial-muted font-mono uppercase tracking-wider mt-0.5">Stars</div>
+                          <div className="text-[10px] text-editorial-muted font-mono uppercase tracking-wider mt-0.5">
+                            {lang === 'en' 
+                              ? (repo.stars === 1 ? 'Star' : 'Stars') 
+                              : pluralizePolish(repo.stars, 'Gwiazdka', 'Gwiazdki', 'Gwiazdek')}
+                          </div>
                         </div>
 
                         <div className="bg-editorial-sidebar-bg border border-editorial-border p-2.5 sm:p-3.5 short:p-1.5 rounded-none text-center">
@@ -1581,7 +1592,9 @@ export default function RepoModal({
                             <Code size={16} />
                           </div>
                           <div className="text-sm font-mono font-bold text-white"><AnimatedNumber value={repo.commitsCount || 0} /></div>
-                          <div className="text-[10px] text-editorial-muted font-mono uppercase tracking-wider mt-0.5 font-bold">Commits</div>
+                          <div className="text-[10px] text-editorial-muted font-mono uppercase tracking-wider mt-0.5 font-bold">
+                            {lang === 'en' ? 'Commits' : 'Commity'}
+                          </div>
                         </div>
                       </div>
                     ) : (
@@ -2634,7 +2647,7 @@ export default function RepoModal({
               {repo.isPrivate ? (
                 lang === 'en' ? '🔒 Private Archive' : '🔒 Prywatne Archiwum'
               ) : (
-                `★ ${repo.stars} ${lang === 'en' ? 'stargazers on GitHub' : 'gwiazdek na GitHubie'}`
+                `★ ${formatGitHubStars(repo.stars, lang)}`
               )}
             </div>
 

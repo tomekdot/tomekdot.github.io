@@ -88,11 +88,11 @@ export default function LanguageChart({ repos, lang, selectedLang, onSelectLang 
         )}
       </div>
 
-      {/* Modern Interactive Continuous Bar Spectrum */}
+      {/* Modern Continuous Bar Spectrum (Visual Overview) */}
       <div 
-        className="w-full h-3 sm:h-3.5 overflow-hidden flex bg-neutral-900 mb-2 sm:mb-2.5 rounded-none border border-editorial-border/40 shadow-inner"
-        role="group"
-        aria-label={lang === 'en' ? 'Language spectrum bar' : 'Pasek spektrum języków'}
+        className="w-full h-2.5 sm:h-3 overflow-hidden flex bg-neutral-900 mb-2 sm:mb-2.5 rounded-none border border-editorial-border/40 shadow-inner"
+        role="img"
+        aria-label={lang === 'en' ? 'Language spectrum overview bar' : 'Pasek podglądu spektrum języków'}
       >
         {languageStats.map((stat) => {
           const isSelected = selectedLang === stat.name || 
@@ -101,16 +101,13 @@ export default function LanguageChart({ repos, lang, selectedLang, onSelectLang 
           const displayName = stat.name === 'Shell/Other' ? (lang === 'en' ? 'Shell/Other' : 'Shell/Inne') : stat.name;
 
           return (
-            <button
-              type="button"
+            <div
               key={stat.name}
               style={{ width: `${Math.max(stat.percentage, 1.5)}%`, backgroundColor: stat.color }}
-              onClick={() => onSelectLang && onSelectLang(isSelected ? 'all' : stat.name)}
-              className={`h-full transition-all duration-200 cursor-pointer focus:outline-none hover:brightness-125 ${
-                isDimmed ? 'opacity-30 hover:opacity-85' : 'opacity-100 hover:scale-y-110'
+              className={`h-full transition-all duration-200 ${
+                isDimmed ? 'opacity-30' : 'opacity-100'
               }`}
               title={`${displayName}: ${stat.percentage}% (${stat.count} ${stat.count === 1 ? 'repo' : 'repos'})`}
-              aria-label={`${displayName}: ${stat.percentage}% (${stat.count} ${stat.count === 1 ? 'repo' : 'repos'})`}
             />
           );
         })}

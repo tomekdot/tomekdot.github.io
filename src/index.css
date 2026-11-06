@@ -172,6 +172,9 @@ input[type="range"].range-slider-thumb::-moz-range-thumb:active {
   transform-origin: center;
 }
 
-
-
-
+@media (prefers-reduced-motion: reduce) {
+  .galaxy-spin-cw,
+  .galaxy-spin-ccw {
+    animation: none !important;
+  }
+}

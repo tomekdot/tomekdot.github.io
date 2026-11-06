@@ -48,11 +48,11 @@ const BlogCard = React.memo(function BlogCard({
         <div className="flex items-start gap-2.5 min-w-0 w-full">
           <Newspaper size={16} className="text-editorial-muted group-hover:text-editorial-accent transition-colors shrink-0 mt-0.5" />
           <div className="min-w-0 flex-1">
-            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
-              <span className="text-xs sm:text-sm font-bold font-mono text-white group-hover:text-editorial-accent transition-colors truncate">
+            <div className="flex items-center justify-between gap-1.5 sm:gap-2 min-w-0">
+              <span className="text-xs sm:text-sm font-bold font-mono text-white group-hover:text-editorial-accent transition-colors min-w-0 flex-1 truncate">
                 {title}
               </span>
-              <span className="inline-flex items-center gap-1 text-[9px] text-editorial-muted border border-editorial-border/60 px-1.5 py-0.2 bg-neutral-950 font-semibold shrink-0">
+              <span className="hidden md:inline-flex items-center gap-1 text-[9px] text-editorial-muted border border-editorial-border/60 px-1.5 py-0.2 bg-neutral-950 font-semibold shrink-0 whitespace-nowrap">
                 <Calendar size={9} className="text-sky-400 shrink-0" />
                 {post.date}
               </span>
@@ -71,7 +71,7 @@ const BlogCard = React.memo(function BlogCard({
             #{primaryTag.toUpperCase()}
           </span>
 
-          <span className="shrink-0 inline-flex items-center gap-1 text-[10px] text-zinc-300 border border-editorial-border/60 px-1.5 py-0.5">
+          <span className="shrink-0 whitespace-nowrap inline-flex items-center gap-1 text-[10px] text-zinc-300 border border-editorial-border/60 px-1.5 py-0.5">
             <Clock size={10} className="text-editorial-accent shrink-0" />
             <span>{readingTime}</span>
           </span>
@@ -115,16 +115,16 @@ const BlogCard = React.memo(function BlogCard({
     >
       <div>
         {/* Top header stats */}
-        <div className="flex flex-wrap items-center justify-between gap-1.5 mb-2 sm:mb-2.5 text-editorial-muted font-mono text-[9px] sm:text-[9.5px] uppercase tracking-wider">
-          <span className="font-semibold text-editorial-accent bg-neutral-900 border border-editorial-border/70 px-1.5 py-0.5 shrink-0">
+        <div className="flex items-center justify-between gap-1.5 mb-2 sm:mb-2.5 text-editorial-muted font-mono text-[9px] sm:text-[9.5px] uppercase tracking-wider min-w-0">
+          <span className="font-semibold text-editorial-accent bg-neutral-900 border border-editorial-border/70 px-1.5 py-0.5 shrink-0 whitespace-nowrap">
             #{primaryTag.toUpperCase()}
           </span>
           <div className="flex items-center gap-2 sm:gap-2.5 shrink-0 ml-auto whitespace-nowrap">
-            <span className="inline-flex items-center gap-1 text-zinc-400">
+            <span className="hidden md:inline-flex items-center gap-1 text-zinc-400">
               <Calendar size={10} className="text-neutral-500 shrink-0" />
               <span>{post.date}</span>
             </span>
-            <span className="inline-flex items-center gap-1 text-zinc-400">
+            <span className="shrink-0 whitespace-nowrap inline-flex items-center gap-1 text-zinc-400">
               <Clock size={10} className="text-editorial-accent shrink-0" />
               <span>{readingTime}</span>
             </span>

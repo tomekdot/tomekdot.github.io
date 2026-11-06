@@ -899,6 +899,8 @@ export default function App() {
             alt="tomekdot avatar mini" 
             width="28"
             height="28"
+            loading="eager"
+            decoding="async"
             className="w-6 h-6 sm:w-7 sm:h-7 rounded-full border border-editorial-border"
           />
           <span translate="no" className="font-mono font-bold tracking-tight text-xs sm:text-sm text-white notranslate">
@@ -965,6 +967,8 @@ export default function App() {
               alt="tomekdot profile picture"
               width="96"
               height="96"
+              loading="eager"
+              decoding="async"
             />
           </div>
 

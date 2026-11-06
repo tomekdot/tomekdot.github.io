@@ -852,11 +852,11 @@ export default function BlogStatsModal({
                   <div className="border border-editorial-border bg-editorial-sidebar-bg p-3.5 sm:p-4 space-y-3">
                     <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-2.5 border-b border-editorial-border">
                       <div className="min-w-0 flex-1 space-y-1">
-                        <div className="flex flex-wrap items-center gap-1.5 text-[9px] text-editorial-muted uppercase tracking-wider">
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-neutral-950 border border-editorial-border text-zinc-300 font-semibold whitespace-nowrap shrink-0">
+                        <div className="flex items-center gap-1.5 text-[9px] text-editorial-muted uppercase tracking-wider min-w-0">
+                          <span className="hidden sm:inline-flex items-center gap-1 px-1.5 py-0.5 bg-neutral-950 border border-editorial-border text-zinc-300 font-semibold whitespace-nowrap shrink-0">
                             {selectedPost.date}
                           </span>
-                          <span className="inline-flex items-center gap-1 px-1.5 py-0.5 bg-neutral-950 border border-editorial-border text-editorial-muted font-semibold whitespace-nowrap shrink-0">
+                          <span className="shrink-0 whitespace-nowrap inline-flex items-center gap-1 px-1.5 py-0.5 bg-neutral-950 border border-editorial-border text-editorial-muted font-semibold">
                             <Clock size={9} className="text-editorial-accent shrink-0" />
                             {calculateReadingTime(lang === 'en' ? selectedPost.contentEn : selectedPost.contentPl, lang)}
                           </span>

@@ -41,6 +41,7 @@ import {
 import { Repository, CategoryKey, BlogPost } from '../types';
 import { CATEGORIES, LANG_COLORS, BLOG_POSTS as FALLBACK_BLOG_POSTS } from '../data';
 import AnimatedNumber from './AnimatedNumber';
+import { formatStarsCount, formatForksCount, pluralizePolish } from '../lib/pluralize';
 
 interface DeveloperStatsModalProps {
   isOpen: boolean;
@@ -443,12 +444,12 @@ export default function DeveloperStatsModal({
                               )}
                               <span>•</span>
                               <span>
-                                {repo.commitsCount || 12} {lang === 'en' ? 'commits' : 'commitów'}
+                                {repo.commitsCount || 12} {lang === 'en' ? 'commits' : pluralizePolish(repo.commitsCount || 12, 'commit', 'commity', 'commitów')}
                               </span>
                               {repo.stars > 0 && (
                                 <>
                                   <span>•</span>
-                                  <span className="text-amber-400 flex items-center gap-1" title="Stars">
+                                  <span className="text-amber-400 flex items-center gap-1" title={formatStarsCount(repo.stars, lang)}>
                                     <Star size={10} className="fill-amber-400/20 text-amber-400" />
                                     <span>{repo.stars}</span>
                                   </span>
@@ -459,7 +460,7 @@ export default function DeveloperStatsModal({
                                   <span>•</span>
                                   <span className="text-purple-400 flex items-center gap-1" title={repo.isFork ? (repo.forkParent ? `Forked from ${repo.forkParent}` : 'Forked repository') : 'Forks'}>
                                     <GitFork size={10} />
-                                    <span>{repo.forks > 0 ? `${repo.forks} ${repo.forks === 1 ? 'fork' : 'forks'}` : (lang === 'en' ? 'Fork' : 'Fork')}</span>
+                                    <span>{repo.forks > 0 ? formatForksCount(repo.forks, lang) : (lang === 'en' ? 'Fork' : 'Fork')}</span>
                                   </span>
                                 </>
                               )}
@@ -582,12 +583,12 @@ export default function DeveloperStatsModal({
                               <span>{repo.lang || 'Code'}</span>
                               <span>•</span>
                               <span className="text-editorial-accent">
-                                {repo.commitsCount || 12} {lang === 'en' ? 'commits tracked' : 'zarejestrowanych commitów'}
+                                {repo.commitsCount || 12} {lang === 'en' ? 'commits tracked' : `${pluralizePolish(repo.commitsCount || 12, 'commit zarejestrowany', 'commity zarejestrowane', 'zarejestrowanych commitów')}`}
                               </span>
                               {repo.stars > 0 && (
                                 <>
                                   <span>•</span>
-                                  <span className="text-amber-400 flex items-center gap-1">
+                                  <span className="text-amber-400 flex items-center gap-1" title={formatStarsCount(repo.stars, lang)}>
                                     <Star size={10} className="fill-amber-400/20 text-amber-400" />
                                     <span>{repo.stars}</span>
                                   </span>
@@ -596,9 +597,9 @@ export default function DeveloperStatsModal({
                               {(repo.forks > 0 || repo.isFork) && (
                                 <>
                                   <span>•</span>
-                                  <span className="text-purple-400 flex items-center gap-1">
+                                  <span className="text-purple-400 flex items-center gap-1" title={repo.isFork ? (repo.forkParent ? `Forked from ${repo.forkParent}` : 'Forked repository') : 'Forks'}>
                                     <GitFork size={10} />
-                                    <span>{repo.forks > 0 ? `${repo.forks} forks` : 'Fork'}</span>
+                                    <span>{repo.forks > 0 ? formatForksCount(repo.forks, lang) : (lang === 'en' ? 'Fork' : 'Fork')}</span>
                                   </span>
                                 </>
                               )}
