@@ -5,6 +5,8 @@ coverage/
 .DS_Store
 *.log
 .env*
+.agents/
+skills-lock.json
 !.env.example
 .git_disabled/
 build.js
