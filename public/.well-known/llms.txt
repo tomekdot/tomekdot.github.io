@@ -1,0 +1,25 @@
+# tomekdot — GitHub Portfolio & Technical Articles
+
+> An interactive developer showcase and research journal featuring PyPlanet and Openplanet plugins, Trackmania tools, agentic AI systems, and academic computer science projects by Tomasz Kaczak (@tomekdot).
+
+## Overview
+- Developer: Tomasz Kaczak (@tomekdot)
+- Website: https://tomekdot.github.io
+- Repository Index: 17 indexed open-source repositories (PyPlanet, Openplanet, AngelScript, Python, TypeScript)
+- Technical Journal: Research articles exploring server automation, reactive telemetry, and AI systems
+
+## AI Catalog & Agentic Resource Discovery
+- ARD v1.0 Catalog: https://tomekdot.github.io/.well-known/ai-catalog.json
+- ARD Schema Identifier: `urn:air:tomekdot.github.io:portfolio:repositories`
+- Supported AI Models: Google Gemini (Gemini Flash Latest), Ollama (Local PC / Server), LM Studio
+
+## Key Repositories
+- [hermes-my-github-plugin](https://github.com/tomekdot/hermes-my-github-plugin): PyPlanet automation plugin providing server stats, telemetry hooks, and administrative tools.
+- [trackmania-galaxy](https://github.com/tomekdot/trackmania-galaxy): Interactive Trackmania galaxy encyclopedia and map dataset explorer.
+- [pursuit-maps](https://github.com/tomekdot/pursuit-maps): ManiaPlanet Feedback S1 E1 pursuit maps collection with UIDs, thumbnails, and telemetry metadata.
+- [vscode-github-repository-search](https://github.com/tomekdot/vscode-github-repository-search): VS Code extension for fast repository discovery and local clone automation.
+
+## Technical Journal Articles
+- [Systemy Agentowe i Autonomia](https://tomekdot.github.io/#journal-agentic): Architecture of autonomous agents, deterministic tools, and memory management.
+- [Optymalizacja Wydajności i Silniki Sieciowe](https://tomekdot.github.io/#journal-perf): Async event loops in Python/PyPlanet and zero-overhead AngelScript telemetry in Trackmania.
+- [Bazy Danych i Grafy Wiedzy](https://tomekdot.github.io/#journal-graphs): Graph visualization, orbital constellation maps, and relational modeling.

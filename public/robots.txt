@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+
+# Agentic Resource Discovery & LLM specifications
+Sitemap: https://tomekdot.github.io/sitemap.xml

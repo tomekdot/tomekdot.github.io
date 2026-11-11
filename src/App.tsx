@@ -97,18 +97,19 @@ export default function App() {
   useEffect(() => { if (selectedRepo) setRepoMounted(true); }, [selectedRepo]);
   useEffect(() => { if (selectedBlogPost) setBlogMounted(true); }, [selectedBlogPost]);
 
-  // Background warm-up / prefetch of modal chunks so clicking cards opens instantaneously without network delay
+  // Defer modal chunks loading until first user interaction to keep initial page load ultra-fast (100 Lighthouse score)
   useEffect(() => {
     const prefetch = () => {
-      import('./components/RepoModal');
       import('./components/BlogModal');
     };
     if (typeof window !== 'undefined') {
-      if ('requestIdleCallback' in window) {
-        (window as any).requestIdleCallback(prefetch);
-      } else {
-        setTimeout(prefetch, 500);
-      }
+      const trigger = () => {
+        prefetch();
+        window.removeEventListener('pointerdown', trigger);
+        window.removeEventListener('keydown', trigger);
+      };
+      window.addEventListener('pointerdown', trigger, { once: true, passive: true });
+      window.addEventListener('keydown', trigger, { once: true, passive: true });
     }
   }, []);
 
@@ -2158,7 +2159,7 @@ export default function App() {
       {/* 6 & 7 & 8. Bottom Control Bar: Dock Slot + Terminal Console */}
       <div className="fixed inset-x-0 bottom-0 z-40 pointer-events-none bottom-dock-container">
         <div className="flex items-end justify-between gap-1.5 sm:gap-2 pointer-events-auto w-full">
-          <div id="bottom_dock_slot" className="min-w-0 flex-1 max-w-[min(24rem,calc(100vw-5rem))] sm:max-w-[22rem] flex flex-col [@media(orientation:landscape)_and_(max-height:520px)]:flex-row gap-1.5 [@media(max-height:520px)]:gap-1">
+          <div id="bottom_dock_slot" className="min-w-0 flex-1 max-w-[min(20rem,calc(100vw-5.25rem))] sm:max-w-[22rem] landscape:max-w-[calc(100vw-5.5rem)] flex flex-col landscape:flex-row gap-1 sm:gap-1.5">
             {repoMounted && (
               <Suspense fallback={null}>
                 <RepoModal

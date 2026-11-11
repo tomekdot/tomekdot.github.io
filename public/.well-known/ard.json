@@ -1,0 +1,71 @@
+{
+  "specVersion": "1.0",
+  "host": {
+    "displayName": "tomekdot — Software Engineering & AI Portfolio",
+    "identifier": "did:web:tomekdot.github.io",
+    "documentationUrl": "https://tomekdot.github.io",
+    "logoUrl": "https://tomekdot.github.io/assets/logo-Cn5NWDNS.webp"
+  },
+  "entries": [
+    {
+      "identifier": "urn:air:tomekdot.github.io:portfolio:repositories",
+      "displayName": "Tomekdot Open Source Repositories",
+      "type": "application/json",
+      "url": "https://tomekdot.github.io",
+      "description": "Curated directory of open-source projects, Trackmania plugins, PyPlanet server controllers, and TypeScript developer tools.",
+      "version": "1.0.0",
+      "updatedAt": "2026-11-11T12:00:00Z",
+      "tags": ["portfolio", "github", "trackmania", "pyplanet", "openplanet", "typescript"],
+      "capabilities": ["RepositoryIndex", "TrackmaniaExtensions", "PyPlanetPlugins", "OpenplanetMods"],
+      "representativeQueries": [
+        "find open source Trackmania plugins and PyPlanet extensions",
+        "browse tomekdot GitHub developer portfolio and code archives"
+      ]
+    },
+    {
+      "identifier": "urn:air:tomekdot.github.io:agent:hermes-dev-tools",
+      "displayName": "Hermes AI Agent DevOps & CLI Tools",
+      "type": "application/json",
+      "url": "https://github.com/tomekdot/hermes-agent-dev-tools",
+      "description": "Autonomous agent skills, deterministic blueprints, and workflow automation CLI utilities for Hermes and AI coding engines.",
+      "version": "1.0.0",
+      "updatedAt": "2026-11-11T12:00:00Z",
+      "tags": ["ai-agent", "devops", "automation", "cli", "hermes"],
+      "capabilities": ["AgentSkills", "DevOpsAutomation", "Node24Migration", "WorkflowOrchestration"],
+      "representativeQueries": [
+        "automate GitHub actions migrations with AI agent skills",
+        "run autonomous agent DevOps workflows and CLI tools"
+      ]
+    },
+    {
+      "identifier": "urn:air:tomekdot.github.io:knowledge:journal-articles",
+      "displayName": "Tomekdot Technical Journal & System Architecture",
+      "type": "application/json",
+      "url": "https://tomekdot.github.io",
+      "description": "Technical deep dives into high-throughput game server mechanics, asynchronous database hazard prevention, and autonomous agent systems.",
+      "version": "1.0.0",
+      "updatedAt": "2026-11-11T12:00:00Z",
+      "tags": ["journal", "systems-architecture", "concurrency", "sqlite", "game-dev"],
+      "capabilities": ["TechnicalArticles", "ArchitectureAnalysis", "ConcurrencyHazards", "ConstellationGraph"],
+      "representativeQueries": [
+        "read engineering articles on asynchronous server concurrency",
+        "explore interactive knowledge constellation network map"
+      ]
+    },
+    {
+      "identifier": "urn:air:tomekdot.github.io:assistant:repo-ai-companion",
+      "displayName": "Universal Repository AI Assistant",
+      "type": "application/json",
+      "url": "https://tomekdot.github.io",
+      "description": "Interactive AI assistant integration supporting Google Gemini and local LLM endpoints for contextual repository code analysis, command usage, and architectural questions.",
+      "version": "1.0.0",
+      "updatedAt": "2026-11-11T12:00:00Z",
+      "tags": ["ai-assistant", "gemini", "ollama", "lm-studio", "code-companion"],
+      "capabilities": ["CodeAnalysis", "GeminiIntegration", "LocalModelSupport", "ContextualChat"],
+      "representativeQueries": [
+        "ask questions about repository architecture and plugins",
+        "generate dynamic repository summaries with AI assistant"
+      ]
+    }
+  ]
+}
