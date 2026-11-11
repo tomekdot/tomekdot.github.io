@@ -17,25 +17,31 @@ Interactive portfolio showcasing GitHub repositories, built with React + Vite.
 - 🌍 **PL / EN** — bilingual interface
 - 🔒 **Private repos toggle** — show/hide private repositories
 - 📱 **Responsive** — works on desktop and mobile
+- ⚡ **Lazy-loaded modals** — code-split for fast initial load
+- 🔤 **Polish pluralization** — correct grammar for stars/forks/commits
 
 ## 🗂️ Categories
 
 | Category | Description |
 |----------|-------------|
-| 🎮 PyPlanet | Trackmania server plugins |
-| 🌐 Openplanet | Trackmania in-game plugins |
-| 🏎️ Trackmania | Trackmania-related tools |
-| 🤖 AI & Agents | AI/LLM projects |
-| 🎓 Academic | University projects (KUL) |
-| 📦 Other | Miscellaneous |
+| 🤖 AI & Agents | AI/LLM projects and autonomous agents |
+| 💬 Discord & Community Bots | Discord bots and community tools |
+| 🎓 Academic (KUL) | University projects (KUL) |
+| 🌐 Openplanet | Trackmania in-game plugins (AngelScript) |
+| 📦 Other | Miscellaneous utilities and archives |
+| 🐍 PyPlanet | Trackmania server plugins (Python) |
+| 🔧 Dev Tools & Automation | CLI tools and automation scripts |
+| 🏎️ Trackmania | Trackmania-related tools and maps |
+| 🌍 Web Apps & APIs | Web applications and fullstack APIs |
 
 ## 🛠️ Tech Stack
 
 - React 19 + TypeScript
-- Vite 5
+- Vite 6
 - Tailwind CSS 4
-- Framer Motion
+- Motion (Framer Motion)
 - Lucide Icons
+- React Markdown + rehype/remark
 
 ## 🚀 Development
 
@@ -43,6 +49,7 @@ Interactive portfolio showcasing GitHub repositories, built with React + Vite.
 npm install
 npm run dev      # http://localhost:3000
 npm run build    # production build → dist/
+npm run lint     # TypeScript type check (tsc --noEmit)
 ```
 
 ## 📄 License
