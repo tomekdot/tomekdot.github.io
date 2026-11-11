@@ -192,7 +192,7 @@ export default function DeveloperStatsModal({
           animate={{ opacity: 1, scale: 1, y: 0 }}
           exit={{ opacity: 0, scale: 0.98, y: 10 }}
           transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-          className="relative bg-editorial-bg border-2 border-editorial-border w-[calc(100vw-1rem)] sm:w-[min(42rem,calc(100vw-4rem))] lg:w-[min(48rem,calc(100vw-6rem))] short:w-[min(56rem,calc(100vw-1rem))] h-[min(84dvh,720px)] max-h-[calc(100dvh-2rem)] short:h-[calc(100dvh-0.5rem)] short:max-h-[calc(100dvh-0.5rem)] rounded-none shadow-2xl flex flex-col overflow-hidden my-auto min-w-0 font-mono text-xs select-text"
+          className="relative z-10 bg-editorial-bg border-2 border-editorial-border w-[95vw] sm:w-[90vw] md:w-[85vw] max-w-3xl lg:max-w-4xl h-[86vh] max-h-[760px] short:h-[calc(100vh-1rem)] rounded-none shadow-2xl flex flex-col overflow-hidden my-auto min-w-0 font-mono text-xs select-text"
         >
           {/* 1. Modal Top Header */}
           <div className="shrink-0 px-3.5 sm:px-6 py-2.5 sm:py-4 short:py-1.5 border-b border-editorial-border bg-editorial-sidebar-bg flex items-center justify-between min-w-0">

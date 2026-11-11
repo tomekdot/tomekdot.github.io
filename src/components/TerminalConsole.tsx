@@ -342,8 +342,8 @@ export default function TerminalConsole({
             <span className="hidden sm:inline">
               {isOpen ? (lang === 'en' ? 'Close Console' : 'Zamknij Konsolę') : (lang === 'en' ? 'Developer Terminal' : 'Terminal Dewelopera')}
             </span>
-            <span className="sm:hidden text-[10px]">
-              {isOpen ? (lang === 'en' ? 'Close' : 'Zamknij') : 'Terminal'}
+            <span className="sm:hidden text-[10px] font-bold tracking-tight">
+              {isOpen ? (lang === 'en' ? 'Close' : 'Zamknij') : 'Term'}
             </span>
           </button>
         </div>

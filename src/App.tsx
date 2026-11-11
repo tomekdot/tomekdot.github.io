@@ -97,12 +97,29 @@ export default function App() {
   useEffect(() => { if (selectedRepo) setRepoMounted(true); }, [selectedRepo]);
   useEffect(() => { if (selectedBlogPost) setBlogMounted(true); }, [selectedBlogPost]);
 
+  // Background warm-up / prefetch of modal chunks so clicking cards opens instantaneously without network delay
+  useEffect(() => {
+    const prefetch = () => {
+      import('./components/RepoModal');
+      import('./components/BlogModal');
+    };
+    if (typeof window !== 'undefined') {
+      if ('requestIdleCallback' in window) {
+        (window as any).requestIdleCallback(prefetch);
+      } else {
+        setTimeout(prefetch, 500);
+      }
+    }
+  }, []);
+
   const handleSelectRepo = useCallback((repo: Repository) => {
+    setRepoMounted(true);
     setSelectedRepo(repo);
     setIsRepoMinimized(false);
   }, []);
 
   const handleSelectBlogPost = useCallback((post: BlogPost) => {
+    setBlogMounted(true);
     setSelectedBlogPost(post);
     setIsBlogMinimized(false);
   }, []);
@@ -1107,7 +1124,7 @@ export default function App() {
       {/* 3. Core Workspace Section */}
       <main className="flex-grow grid grid-cols-1 md:grid-cols-[310px_1fr] lg:grid-cols-[340px_1fr] md:divide-x divide-editorial-border border-b border-editorial-border bg-editorial-bg min-h-0">
         {/* Left Sidebar block */}
-        <aside className="p-3.5 sm:p-4 md:p-5 lg:p-6 pb-6 md:pb-8 flex flex-col justify-start gap-3.5 sm:gap-4 md:gap-6 lg:gap-7 bg-editorial-sidebar-bg md:sticky md:top-12 md:self-start md:max-h-[calc(100svh-3rem)] md:overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-800">
+        <aside className="p-3.5 sm:p-4 md:p-5 lg:p-6 pb-4 sm:pb-5 md:pb-28 lg:pb-32 flex flex-col justify-start gap-3.5 sm:gap-4 md:gap-6 lg:gap-7 bg-editorial-sidebar-bg md:sticky md:top-12 md:self-start md:max-h-[calc(100svh-3rem)] md:overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-800">
           <div className="space-y-4 md:space-y-6">
             {/* Main Tabs Navigation */}
             <div className="flex h-[38px] border border-editorial-border p-1 bg-neutral-950 font-mono text-[11px] rounded-none mb-2 sm:mb-3 box-border">
@@ -1497,6 +1514,9 @@ export default function App() {
               </button>
             </div>
           )}
+
+            {/* Dedicated bottom clearance buffer to prevent floating dock from overlapping sidebar buttons on desktop */}
+            <div className="hidden md:block md:h-20 lg:h-24 w-full shrink-0 pointer-events-none" aria-hidden="true" />
           </div>
         </aside>
 
@@ -2136,9 +2156,9 @@ export default function App() {
       </main>
 
       {/* 6 & 7 & 8. Bottom Control Bar: Dock Slot + Terminal Console */}
-      <div className="fixed inset-x-0 bottom-0 z-40 pointer-events-none px-2 pb-2 sm:px-6 sm:pb-6 [@media(max-height:520px)]:pb-2 sm:[@media(max-height:520px)]:pb-2 sm:[@media(max-height:520px)]:px-4">
-        <div className="flex items-end justify-between gap-2 pointer-events-auto">
-          <div id="bottom_dock_slot" className="min-w-0 w-[min(22rem,calc(100vw-9rem))] [@media(max-height:520px)]:w-[min(18rem,calc(100vw-11rem))]">
+      <div className="fixed inset-x-0 bottom-0 z-40 pointer-events-none bottom-dock-container">
+        <div className="flex items-end justify-between gap-1.5 sm:gap-2 pointer-events-auto w-full">
+          <div id="bottom_dock_slot" className="min-w-0 flex-1 max-w-[min(24rem,calc(100vw-5rem))] sm:max-w-[22rem] flex flex-col [@media(orientation:landscape)_and_(max-height:520px)]:flex-row gap-1.5 [@media(max-height:520px)]:gap-1">
             {repoMounted && (
               <Suspense fallback={null}>
                 <RepoModal

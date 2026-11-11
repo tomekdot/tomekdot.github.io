@@ -4,6 +4,7 @@
  */
 
 import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useDragControls, PanInfo } from 'motion/react';
 import { 
   X, 
@@ -1229,10 +1230,9 @@ export default function RepoModal({
   const catSpec = CATEGORIES[primaryCatKey] || CATEGORIES.other;
   const langColor = LANG_COLORS[repo.lang] || '#8b949e';
 
-  return (
+  const minimizedDock = (
     <AnimatePresence>
-      {isOpen && (
-        isMinimized ? (
+      {isOpen && isMinimized && (
         <motion.div
           key="repo_minimized_dock"
           id="repo_minimized_dock"
@@ -1256,13 +1256,13 @@ export default function RepoModal({
                   className="text-[11px] sm:text-xs [@media(max-height:520px)]:text-[10px] font-bold text-white flex-1 min-w-0" 
                 />
                 <span 
-                  className="inline-block text-[8.5px] uppercase px-1.5 py-0.5 bg-[#0E1B24] border border-cyan-500/40 text-cyan-400 font-bold shrink-0 font-mono tracking-wider"
+                  className="inline-block text-[8.5px] uppercase px-1.5 py-0.5 bg-[#0E1B24] border border-cyan-500/40 text-cyan-400 font-bold shrink-0 font-mono tracking-wider max-w-[75px] truncate"
                   title={lang === 'en' ? catSpec.labelEn : catSpec.labelPl}
                 >
                   {catSpec.abbr || (lang === 'en' ? (catSpec.shortLabelEn || catSpec.labelEn) : (catSpec.shortLabelPl || catSpec.labelPl))}
                 </span>
               </div>
-              <p className="text-[8.5px] sm:text-[9.5px] [@media(max-height:520px)]:text-[8px] text-editorial-muted truncate font-sans">
+              <p className="text-[8.5px] sm:text-[9.5px] [@media(max-height:520px)]:hidden text-editorial-muted truncate font-sans">
                 {lang === 'en' ? 'Click to restore ↗' : 'Kliknij, by otworzyć ↗'}
               </p>
             </div>
@@ -1295,7 +1295,13 @@ export default function RepoModal({
             </button>
           </div>
         </motion.div>
-      ) : (
+      )}
+    </AnimatePresence>
+  );
+
+  const fullModalPortal = (
+    <AnimatePresence>
+      {isOpen && !isMinimized && (
         <motion.div
           key="repo_modal_portal"
           id="repo_modal_portal"
@@ -1303,35 +1309,30 @@ export default function RepoModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.16 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-2 short:p-1 overflow-hidden"
+          className="fixed inset-0 z-50 flex items-center justify-center p-2 short:p-1 overflow-hidden pointer-events-auto"
         >
           {/* Backdrop overlay */}
-          <motion.div
+          <div
             id="modal_backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.16 }}
             onClick={onClose}
             className="fixed inset-0 bg-black/80"
           />
 
           {/* Modal Window Container with native Framer Motion drag to minimize */}
-          {!isMinimized && (
-            <motion.div
-              id="modal_window"
-              drag="y"
-              dragControls={dragControls}
-              dragListener={false}
-              dragConstraints={{ top: 0, bottom: 0 }}
-              dragElastic={{ top: 0, bottom: 0.4 }}
-              onDragEnd={handleDragEnd}
-              initial={{ opacity: 0, scale: 0.98, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.98, y: 10 }}
-              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-              className="relative bg-editorial-bg border-2 border-editorial-border shadow-2xl flex flex-col overflow-hidden min-w-0 transition-all duration-200 w-[calc(100vw-1rem)] sm:w-[min(42rem,calc(100vw-4rem))] lg:w-[min(48rem,calc(100vw-6rem))] short:w-[min(56rem,calc(100vw-1rem))] h-[min(84dvh,720px)] max-h-[calc(100dvh-2rem)] short:h-[calc(100dvh-0.5rem)] short:max-h-[calc(100dvh-0.5rem)] rounded-none my-auto"
-            >
+          <motion.div
+            id="modal_window"
+            drag="y"
+            dragControls={dragControls}
+            dragListener={false}
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0, bottom: 0.4 }}
+            onDragEnd={handleDragEnd}
+            initial={{ opacity: 0, scale: 0.98, y: 8 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.98, y: 8 }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            className="relative z-10 bg-editorial-bg border-2 border-editorial-border shadow-2xl flex flex-col overflow-hidden min-w-0 w-[95vw] sm:w-[90vw] md:w-[85vw] max-w-3xl lg:max-w-4xl h-[86vh] max-h-[760px] short:h-[calc(100vh-1rem)] rounded-none my-auto"
+          >
             {/* iOS/iPhone-style pull-down handle (clean pill bar, no text) */}
             <div 
               className="w-full flex items-center justify-center pt-2.5 pb-2 short:pt-1 short:pb-1 bg-editorial-sidebar-bg cursor-grab active:cursor-grabbing select-none shrink-0 group border-b border-editorial-border/30 touch-none"
@@ -2662,10 +2663,15 @@ export default function RepoModal({
             </a>
           </div>
         </motion.div>
-        )}
       </motion.div>
-      )
       )}
     </AnimatePresence>
+  );
+
+  return (
+    <>
+      {minimizedDock}
+      {typeof document !== 'undefined' ? createPortal(fullModalPortal, document.body) : fullModalPortal}
+    </>
   );
 }

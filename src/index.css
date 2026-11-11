@@ -19,6 +19,7 @@ html, body {
   color-scheme: dark;
   overscroll-behavior-y: none;
   -webkit-tap-highlight-color: transparent;
+  scrollbar-gutter: stable;
 }
 
 #root {
@@ -178,3 +179,27 @@ input[type="range"].range-slider-thumb::-moz-range-thumb:active {
     animation: none !important;
   }
 }
+
+/* Safe-area insets & dynamic bottom bar adaptation (Mobile Firefox / Safari / Chrome) */
+.bottom-dock-container {
+  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+  padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
+  padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
+}
+
+@media (min-width: 640px) {
+  .bottom-dock-container {
+    padding-bottom: 1.5rem;
+    padding-left: 1.5rem;
+    padding-right: 1.5rem;
+  }
+}
+
+@media (max-height: 520px) {
+  .bottom-dock-container {
+    padding-bottom: max(0.25rem, env(safe-area-inset-bottom, 0px));
+    padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
+    padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
+  }
+}
+

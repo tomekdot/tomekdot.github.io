@@ -34,9 +34,10 @@ const RepoCard = React.memo(function RepoCard({ repo, onSelect, lang, compact }:
         animate={{ opacity: 1, y: 0 }}
         exit={{ opacity: 0, scale: 0.98 }}
         whileHover={{ backgroundColor: 'rgba(255, 255, 255, 0.04)' }}
+        whileTap={{ scale: 0.99 }}
         transition={{ duration: 0.15 }}
         onClick={() => onSelect(repo)}
-        className="group relative border border-editorial-border p-3 sm:p-3.5 cursor-pointer flex flex-col gap-2.5 bg-editorial-sidebar-bg hover:border-editorial-accent/60 transition-all rounded-none"
+        className="group relative border border-editorial-border p-3 sm:p-3.5 cursor-pointer flex flex-col gap-2.5 bg-editorial-sidebar-bg hover:border-editorial-accent/60 transition-colors duration-150 rounded-none"
       >
         {/* Title row: name + badges */}
         <div className="flex items-start gap-2.5 min-w-0 w-full">
@@ -113,9 +114,10 @@ const RepoCard = React.memo(function RepoCard({ repo, onSelect, lang, compact }:
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, scale: 0.95 }}
       whileHover={{ backgroundColor: 'rgba(255, 255, 255, 0.03)' }}
+      whileTap={{ scale: 0.99 }}
       transition={{ duration: 0.2 }}
       onClick={() => onSelect(repo)}
-      className="group relative border border-editorial-border bg-editorial-sidebar-bg hover:border-editorial-accent/60 p-4 sm:p-5 md:p-6 cursor-pointer flex flex-col justify-between h-full transition-all rounded-none overflow-hidden"
+      className="group relative border border-editorial-border bg-editorial-sidebar-bg hover:border-editorial-accent/60 p-4 sm:p-5 md:p-6 cursor-pointer flex flex-col justify-between h-full transition-colors duration-150 rounded-none overflow-hidden"
     >
       <div>
         {/* Title: Monospace */}

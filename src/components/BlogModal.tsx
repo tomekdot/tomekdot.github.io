@@ -4,6 +4,7 @@
  */
 
 import React, { useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence, useDragControls, PanInfo } from 'motion/react';
 import { X, Calendar, Clock, Tag, BookOpen, Minus, ChevronUp, Minimize2 } from 'lucide-react';
 import Markdown from 'react-markdown';
@@ -75,10 +76,9 @@ export default function BlogModal({
   const explicitReadingTime = lang === 'en' ? post.readingTimeEn : post.readingTimePl;
   const readingTime = explicitReadingTime || calculateReadingTime(content, lang);
 
-  return (
+  const minimizedDock = (
     <AnimatePresence>
-      {isOpen && (
-        isMinimized ? (
+      {isOpen && isMinimized && (
         <motion.div
           key="blog_minimized_dock"
           id="blog_minimized_dock"
@@ -104,7 +104,7 @@ export default function BlogModal({
                   {readingTime}
                 </span>
               </div>
-              <p className="text-[8.5px] sm:text-[9.5px] [@media(max-height:520px)]:text-[8px] text-editorial-muted truncate font-sans">
+              <p className="text-[8.5px] sm:text-[9.5px] [@media(max-height:520px)]:hidden text-editorial-muted truncate font-sans">
                 {lang === 'en' ? 'Click to restore ↗' : 'Kliknij, by otworzyć ↗'}
               </p>
             </div>
@@ -137,7 +137,13 @@ export default function BlogModal({
             </button>
           </div>
         </motion.div>
-      ) : (
+      )}
+    </AnimatePresence>
+  );
+
+  const fullModalPortal = (
+    <AnimatePresence>
+      {isOpen && !isMinimized && (
         <motion.div
           key="blog_modal_portal"
           id="blog_modal_portal"
@@ -145,35 +151,30 @@ export default function BlogModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.16 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-2 short:p-1 overflow-hidden"
+          className="fixed inset-0 z-50 flex items-center justify-center p-2 short:p-1 overflow-hidden pointer-events-auto"
         >
           {/* Backdrop overlay */}
-          <motion.div
+          <div
             id="blog_modal_backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={{ duration: 0.16 }}
             onClick={onClose}
             className="fixed inset-0 bg-black/80"
           />
 
           {/* Modal Window Container with native Framer Motion drag to minimize */}
-          {!isMinimized && (
-            <motion.div
-              id="blog_modal_window"
-              drag="y"
-              dragControls={dragControls}
-              dragListener={false}
-              dragConstraints={{ top: 0, bottom: 0 }}
-              dragElastic={{ top: 0, bottom: 0.4 }}
-              onDragEnd={handleDragEnd}
-              initial={{ opacity: 0, scale: 0.98, y: 10 }}
-              animate={{ opacity: 1, scale: 1, y: 0 }}
-              exit={{ opacity: 0, scale: 0.98, y: 10 }}
-              transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-              className="relative bg-editorial-bg border-2 border-editorial-border w-[calc(100vw-1rem)] sm:w-[min(42rem,calc(100vw-4rem))] lg:w-[min(48rem,calc(100vw-6rem))] short:w-[min(56rem,calc(100vw-1rem))] h-[min(84dvh,720px)] max-h-[calc(100dvh-2rem)] short:h-[calc(100dvh-0.5rem)] short:max-h-[calc(100dvh-0.5rem)] rounded-none shadow-2xl flex flex-col overflow-hidden min-w-0 my-auto"
-            >
+          <motion.div
+            id="blog_modal_window"
+            drag="y"
+            dragControls={dragControls}
+            dragListener={false}
+            dragConstraints={{ top: 0, bottom: 0 }}
+            dragElastic={{ top: 0, bottom: 0.4 }}
+            onDragEnd={handleDragEnd}
+            initial={{ opacity: 0, scale: 0.98, y: 10 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.98, y: 10 }}
+            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
+            className="relative z-10 bg-editorial-bg border-2 border-editorial-border w-[95vw] sm:w-[90vw] md:w-[85vw] max-w-3xl lg:max-w-4xl h-[86vh] max-h-[760px] short:h-[calc(100vh-1rem)] rounded-none shadow-2xl flex flex-col overflow-hidden min-w-0 my-auto"
+          >
             {/* iOS/iPhone-style pull-down handle (clean pill bar, no text) */}
             <div 
               className="w-full flex items-center justify-center pt-2.5 pb-2 short:pt-1 short:pb-1 bg-editorial-sidebar-bg cursor-grab active:cursor-grabbing select-none shrink-0 group border-b border-editorial-border/30 touch-none"
@@ -391,10 +392,15 @@ export default function BlogModal({
             </span>
           </div>
         </motion.div>
-        )}
       </motion.div>
-      )
       )}
     </AnimatePresence>
+  );
+
+  return (
+    <>
+      {minimizedDock}
+      {typeof document !== 'undefined' ? createPortal(fullModalPortal, document.body) : fullModalPortal}
+    </>
   );
 }
