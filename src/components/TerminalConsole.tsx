@@ -333,7 +333,7 @@ export default function TerminalConsole({
               : (lang === 'en' ? 'Open developer terminal' : 'Otwórz terminal dewelopera')}
             aria-expanded={isOpen}
             aria-controls="terminal_console"
-            className={`flex items-center gap-1.5 sm:gap-2 px-2.5 sm:px-4 py-2 sm:py-2.5 short:py-1.5 short:px-2.5 rounded-none border transition-colors duration-200 font-mono text-[11px] sm:text-xs short:text-[10px] font-semibold uppercase tracking-wider cursor-pointer select-none shadow-2xl backdrop-blur-sm shrink-0 whitespace-nowrap
+            className={`flex items-center gap-1.5 sm:gap-2 px-2 sm:px-4 py-1.5 sm:py-2.5 short:py-1 short:px-2 rounded-none border transition-colors duration-200 font-mono text-[10.5px] sm:text-xs short:text-[10px] font-semibold uppercase tracking-wider cursor-pointer select-none shadow-2xl backdrop-blur-sm shrink-0 whitespace-nowrap touch-manipulation
               ${isOpen 
                 ? 'bg-red-950/90 text-red-300 border-red-500/60 hover:bg-red-900' 
                 : 'bg-[#0E0E0E]/95 text-editorial-accent border-editorial-border hover:border-editorial-accent font-bold hover:text-white'}`}

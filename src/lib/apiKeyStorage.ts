@@ -54,12 +54,15 @@ export const PROVIDERS_CONFIG: Record<AIProviderId, AIProviderInfo> = {
     shortName: 'Gemini',
     vendor: 'Google',
     prefix: 'AIzaSy',
-    defaultModel: 'gemini-2.5-flash',
+    defaultModel: 'gemini-flash-latest',
     availableModels: [
-      { id: 'gemini-2.5-flash', labelPl: 'Gemini 2.5 Flash (Domyślny / Szybki)', labelEn: 'Gemini 2.5 Flash (Default / Fast)', badge: 'Default' },
-      { id: 'gemini-2.5-pro', labelPl: 'Gemini 2.5 Pro (Głębokie rozumowanie)', labelEn: 'Gemini 2.5 Pro (Deep Reasoning)' },
+      { id: 'gemini-flash-latest', labelPl: 'Gemini Flash (zawsze najnowszy, szybki)', labelEn: 'Gemini Flash (always latest, fast)', badge: 'Latest' },
+      { id: 'gemini-pro-latest', labelPl: 'Gemini Pro (głębokie rozumowanie)', labelEn: 'Gemini Pro (deep reasoning)' },
+      { id: 'gemini-2.5-flash', labelPl: 'Gemini 2.5 Flash', labelEn: 'Gemini 2.5 Flash' },
+      { id: 'gemini-2.5-pro', labelPl: 'Gemini 2.5 Pro', labelEn: 'Gemini 2.5 Pro' },
       { id: 'gemini-2.0-flash', labelPl: 'Gemini 2.0 Flash', labelEn: 'Gemini 2.0 Flash' },
       { id: 'gemini-1.5-flash', labelPl: 'Gemini 1.5 Flash', labelEn: 'Gemini 1.5 Flash' },
+      { id: 'gemini-1.5-pro', labelPl: 'Gemini 1.5 Pro', labelEn: 'Gemini 1.5 Pro' },
     ],
     badgeClass: 'bg-sky-950/70 border-sky-500/70 text-sky-300',
     borderClass: 'border-sky-500/60',
@@ -88,12 +91,12 @@ export const PROVIDERS_CONFIG: Record<AIProviderId, AIProviderInfo> = {
     defaultBaseUrl: 'http://localhost:11434/v1',
     defaultModel: 'llama3.2',
     availableModels: [
-      { id: 'llama3.2', labelPl: 'Llama 3.2 (Domyślny / Local)', labelEn: 'Llama 3.2 (Default / Local)', badge: 'Default' },
+      { id: 'llama3.2', labelPl: 'Llama 3.2', labelEn: 'Llama 3.2' },
       { id: 'llama3.3', labelPl: 'Llama 3.3 (70B)', labelEn: 'Llama 3.3 (70B)' },
-      { id: 'deepseek-r1:8b', labelPl: 'DeepSeek R1 (8B Wnioskowanie)', labelEn: 'DeepSeek R1 (8B Reasoning)' },
+      { id: 'deepseek-r1:8b', labelPl: 'DeepSeek R1 (8B)', labelEn: 'DeepSeek R1 (8B)' },
       { id: 'deepseek-r1:14b', labelPl: 'DeepSeek R1 (14B)', labelEn: 'DeepSeek R1 (14B)' },
-      { id: 'qwen2.5-coder:7b', labelPl: 'Qwen 2.5 Coder (7B)', labelEn: 'Qwen 2.5 Coder (7B)' },
-      { id: 'mistral:latest', labelPl: 'Mistral Latest', labelEn: 'Mistral Latest' },
+      { id: 'qwen2.5-coder:7b', labelPl: 'Qwen 2.5 Coder 7B (kod)', labelEn: 'Qwen 2.5 Coder 7B (code)' },
+      { id: 'mistral', labelPl: 'Mistral 7B', labelEn: 'Mistral 7B' },
       { id: 'gemma2:9b', labelPl: 'Gemma 2 (9B)', labelEn: 'Gemma 2 (9B)' },
     ],
     badgeClass: 'bg-teal-950/80 border-teal-400/80 text-teal-300',
@@ -125,9 +128,9 @@ export const PROVIDERS_CONFIG: Record<AIProviderId, AIProviderInfo> = {
     defaultModel: 'local-model',
     availableModels: [
       { id: 'local-model', labelPl: 'Załadowany model w LM Studio', labelEn: 'Currently loaded LM Studio model', badge: 'Active' },
-      { id: 'deepseek-r1', labelPl: 'DeepSeek R1 (Local)', labelEn: 'DeepSeek R1 (Local)' },
-      { id: 'qwen2.5-coder', labelPl: 'Qwen 2.5 Coder (Local)', labelEn: 'Qwen 2.5 Coder (Local)' },
-      { id: 'hermes-3-llama-3.1-8b', labelPl: 'Hermes 3 (Local)', labelEn: 'Hermes 3 (Local)' },
+      { id: 'deepseek-r1', labelPl: 'DeepSeek R1', labelEn: 'DeepSeek R1' },
+      { id: 'qwen2.5-coder', labelPl: 'Qwen 2.5 Coder', labelEn: 'Qwen 2.5 Coder' },
+      { id: 'hermes-3-llama-3.1-8b', labelPl: 'Hermes 3 (Llama 3.1 8B)', labelEn: 'Hermes 3 (Llama 3.1 8B)' },
     ],
     badgeClass: 'bg-cyan-950/80 border-cyan-400/80 text-cyan-300',
     borderClass: 'border-cyan-400/60',
@@ -157,7 +160,7 @@ export const PROVIDERS_CONFIG: Record<AIProviderId, AIProviderInfo> = {
     defaultBaseUrl: 'http://localhost:8080/v1',
     defaultModel: 'local-model',
     availableModels: [
-      { id: 'local-model', labelPl: 'local-model (Domyślny)', labelEn: 'local-model (Default)' },
+      { id: 'local-model', labelPl: 'local-model', labelEn: 'local-model' },
       { id: 'llama3.2', labelPl: 'llama3.2', labelEn: 'llama3.2' },
       { id: 'deepseek-r1', labelPl: 'deepseek-r1', labelEn: 'deepseek-r1' },
       { id: 'qwen2.5-coder', labelPl: 'qwen2.5-coder', labelEn: 'qwen2.5-coder' },
@@ -187,10 +190,10 @@ export const PROVIDERS_CONFIG: Record<AIProviderId, AIProviderInfo> = {
     shortNameEn: 'Auto AI',
     shortName: 'Auto AI',
     vendor: 'Universal',
-    defaultModel: 'gemini-3.8-flash',
+    defaultModel: 'gemini-flash-latest',
     availableModels: [
-      { id: 'gemini-3.8-flash', labelPl: 'Gemini 3.8 Flash (Domyślny)', labelEn: 'Gemini 3.8 Flash (Default)' },
-      { id: 'gemini-3.8-pro', labelPl: 'Gemini 3.8 Pro', labelEn: 'Gemini 3.8 Pro' },
+      { id: 'gemini-flash-latest', labelPl: 'Gemini Flash (zawsze najnowszy, szybki)', labelEn: 'Gemini Flash (always latest, fast)', badge: 'Latest' },
+      { id: 'gemini-pro-latest', labelPl: 'Gemini Pro (głębokie rozumowanie)', labelEn: 'Gemini Pro (deep reasoning)' },
     ],
     badgeClass: 'bg-neutral-900 border-neutral-700 text-neutral-300',
     borderClass: 'border-neutral-700',
@@ -208,6 +211,31 @@ export const PROVIDERS_CONFIG: Record<AIProviderId, AIProviderInfo> = {
     requiresKey: true,
   },
 };
+
+/**
+ * Helper to dynamically fetch active model IDs from a local OpenAI-compatible endpoint (e.g. GET /v1/models or GET /models).
+ */
+export async function fetchLocalModels(baseUrl: string): Promise<string[]> {
+  try {
+    const cleanUrl = baseUrl.trim().replace(/\/+$/, '');
+    if (!cleanUrl) return [];
+    const endpoint = cleanUrl.endsWith('/models') 
+      ? cleanUrl 
+      : cleanUrl.endsWith('/v1') 
+        ? `${cleanUrl}/models` 
+        : `${cleanUrl}/v1/models`;
+
+    const res = await fetch(endpoint, { method: 'GET' });
+    if (!res.ok) return [];
+    const json = await res.json();
+    if (Array.isArray(json.data)) {
+      return json.data.map((m: { id: string }) => m.id).filter(Boolean);
+    }
+    return [];
+  } catch {
+    return [];
+  }
+}
 
 /**
  * Returns localized name for provider.
@@ -333,7 +361,7 @@ export function setLocalAIKey(
   const trimmedKey = (key || '').trim();
   const provider = customProvider || detectAIProvider(trimmedKey).id;
   const providerConfig = PROVIDERS_CONFIG[provider] || PROVIDERS_CONFIG.unknown;
-  const model = (customModel || '').trim() || providerConfig.defaultModel || 'gemini-3.8-flash';
+  const model = (customModel || '').trim() || providerConfig.defaultModel || 'gemini-flash-latest';
   const baseUrl = (customBaseUrl || '').trim();
 
   try {

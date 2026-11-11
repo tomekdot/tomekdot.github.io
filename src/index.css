@@ -182,9 +182,10 @@ input[type="range"].range-slider-thumb::-moz-range-thumb:active {
 
 /* Safe-area insets & dynamic bottom bar adaptation (Mobile Firefox / Safari / Chrome) */
 .bottom-dock-container {
-  padding-bottom: max(0.5rem, env(safe-area-inset-bottom, 0px));
+  padding-bottom: max(0.5rem, calc(env(safe-area-inset-bottom, 0px) + 0.25rem));
   padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
   padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
+  touch-action: manipulation;
 }
 
 @media (min-width: 640px) {
@@ -197,9 +198,23 @@ input[type="range"].range-slider-thumb::-moz-range-thumb:active {
 
 @media (max-height: 520px) {
   .bottom-dock-container {
-    padding-bottom: max(0.25rem, env(safe-area-inset-bottom, 0px));
+    padding-bottom: max(0.25rem, calc(env(safe-area-inset-bottom, 0px) + 0.15rem));
     padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
     padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
+  }
+}
+
+/* Firefox Mobile specific adaptation for dynamic sliding bottom toolbar */
+@supports (-moz-appearance: none) {
+  .bottom-dock-container {
+    /* Extra clearance buffer so Firefox bottom toolbar never covers or conflicts with dock */
+    padding-bottom: max(0.65rem, calc(env(safe-area-inset-bottom, 0px) + 0.35rem));
+  }
+
+  @media (orientation: landscape) and (max-height: 520px) {
+    .bottom-dock-container {
+      padding-bottom: max(0.35rem, calc(env(safe-area-inset-bottom, 0px) + 0.15rem));
+    }
   }
 }
 

@@ -53,12 +53,12 @@ export interface ClientBlogAiQueryOptions {
   signal?: AbortSignal;
 }
 
-export const DEFAULT_GEMINI_MODEL = 'gemini-2.5-flash';
+export const DEFAULT_GEMINI_MODEL = 'gemini-flash-latest';
 
 export function normalizeGeminiModel(model?: string | null): string {
   const m = (model || '').trim().replace(/^models\//, '');
-  if (!m || m === 'latest' || m === 'gemini-flash-latest' || m === 'gemini-3.8-flash') return DEFAULT_GEMINI_MODEL;
-  if (m === 'gemini-pro-latest' || m === 'gemini-3.8-pro') return 'gemini-2.5-pro';
+  if (!m || m === 'latest' || m === 'gemini-flash-latest' || m.includes('flash')) return 'gemini-flash-latest';
+  if (m === 'gemini-pro-latest' || m.includes('pro')) return 'gemini-pro-latest';
   return m;
 }
 

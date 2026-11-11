@@ -86,31 +86,31 @@ export default function BlogModal({
           animate={{ opacity: 1, y: 0, scale: 1 }}
           exit={{ opacity: 0, y: 10, scale: 0.98 }}
           transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-full min-w-0 max-w-full p-1.5 sm:p-2 [@media(max-height:520px)]:p-1 flex items-center gap-1.5 sm:gap-2 bg-[#0D0D0D]/95 border-2 border-cyan-500/80 rounded-none font-mono text-white cursor-pointer shadow-xl"
+          className="relative w-full min-w-0 max-w-full px-2 py-1 sm:p-2 [@media(max-height:520px)]:py-0.5 [@media(max-height:520px)]:px-1.5 flex items-center gap-1.5 sm:gap-2 bg-[#0D0D0D]/95 border border-cyan-500/80 sm:border-2 rounded-none font-mono text-white cursor-pointer shadow-xl select-none touch-manipulation transition-all landscape:max-w-[210px] sm:landscape:max-w-[240px]"
           onClick={onRestore}
           title={lang === 'en' ? 'Click to restore journal article' : 'Kliknij, aby przywrócić artykuł'}
         >
           <div className="flex items-center gap-1.5 sm:gap-2 min-w-0 flex-1">
-            <span className="p-1 sm:p-1.5 [@media(max-height:520px)]:p-1 bg-neutral-900 border border-editorial-border text-cyan-400 shrink-0">
-              <BookOpen size={12} className="sm:w-[13px] sm:h-[13px]" />
+            <span className="p-0.5 sm:p-1 [@media(max-height:520px)]:p-0.5 bg-neutral-900 border border-editorial-border text-cyan-400 shrink-0 flex items-center justify-center">
+              <BookOpen size={11} className="sm:w-[13px] sm:h-[13px]" />
             </span>
-            <div className="min-w-0 flex-1">
+            <div className="min-w-0 flex-1 flex flex-col justify-center">
               <div className="flex items-center gap-1 sm:gap-1.5 min-w-0">
                 <MarqueeText 
                   text={title} 
-                  className="text-[11px] sm:text-xs [@media(max-height:520px)]:text-[10px] font-bold text-white flex-1 min-w-0" 
+                  className="text-[10px] sm:text-xs font-bold text-white flex-1 min-w-0 tracking-tight" 
                 />
-                <span className="hidden md:inline-block text-[8.5px] uppercase px-1 py-0.2 bg-[#0E1B24] border border-cyan-500/40 text-cyan-400 font-bold shrink-0">
+                <span className="inline-block text-[7.5px] sm:text-[8.5px] uppercase px-1 py-0.2 sm:px-1.5 sm:py-0.5 bg-[#0E1B24] border border-cyan-500/40 text-cyan-400 font-bold shrink-0 font-mono tracking-wider max-w-[55px] sm:max-w-[75px] truncate">
                   {readingTime}
                 </span>
               </div>
-              <p className="text-[8.5px] sm:text-[9.5px] [@media(max-height:520px)]:hidden text-editorial-muted truncate font-sans">
+              <p className="hidden sm:block text-[8.5px] sm:text-[9.5px] text-editorial-muted truncate font-sans">
                 {lang === 'en' ? 'Click to restore ↗' : 'Kliknij, by otworzyć ↗'}
               </p>
             </div>
           </div>
 
-          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+          <div className="flex items-center gap-0.5 sm:gap-1.5 shrink-0">
             <button
               type="button"
               id="restore_blog_modal_btn"
@@ -118,10 +118,10 @@ export default function BlogModal({
                 e.stopPropagation();
                 onRestore?.();
               }}
-              className="w-6 h-6 sm:w-8 sm:h-8 [@media(max-height:520px)]:w-6.5 [@media(max-height:520px)]:h-6.5 flex items-center justify-center bg-neutral-900 hover:bg-neutral-800 border border-editorial-border hover:border-cyan-400 text-cyan-400 hover:text-white transition-colors cursor-pointer shrink-0"
+              className="w-5.5 h-5.5 sm:w-7 sm:h-7 flex items-center justify-center bg-neutral-900 hover:bg-neutral-800 border border-editorial-border hover:border-cyan-400 text-cyan-400 hover:text-white transition-colors cursor-pointer shrink-0 touch-manipulation"
               title={lang === 'en' ? 'Expand article' : 'Przywróć artykuł'}
             >
-              <ChevronUp size={13} className="sm:w-3.5 sm:h-3.5" />
+              <ChevronUp size={11} className="sm:w-3.5 sm:h-3.5" />
             </button>
             <button
               type="button"
@@ -130,10 +130,10 @@ export default function BlogModal({
                 e.stopPropagation();
                 onClose();
               }}
-              className="w-6 h-6 sm:w-8 sm:h-8 [@media(max-height:520px)]:w-6.5 [@media(max-height:520px)]:h-6.5 flex items-center justify-center bg-neutral-900 hover:bg-neutral-800 border border-editorial-border hover:border-rose-500 text-editorial-muted hover:text-rose-400 transition-colors cursor-pointer shrink-0"
+              className="w-5.5 h-5.5 sm:w-7 sm:h-7 flex items-center justify-center bg-neutral-900 hover:bg-neutral-800 border border-editorial-border hover:border-rose-500 text-editorial-muted hover:text-rose-400 transition-colors cursor-pointer shrink-0 touch-manipulation"
               title={lang === 'en' ? 'Close' : 'Zamknij'}
             >
-              <X size={13} className="sm:w-3.5 sm:h-3.5" />
+              <X size={11} className="sm:w-3.5 sm:h-3.5" />
             </button>
           </div>
         </motion.div>

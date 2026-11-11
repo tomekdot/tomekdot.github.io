@@ -375,8 +375,8 @@ export default function BlogStatsModal({
     setShowApiKeyConfig(true);
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const guideMsg = lang === 'en'
-      ? `### 🔑 **Quick Guide: How to Get a Free Google Gemini API Key**\n\nGoogle provides free API keys for developers to access Gemini 2.5 Flash and Gemini Pro models:\n\n1. **Open Google AI Studio**: Go to [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey).\n2. **Sign In**: Log in using your Google / Gmail account.\n3. **Create Key**: Click the blue **"Create API key"** button and select a project.\n4. **Copy Key**: Copy your generated key (starts with \`AIzaSy...\`).\n5. **Paste & Save**: Paste your key into the **"API Key"** field in the setup box above, then click **"Save Locally"**.\n\n---\n💡 **Local PC Models (100% Offline / No Key Needed)**\nIf you prefer running models locally without cloud accounts, switch the engine above to **"Local PC / Server"** and point to your local Ollama or LM Studio endpoint (\`http://localhost:11434/v1\`).`
-      : `### 🔑 **Szybki Przewodnik: Jak bezpłatnie uzyskać klucz API Google Gemini**\n\nGoogle udostępnia bezpłatne klucze API dla deweloperów z dostępem do modeli Gemini 2.5 Flash i Gemini Pro:\n\n1. **Otwórz Google AI Studio**: Wejdź na [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey).\n2. **Zaloguj się**: Użyj swojego konta Google / Gmail.\n3. **Utwórz klucz**: Kliknij niebieski przycisk **"Create API key"** i wybierz projekt.\n4. **Skopiuj klucz**: Skopiuj wygenerowany klucz (zaczyna się od \`AIzaSy...\`).\n5. **Wklej i zapisz**: Wklej klucz w pole **"Klucz API"** w panelu powyżej i kliknij **"Zapisz lokalnie"**.\n\n---\n💡 **Lokalne Modele PC (100% Offline / Bez Klucza)**\nMożesz też przełączyć silnik powyżej na **"Lokalny PC (Ollama / LM Studio)"** i połączyć się z lokalną instancją (\`http://localhost:11434/v1\`) bez potrzeby posiadania żadnego klucza chmurowego.`;
+      ? `### 🔑 **Quick Guide: How to Get a Free Google Gemini API Key**\n\nGoogle provides free API keys for developers to access Gemini Flash (Latest) and Gemini Pro models:\n\n1. **Open Google AI Studio**: Go to [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey).\n2. **Sign In**: Log in using your Google / Gmail account.\n3. **Create Key**: Click the blue **"Create API key"** button and select a project.\n4. **Copy Key**: Copy your generated key (starts with \`AIzaSy...\`).\n5. **Paste & Save**: Paste your key into the **"API Key"** field in the setup box above, then click **"Save Locally"**.\n\n---\n💡 **Local PC Models (100% Offline / No Key Needed)**\nIf you prefer running models locally without cloud accounts, switch the engine above to **"Local PC / Server"** and point to your local Ollama or LM Studio endpoint (\`http://localhost:11434/v1\`).`
+      : `### 🔑 **Szybki Przewodnik: Jak bezpłatnie uzyskać klucz API Google Gemini**\n\nGoogle udostępnia bezpłatne klucze API dla deweloperów z dostępem do modeli Gemini Flash (Latest) i Gemini Pro:\n\n1. **Otwórz Google AI Studio**: Wejdź na [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey).\n2. **Zaloguj się**: Użyj swojego konta Google / Gmail.\n3. **Utwórz klucz**: Kliknij niebieski przycisk **"Create API key"** i wybierz projekt.\n4. **Skopiuj klucz**: Skopiuj wygenerowany klucz (zaczyna się od \`AIzaSy...\`).\n5. **Wklej i zapisz**: Wklej klucz w pole **"Klucz API"** w panelu powyżej i kliknij **"Zapisz lokalnie"**.\n\n---\n💡 **Lokalne Modele PC (100% Offline / Bez Klucza)**\nMożesz też przełączyć silnik powyżej na **"Lokalny PC (Ollama / LM Studio)"** i połączyć się z lokalną instancją (\`http://localhost:11434/v1\`) bez potrzeby posiadania żadnego klucza chmurowego.`;
 
     setChatMessages(prev => [
       ...prev,
@@ -1059,10 +1059,10 @@ export default function BlogStatsModal({
                                   setSelectedModel('local-model');
                                 } else if (provId === 'custom') {
                                   if (!customBaseUrl) setCustomBaseUrl('http://localhost:8080/v1');
-                                  if (!selectedModel || selectedModel === 'gemini-2.5-flash') setSelectedModel('local-model');
+                                  if (!selectedModel || selectedModel === 'gemini-flash-latest') setSelectedModel('local-model');
                                 } else {
                                   setCustomBaseUrl('');
-                                  setSelectedModel('gemini-2.5-flash');
+                                  setSelectedModel('gemini-flash-latest');
                                 }
                               }}
                               className={`p-2.5 text-left border transition-all cursor-pointer flex items-center justify-between gap-2 ${
@@ -1113,14 +1113,14 @@ export default function BlogStatsModal({
                           <span className="text-[8.5px] text-editorial-muted font-mono lowercase">
                             {effectiveProviderInfo.id === 'custom' || effectiveProviderInfo.isLocal
                               ? 'np. llama3.2, deepseek-r1:8b, local-model'
-                              : 'np. gemini-2.5-flash, gemini-2.5-pro'}
+                              : 'np. gemini-flash-latest, gemini-pro-latest'}
                           </span>
                         </label>
                         <input
                           type="text"
-                          value={selectedModel || (effectiveProviderInfo.isLocal ? 'llama3.2' : 'gemini-2.5-flash')}
+                          value={selectedModel || (effectiveProviderInfo.isLocal ? 'llama3.2' : 'gemini-flash-latest')}
                           onChange={(e) => setSelectedModel(e.target.value)}
-                          placeholder={effectiveProviderInfo.isLocal ? 'llama3.2' : 'gemini-2.5-flash'}
+                          placeholder={effectiveProviderInfo.isLocal ? 'llama3.2' : 'gemini-flash-latest'}
                           className="w-full bg-neutral-900 border border-editorial-border text-white text-xs px-2.5 py-1.5 font-mono focus:outline-none focus:border-cyan-400 placeholder:text-neutral-600"
                         />
                       </div>
