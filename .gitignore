@@ -8,6 +8,8 @@ coverage/
 .agents/
 skills-lock.json
 .opencode/
+.memory/
+memory/
 !.env.example
 .git_disabled/
 build.js
