@@ -1,12 +1,12 @@
 <div align="center">
 
-# tomekdot
+# 🌌 tomekdot
 
-**Interactive GitHub portfolio and technical journal**
+**Interaktywne portfolio na GitHubie i dziennik techniczny**
 
-Trackmania plugins, agentic AI systems and academic CS projects, built with React + Vite.
+Pluginy Trackmania, agentowe systemy AI i projekty akademickie, zbudowane w React + Vite.
 
-[**Live demo**](https://tomekdot.github.io/)
+[**🚀 Zobacz demo →**](https://tomekdot.github.io/)
 
 ![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=white)
@@ -18,60 +18,60 @@ Trackmania plugins, agentic AI systems and academic CS projects, built with Reac
 
 ---
 
-## Features
+## ✨ Funkcje
 
-**Browse**
-- Repository cards with stars, forks, language and category
-- Search and filters by name, language, category and year
-- Language breakdown chart of the tech stack
-- Grouped, grid and compact views
+**🔍 Przeglądanie**
+- 📦 Karty repozytoriów z gwiazdkami, forkami, językiem i kategorią
+- 🔎 Wyszukiwanie i filtry po nazwie, języku, kategorii i roku
+- 📊 Wykres technologii, czyli podział stosu
+- 🗂️ Widoki: grupowany, siatka i kompaktowy
 
-**Explore**
-- Galaxy graph: orbital node map of posts and tags on a timeline
-- Interactive terminal for browsing repositories CLI-style
-- Architecture UML and detailed statistics modals
-- Technical journal with articles on agents, performance and knowledge graphs
+**🌠 Eksploracja**
+- 🪐 Galaktyka: orbitalna mapa wpisów i tagów na osi czasu
+- 💻 Interaktywny terminal do przeglądania repozytoriów w stylu CLI
+- 🧩 Modale z architekturą (UML) i szczegółowymi statystykami
+- 📖 Dziennik techniczny o agentach, wydajności i grafach wiedzy
 
-**Under the hood**
-- Live sync with the GitHub API
-- PL / EN interface with correct Polish pluralization
-- Optional private repositories toggle
-- Responsive layout, reduced-motion support and a lightweight mode for weaker phones
-- Lazy-loaded modals (code-split) for fast first paint
+**⚙️ Pod maską**
+- 🔄 Synchronizacja z GitHub API na żywo
+- 🇵🇱 🇬🇧 Interfejs PL / EN z poprawną polską odmianą
+- 🔒 Przełącznik prywatnych repozytoriów
+- 📱 Responsywny układ, obsługa ograniczenia ruchu i lekki tryb dla słabszych telefonów
+- ⚡ Modale ładowane leniwie dla szybkiego startu
 
-## Categories
+## 🗂️ Kategorie
 
-| Category | Scope |
+| Kategoria | Zakres |
 |---|---|
-| AI & Autonomous Agents | LLM projects and agents |
-| Openplanet Plugins | Trackmania in-game plugins (AngelScript) |
-| PyPlanet Plugins | Trackmania server plugins (Python) |
-| Trackmania | Maps and related tools |
-| Dev Tools & Automation | CLI tools and scripts |
-| Discord & Community Bots | Bots and community tools |
-| Web Apps & APIs | Web and fullstack projects |
-| Academic (KUL) | University projects |
-| Other Utilities & Archives | Miscellaneous |
+| 🤖 AI & Autonomous Agents | Projekty LLM i agenty |
+| 🌐 Openplanet Plugins | Pluginy Trackmania (AngelScript) |
+| 🐍 PyPlanet Plugins | Pluginy serwera Trackmania (Python) |
+| 🏎️ Trackmania | Mapy i powiązane narzędzia |
+| 🔧 Dev Tools & Automation | Narzędzia CLI i skrypty |
+| 💬 Discord & Community Bots | Boty i narzędzia społecznościowe |
+| 🌍 Web Apps & APIs | Aplikacje webowe i fullstack |
+| 🎓 Academic (KUL) | Projekty uniwersyteckie |
+| 📦 Other Utilities & Archives | Różne |
 
-## Tech stack
+## 🛠️ Stack technologiczny
 
-React 19, TypeScript, Vite 6, Tailwind CSS 4, Motion, Lucide Icons, React Markdown (rehype / remark)
+React 19 · TypeScript · Vite 6 · Tailwind CSS 4 · Motion · Lucide Icons · React Markdown (rehype / remark)
 
-## Getting started
+## 🚀 Uruchomienie
 
 ```bash
 npm install
 npm run dev      # http://localhost:3000
-npm run build    # production build -> dist/
-npm run lint     # type check (tsc --noEmit)
+npm run build    # build produkcyjny → dist/
+npm run lint     # sprawdzenie typów (tsc --noEmit)
 ```
 
-Deployment: GitHub Actions builds the project and publishes it to GitHub Pages.
+Wdrożenie: GitHub Actions buduje projekt i publikuje go na GitHub Pages.
 
-## AI providers (optional)
+## 🤖 Dostawcy AI (opcjonalnie)
 
-The built-in assistant can use Google Gemini (API key from Google AI Studio) or a local engine: Ollama, LM Studio or a custom OpenAI-compatible endpoint. The key is stored only in the browser (localStorage or sessionStorage).
+Wbudowany asystent może korzystać z Google Gemini (klucz z Google AI Studio) albo z lokalnego silnika: Ollama, LM Studio lub własnego endpointu zgodnego z OpenAI. Klucz jest przechowywany wyłącznie w przeglądarce (`localStorage` lub `sessionStorage`).
 
-## License
+## 📄 Licencja
 
-MIT (c) Tomasz Kaczak
+[MIT](LICENSE) © Tomasz Kaczak
