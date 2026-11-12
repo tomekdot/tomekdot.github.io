@@ -6,7 +6,7 @@
 
 Trackmania plugins, agentic AI systems and academic CS projects, built with React + Vite.
 
-[**Live demo →**](https://tomekdot.github.io/)
+[**Live demo**](https://tomekdot.github.io/)
 
 ![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=white)
@@ -55,14 +55,14 @@ Trackmania plugins, agentic AI systems and academic CS projects, built with Reac
 
 ## Tech stack
 
-React 19 · TypeScript · Vite 6 · Tailwind CSS 4 · Motion · Lucide Icons · React Markdown (rehype / remark)
+React 19, TypeScript, Vite 6, Tailwind CSS 4, Motion, Lucide Icons, React Markdown (rehype / remark)
 
 ## Getting started
 
 ```bash
 npm install
 npm run dev      # http://localhost:3000
-npm run build    # production build → dist/
+npm run build    # production build -> dist/
 npm run lint     # type check (tsc --noEmit)
 ```
 
@@ -70,8 +70,8 @@ Deployment: GitHub Actions builds the project and publishes it to GitHub Pages.
 
 ## AI providers (optional)
 
-The built-in assistant can use Google Gemini (API key from Google AI Studio) or a local engine: Ollama, LM Studio or a custom OpenAI-compatible endpoint. The key is stored only in the browser (`localStorage` or `sessionStorage`).
+The built-in assistant can use Google Gemini (API key from Google AI Studio) or a local engine: Ollama, LM Studio or a custom OpenAI-compatible endpoint. The key is stored only in the browser (localStorage or sessionStorage).
 
 ## License
 
-[MIT](LICENSE) © Tomasz Kaczak
+MIT (c) Tomasz Kaczak
