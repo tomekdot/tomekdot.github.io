@@ -1,57 +1,77 @@
-# 🌐 tomekdot — GitHub Portfolio
+<div align="center">
 
-Interactive portfolio showcasing GitHub repositories, built with React + Vite.
+# tomekdot
 
-**Live:** [tomekdot.github.io](https://tomekdot.github.io/)
+**Interactive GitHub portfolio and technical journal**
 
-## ✨ Features
+Trackmania plugins, agentic AI systems and academic CS projects, built with React + Vite.
 
-- 📦 **Repository cards** — stars, forks, language, categories (60+ repos)
-- 🔍 **Search & filter** — by name, language, category, year
-- 📊 **Language chart** — visual breakdown of tech stack
-- 🌌 **Galaxy graph** — interactive node graph of repos & tags
-- 🧩 **Architecture UML** — visualized project architecture
-- 📈 **Stats modals** — detailed repository statistics
-- 💻 **Interactive terminal** — browse repos via CLI-style console
-- 🔄 **Live GitHub sync** — fetches latest data from GitHub API
-- 🌍 **PL / EN** — bilingual interface
-- 🔒 **Private repos toggle** — show/hide private repositories
-- 📱 **Responsive** — works on desktop and mobile
-- ⚡ **Lazy-loaded modals** — code-split for fast initial load
-- 🔤 **Polish pluralization** — correct grammar for stars/forks/commits
+[**Live demo →**](https://tomekdot.github.io/)
 
-## 🗂️ Categories
+![React](https://img.shields.io/badge/React-19-61dafb?logo=react&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5-3178c6?logo=typescript&logoColor=white)
+![Vite](https://img.shields.io/badge/Vite-6-646cff?logo=vite&logoColor=white)
+![Tailwind](https://img.shields.io/badge/Tailwind-4-38bdf8?logo=tailwindcss&logoColor=white)
+![License](https://img.shields.io/badge/license-MIT-green)
 
-| Category | Description |
-|----------|-------------|
-| 🤖 AI & Agents | AI/LLM projects and autonomous agents |
-| 💬 Discord & Community Bots | Discord bots and community tools |
-| 🎓 Academic (KUL) | University projects (KUL) |
-| 🌐 Openplanet | Trackmania in-game plugins (AngelScript) |
-| 📦 Other | Miscellaneous utilities and archives |
-| 🐍 PyPlanet | Trackmania server plugins (Python) |
-| 🔧 Dev Tools & Automation | CLI tools and automation scripts |
-| 🏎️ Trackmania | Trackmania-related tools and maps |
-| 🌍 Web Apps & APIs | Web applications and fullstack APIs |
+</div>
 
-## 🛠️ Tech Stack
+---
 
-- React 19 + TypeScript
-- Vite 6
-- Tailwind CSS 4
-- Motion (Framer Motion)
-- Lucide Icons
-- React Markdown + rehype/remark
+## Features
 
-## 🚀 Development
+**Browse**
+- Repository cards with stars, forks, language and category
+- Search and filters by name, language, category and year
+- Language breakdown chart of the tech stack
+- Grouped, grid and compact views
+
+**Explore**
+- Galaxy graph: orbital node map of posts and tags on a timeline
+- Interactive terminal for browsing repositories CLI-style
+- Architecture UML and detailed statistics modals
+- Technical journal with articles on agents, performance and knowledge graphs
+
+**Under the hood**
+- Live sync with the GitHub API
+- PL / EN interface with correct Polish pluralization
+- Optional private repositories toggle
+- Responsive layout, reduced-motion support and a lightweight mode for weaker phones
+- Lazy-loaded modals (code-split) for fast first paint
+
+## Categories
+
+| Category | Scope |
+|---|---|
+| AI & Autonomous Agents | LLM projects and agents |
+| Openplanet Plugins | Trackmania in-game plugins (AngelScript) |
+| PyPlanet Plugins | Trackmania server plugins (Python) |
+| Trackmania | Maps and related tools |
+| Dev Tools & Automation | CLI tools and scripts |
+| Discord & Community Bots | Bots and community tools |
+| Web Apps & APIs | Web and fullstack projects |
+| Academic (KUL) | University projects |
+| Other Utilities & Archives | Miscellaneous |
+
+## Tech stack
+
+React 19 · TypeScript · Vite 6 · Tailwind CSS 4 · Motion · Lucide Icons · React Markdown (rehype / remark)
+
+## Getting started
 
 ```bash
 npm install
 npm run dev      # http://localhost:3000
 npm run build    # production build → dist/
-npm run lint     # TypeScript type check (tsc --noEmit)
+npm run lint     # type check (tsc --noEmit)
 ```
 
-## 📄 License
+Deployment: GitHub Actions builds the project and publishes it to GitHub Pages.
 
-MIT
+## AI providers (optional)
+
+The built-in assistant can use Google Gemini (API key from Google AI Studio) or a local engine: Ollama, LM Studio or a custom OpenAI-compatible endpoint. The key is stored only in the browser (`localStorage` or `sessionStorage`).
+
+## License
+
+[MIT](LICENSE) © Tomasz Kaczak
