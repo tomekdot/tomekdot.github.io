@@ -53,30 +53,29 @@ export const PROVIDERS_CONFIG: Record<AIProviderId, AIProviderInfo> = {
     shortNameEn: 'Google Gemini',
     shortName: 'Gemini',
     vendor: 'Google',
-    prefix: 'AIzaSy',
-    defaultModel: 'gemini-flash-latest',
+    prefix: 'AIzaSy / AQ.',
+    defaultModel: 'gemini-3.1-flash-lite',
     availableModels: [
-      { id: 'gemini-flash-latest', labelPl: 'Gemini Flash (zawsze najnowszy, szybki)', labelEn: 'Gemini Flash (always latest, fast)', badge: 'Latest' },
-      { id: 'gemini-pro-latest', labelPl: 'Gemini Pro (głębokie rozumowanie)', labelEn: 'Gemini Pro (deep reasoning)' },
-      { id: 'gemini-2.5-flash', labelPl: 'Gemini 2.5 Flash', labelEn: 'Gemini 2.5 Flash' },
-      { id: 'gemini-2.5-pro', labelPl: 'Gemini 2.5 Pro', labelEn: 'Gemini 2.5 Pro' },
-      { id: 'gemini-2.0-flash', labelPl: 'Gemini 2.0 Flash', labelEn: 'Gemini 2.0 Flash' },
-      { id: 'gemini-1.5-flash', labelPl: 'Gemini 1.5 Flash', labelEn: 'Gemini 1.5 Flash' },
-      { id: 'gemini-1.5-pro', labelPl: 'Gemini 1.5 Pro', labelEn: 'Gemini 1.5 Pro' },
+      { id: 'gemini-3.1-flash-lite', labelPl: '3.1 Flash Lite (Domyślny • $0.25/$1.50)', labelEn: '3.1 Flash Lite (Default • $0.25/$1.50)', badge: 'Default' },
+      { id: 'gemini-3.5-flash-lite', labelPl: '3.5 Flash Lite ($0.30/$2.50)', labelEn: '3.5 Flash Lite ($0.30/$2.50)', badge: '3.5 Lite' },
+      { id: 'gemini-3.8-flash', labelPl: '3.8 Flash (Agentowy • $0.75/$3.75)', labelEn: '3.8 Flash (Agentic • $0.75/$3.75)', badge: '3.8' },
+      { id: 'gemini-4-hydrogen', labelPl: '4 Hydrogen (Nowy • $1.50/$7.50)', labelEn: '4 Hydrogen (New • $1.50/$7.50)', badge: 'New' },
+      { id: 'gemini-4-argon', labelPl: '4 Argon (Paid • $2.00/$10.00)', labelEn: '4 Argon (Paid • $2.00/$10.00)', badge: 'Paid' },
+      { id: 'gemini-4-carbon', labelPl: '4 Carbon (Paid • New • $2.00/$10.00)', labelEn: '4 Carbon (Frontier • Paid • $2.00/$10.00)', badge: 'New • Paid' },
     ],
     badgeClass: 'bg-sky-950/70 border-sky-500/70 text-sky-300',
     borderClass: 'border-sky-500/60',
     textClass: 'text-sky-400',
     bgClass: 'bg-sky-950/30',
-    placeholderPl: 'AIzaSy... (z Google AI Studio)',
-    placeholderEn: 'AIzaSy... (from Google AI Studio)',
-    placeholder: 'AIzaSy... (z Google AI Studio)',
+    placeholderPl: 'AIzaSy... lub AQ.... (Google AI Studio / Vertex Express)',
+    placeholderEn: 'AIzaSy... or AQ.... (Google AI Studio / Vertex Express)',
+    placeholder: 'AIzaSy... lub AQ.... (Google AI Studio / Vertex Express)',
     docUrl: 'https://aistudio.google.com/app/apikey',
     docLabelPl: 'Google AI Studio (Pobierz darmowy klucz)',
     docLabelEn: 'Google AI Studio (Get free API key)',
     docLabel: 'Google AI Studio (aistudio.google.com)',
-    descriptionPl: 'Oficjalne API Google Gemini z automatyczną obsługą najnowszego modelu Flash (Auto Latest). Darmowy klucz API dostępny w Google AI Studio.',
-    descriptionEn: 'Official Google Gemini API automatically routing to the latest active Flash model (Auto Latest). Free instant API keys at Google AI Studio.',
+    descriptionPl: 'Oficjalne API Google Gemini (klucze AIza... oraz Vertex AI Express AQ....) z obsługą licznika tokenów i automatycznym trybem offline po wyczerpaniu quota.',
+    descriptionEn: 'Official Google Gemini API (AIza... and Vertex AI Express AQ.... keys) with token tracking and automatic offline fallback only when quota is exhausted.',
     requiresKey: true,
   },
   ollama: {
@@ -160,10 +159,11 @@ export const PROVIDERS_CONFIG: Record<AIProviderId, AIProviderInfo> = {
     defaultBaseUrl: 'http://localhost:8080/v1',
     defaultModel: 'local-model',
     availableModels: [
-      { id: 'local-model', labelPl: 'local-model', labelEn: 'local-model' },
-      { id: 'llama3.2', labelPl: 'llama3.2', labelEn: 'llama3.2' },
-      { id: 'deepseek-r1', labelPl: 'deepseek-r1', labelEn: 'deepseek-r1' },
-      { id: 'qwen2.5-coder', labelPl: 'qwen2.5-coder', labelEn: 'qwen2.5-coder' },
+      { id: 'local-model', labelPl: 'Domyślny model serwera (local-model)', labelEn: 'Default server model (local-model)', badge: 'Default' },
+      { id: 'llama3.2', labelPl: 'Llama 3.2 (Meta)', labelEn: 'Llama 3.2 (Meta)' },
+      { id: 'deepseek-r1', labelPl: 'DeepSeek R1 (Reasoning)', labelEn: 'DeepSeek R1 (Reasoning)' },
+      { id: 'qwen2.5-coder', labelPl: 'Qwen 2.5 Coder (Alibaba)', labelEn: 'Qwen 2.5 Coder (Alibaba)' },
+      { id: 'mistral', labelPl: 'Mistral (Mistral AI)', labelEn: 'Mistral (Mistral AI)' },
     ],
     badgeClass: 'bg-pink-950/70 border-pink-500/70 text-pink-300',
     borderClass: 'border-pink-500/60',
@@ -190,10 +190,14 @@ export const PROVIDERS_CONFIG: Record<AIProviderId, AIProviderInfo> = {
     shortNameEn: 'Auto AI',
     shortName: 'Auto AI',
     vendor: 'Universal',
-    defaultModel: 'gemini-flash-latest',
+    defaultModel: 'gemini-3.1-flash-lite',
     availableModels: [
-      { id: 'gemini-flash-latest', labelPl: 'Gemini Flash (zawsze najnowszy, szybki)', labelEn: 'Gemini Flash (always latest, fast)', badge: 'Latest' },
-      { id: 'gemini-pro-latest', labelPl: 'Gemini Pro (głębokie rozumowanie)', labelEn: 'Gemini Pro (deep reasoning)' },
+      { id: 'gemini-3.1-flash-lite', labelPl: '3.1 Flash Lite (Domyślny • $0.25/$1.50)', labelEn: '3.1 Flash Lite (Default • $0.25/$1.50)', badge: 'Default' },
+      { id: 'gemini-3.5-flash-lite', labelPl: '3.5 Flash Lite ($0.30/$2.50)', labelEn: '3.5 Flash Lite ($0.30/$2.50)', badge: '3.5 Lite' },
+      { id: 'gemini-3.8-flash', labelPl: '3.8 Flash (Agentowy • $0.75/$3.75)', labelEn: '3.8 Flash (Agentic • $0.75/$3.75)', badge: '3.8' },
+      { id: 'gemini-4-hydrogen', labelPl: '4 Hydrogen (Nowy • $1.50/$7.50)', labelEn: '4 Hydrogen (New • $1.50/$7.50)', badge: 'New' },
+      { id: 'gemini-4-argon', labelPl: '4 Argon (Paid • $2.00/$10.00)', labelEn: '4 Argon (Paid • $2.00/$10.00)', badge: 'Paid' },
+      { id: 'gemini-4-carbon', labelPl: '4 Carbon (Paid • New • $2.00/$10.00)', labelEn: '4 Carbon (Frontier • Paid • $2.00/$10.00)', badge: 'New • Paid' },
     ],
     badgeClass: 'bg-neutral-900 border-neutral-700 text-neutral-300',
     borderClass: 'border-neutral-700',
@@ -277,6 +281,30 @@ const STORAGE_KEY_LEGACY = 'tomekdot_custom_gemini_api_key';
 const STORAGE_MODEL_KEY = 'tomekdot_custom_ai_model';
 const STORAGE_PROVIDER_KEY = 'tomekdot_custom_ai_provider';
 const STORAGE_BASE_URL_KEY = 'tomekdot_custom_ai_base_url';
+const STORAGE_TOKEN_LIMIT_KEY = 'tomekdot_ai_session_token_limit';
+const STORAGE_MAX_OUTPUT_TOKENS_KEY = 'tomekdot_ai_max_output_tokens';
+const STORAGE_TOKENS_USED_KEY = 'tomekdot_ai_session_tokens_used';
+const STORAGE_QUOTA_STATUS_KEY = 'tomekdot_ai_quota_status';
+
+export interface QuotaCheckStatus {
+  valid: boolean;
+  status: 'ok' | 'quota_exhausted' | 'invalid_key' | 'missing_key' | 'error';
+  lang?: 'en' | 'pl';
+  keyType?: string;
+  endpointMode?: 'vertex' | 'studio';
+  providerLabel?: string;
+  resolvedModel?: string;
+  testTokensUsed?: number;
+  quotaInfo?: {
+    tier: string;
+    rpm: string;
+    tpm: string;
+    rpd: string;
+  };
+  message?: string;
+  hint?: string;
+  checkedAt?: string;
+}
 
 /**
  * Automatically inspects key string and determines which provider it belongs to.
@@ -291,12 +319,17 @@ export function detectAIProvider(rawKey: string, explicitProvider?: AIProviderId
     return PROVIDERS_CONFIG.unknown;
   }
 
-  // 1. Google Gemini (AIzaSy... or standard Google Cloud key)
-  if (/^AIza/i.test(trimmed)) {
+  // 1. Custom OpenAI / Groq keys
+  if (trimmed.startsWith('sk-') || trimmed.startsWith('gsk_')) {
+    return PROVIDERS_CONFIG.custom;
+  }
+
+  // 2. Google Gemini keys (starts with AIza... or AQ.... or any non-empty Google Cloud key format)
+  if (/^AIza/i.test(trimmed) || /^AQ\./i.test(trimmed) || trimmed.length >= 15) {
     return PROVIDERS_CONFIG.gemini;
   }
 
-  return PROVIDERS_CONFIG.unknown;
+  return PROVIDERS_CONFIG.gemini;
 }
 
 /**
@@ -320,7 +353,18 @@ export function getLocalAIKey(): string {
  */
 export function getLocalAIModel(): string {
   try {
-    return localStorage.getItem(STORAGE_MODEL_KEY) || sessionStorage.getItem(STORAGE_MODEL_KEY) || '';
+    const raw = (localStorage.getItem(STORAGE_MODEL_KEY) || sessionStorage.getItem(STORAGE_MODEL_KEY) || '').trim();
+    const clean = raw.replace(/^models\//, '');
+    if (
+      clean === 'latest' ||
+      clean === 'gemini-flash-latest' ||
+      clean === 'gemini-1.5-flash' ||
+      clean === 'gemini-2.5-flash' ||
+      clean === 'gemini-2.5-flash-lite'
+    ) {
+      return 'gemini-3.1-flash-lite';
+    }
+    return raw;
   } catch {
     return '';
   }
@@ -361,7 +405,7 @@ export function setLocalAIKey(
   const trimmedKey = (key || '').trim();
   const provider = customProvider || detectAIProvider(trimmedKey).id;
   const providerConfig = PROVIDERS_CONFIG[provider] || PROVIDERS_CONFIG.unknown;
-  const model = (customModel || '').trim() || providerConfig.defaultModel || 'gemini-flash-latest';
+  const model = (customModel || '').trim() || providerConfig.defaultModel || 'gemini-3.1-flash-lite';
   const baseUrl = (customBaseUrl || '').trim();
 
   try {
@@ -408,9 +452,102 @@ export function clearLocalAIKey(): void {
     sessionStorage.removeItem(STORAGE_PROVIDER_KEY);
     sessionStorage.removeItem(STORAGE_MODEL_KEY);
     sessionStorage.removeItem(STORAGE_BASE_URL_KEY);
+    localStorage.removeItem(STORAGE_QUOTA_STATUS_KEY);
   } catch (e) {
     console.warn('Could not clear API key', e);
   }
+}
+
+export function getSessionTokenLimit(): number | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_TOKEN_LIMIT_KEY);
+    if (!raw) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setSessionTokenLimit(limit: number | null): void {
+  try {
+    if (limit !== null && Number.isFinite(limit) && limit > 0) {
+      localStorage.setItem(STORAGE_TOKEN_LIMIT_KEY, String(Math.floor(limit)));
+    } else {
+      localStorage.removeItem(STORAGE_TOKEN_LIMIT_KEY);
+    }
+  } catch {}
+}
+
+export function getMaxOutputTokens(): number | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_MAX_OUTPUT_TOKENS_KEY);
+    if (!raw) return null;
+    const n = Number(raw);
+    return Number.isFinite(n) && n > 0 ? Math.floor(n) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setMaxOutputTokens(maxTokens: number | null): void {
+  try {
+    if (maxTokens !== null && Number.isFinite(maxTokens) && maxTokens > 0) {
+      localStorage.setItem(STORAGE_MAX_OUTPUT_TOKENS_KEY, String(Math.floor(maxTokens)));
+    } else {
+      localStorage.removeItem(STORAGE_MAX_OUTPUT_TOKENS_KEY);
+    }
+  } catch {}
+}
+
+export function getSessionTokensUsed(): number {
+  try {
+    const raw = localStorage.getItem(STORAGE_TOKENS_USED_KEY);
+    const n = raw ? Number(raw) : 0;
+    return Number.isFinite(n) && n >= 0 ? Math.floor(n) : 0;
+  } catch {
+    return 0;
+  }
+}
+
+export function addSessionTokensUsed(tokens: number): number {
+  const current = getSessionTokensUsed();
+  const next = current + Math.max(0, Math.floor(tokens || 0));
+  try {
+    localStorage.setItem(STORAGE_TOKENS_USED_KEY, String(next));
+  } catch {}
+  return next;
+}
+
+export function resetSessionTokensUsed(): void {
+  try {
+    localStorage.setItem(STORAGE_TOKENS_USED_KEY, '0');
+  } catch {}
+}
+
+export function isSessionQuotaExhausted(): boolean {
+  const limit = getSessionTokenLimit();
+  if (limit === null) return false;
+  return getSessionTokensUsed() >= limit;
+}
+
+export function getSavedQuotaStatus(): QuotaCheckStatus | null {
+  try {
+    const raw = localStorage.getItem(STORAGE_QUOTA_STATUS_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setSavedQuotaStatus(status: QuotaCheckStatus | null): void {
+  try {
+    if (status) {
+      localStorage.setItem(STORAGE_QUOTA_STATUS_KEY, JSON.stringify(status));
+    } else {
+      localStorage.removeItem(STORAGE_QUOTA_STATUS_KEY);
+    }
+  } catch {}
 }
 
 // Backward compatibility exports

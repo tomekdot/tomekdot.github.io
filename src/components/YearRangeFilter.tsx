@@ -139,7 +139,7 @@ export default function YearRangeFilter({
         <div className="flex items-center gap-2">
           <div className={`px-2 py-0.5 text-xs font-bold border transition-colors flex items-center gap-1.5 ${
             !isFullRange 
-              ? 'bg-sky-950/50 border-sky-400 text-sky-300 shadow-[0_0_8px_rgba(88,166,255,0.25)]' 
+              ? 'bg-sky-950/50 border-sky-400 text-sky-300' 
               : 'bg-neutral-900 border-editorial-border text-editorial-muted'
           }`}>
             <span>
@@ -206,9 +206,9 @@ export default function YearRangeFilter({
                 {/* Vertical Bar */}
                 <div
                   style={{ height: `${heightPercent}%` }}
-                  className={`w-full max-w-[32px] transition-all rounded-none ${
+                  className={`w-full max-w-[32px] transition-colors rounded-none ${
                     inRange
-                      ? 'bg-sky-500/80 group-hover:bg-sky-400 group-hover:shadow-[0_0_10px_rgba(56,189,248,0.5)]'
+                      ? 'bg-sky-500/80 group-hover:bg-sky-400'
                       : 'bg-neutral-800/80 group-hover:bg-neutral-700'
                   }`}
                 />
@@ -233,7 +233,7 @@ export default function YearRangeFilter({
 
           {/* Active Highlighted Range Track */}
           <div
-            className="absolute h-2 bg-sky-500/80 border-t border-b border-sky-400 shadow-[0_0_8px_rgba(56,189,248,0.4)] pointer-events-none transition-all"
+            className="absolute h-2 bg-sky-500/80 border-t border-b border-sky-400 pointer-events-none transition-all"
             style={{
               left: `${leftPercent}%`,
               width: `${widthPercent}%`
@@ -353,9 +353,9 @@ export default function YearRangeFilter({
               type="button"
               id={`year_preset_${p.id}`}
               onClick={() => onChange(p.range)}
-              className={`px-2 py-1 text-[10.5px] uppercase font-bold transition-all cursor-pointer border ${
+              className={`px-2 py-1 text-[10.5px] uppercase font-bold transition-colors cursor-pointer border ${
                 isPresetActive
-                  ? 'bg-neutral-900 text-sky-400 border-sky-400/80 shadow-[0_0_8px_rgba(56,189,248,0.2)]'
+                  ? 'bg-neutral-900 text-sky-400 border-sky-400/80'
                   : 'bg-black/50 text-editorial-muted hover:text-white border-editorial-border/60 hover:border-editorial-border'
               }`}
             >

@@ -19,7 +19,7 @@ interface RepoCardProps {
 }
 
 const RepoCard = React.memo(function RepoCard({ repo, onSelect, lang, compact }: RepoCardProps) {
-  const primaryCatKey = repo.cat[0] || 'other';
+  const primaryCatKey = (Array.isArray(repo.cat) && repo.cat[0]) || 'other';
   const catSpec = CATEGORIES[primaryCatKey] || CATEGORIES.other;
   const catLabel = lang === 'en' ? (catSpec.shortLabelEn || catSpec.labelEn) : (catSpec.shortLabelPl || catSpec.labelPl);
   const displayLang = repo.lang && repo.lang.trim() !== '' ? repo.lang : 'Shell/Other';
@@ -72,18 +72,18 @@ const RepoCard = React.memo(function RepoCard({ repo, onSelect, lang, compact }:
           </div>
         </div>
 
-        {/* Wiersz metadanych pod nazwą: flex flex-wrap items-center gap-x-2 gap-y-1.5 min-w-0 w-full */}
-        <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 min-w-0 w-full font-mono text-xs text-editorial-muted pt-2 border-t border-editorial-border/30">
+        {/* Wiersz metadanych pod nazwą: clean typographic tokens */}
+        <div className="flex flex-wrap items-center gap-x-3 gap-y-1 min-w-0 w-full font-mono text-xs text-editorial-muted pt-2 border-t border-editorial-border/30">
           <span className="max-w-full truncate shrink min-w-0 text-[9px] font-mono uppercase px-1.5 py-0.5 bg-neutral-900 border border-editorial-border text-editorial-accent font-bold tracking-wider">
             {catLabel.toUpperCase()}
           </span>
           {repo.createdYear && (
-            <span className="shrink-0 inline-flex items-center gap-1 text-[9px] font-mono uppercase tracking-wider text-zinc-400 border border-editorial-border/60 px-1.5 py-0.5 font-bold" title={lang === 'en' ? 'Created year' : 'Rok utworzenia'}>
-              <Calendar size={10} className="text-sky-400 shrink-0" />
+            <span className="shrink-0 inline-flex items-center gap-1 text-[9.5px] font-mono uppercase tracking-wider text-zinc-400 font-medium" title={lang === 'en' ? 'Created year' : 'Rok utworzenia'}>
+              <Calendar size={10} className="text-sky-400/80 shrink-0" />
               <span>{repo.createdYear}</span>
             </span>
           )}
-          <span className="shrink-0 inline-flex items-center gap-1.5 border border-editorial-border/60 px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-wider font-bold">
+          <span className="shrink-0 inline-flex items-center gap-1.5 text-[9.5px] font-mono uppercase tracking-wider font-medium">
             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: langColor }} />
             <span className="text-zinc-300" translate="no">
               {displayLang === 'Shell/Other' ? (lang === 'en' ? 'SHELL / OTHER' : 'SHELL / INNE') : displayLang.toUpperCase()}
@@ -131,7 +131,7 @@ const RepoCard = React.memo(function RepoCard({ repo, onSelect, lang, compact }:
             </span>
           )}
           {repo.isFork && (
-            <span className="inline-flex items-center gap-1 bg-[#1A1028] text-purple-300 border border-purple-500/40 px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-wider font-bold shrink-0 whitespace-nowrap shadow-[0_0_8px_rgba(168,85,247,0.15)]">
+            <span className="inline-flex items-center gap-1 bg-[#1A1028] text-purple-300 border border-purple-500/40 px-1.5 py-0.5 text-[9px] font-mono uppercase tracking-wider font-bold shrink-0 whitespace-nowrap">
               <GitFork size={9} className="text-purple-400 shrink-0" />
               <span>
                 {repo.isContributed
@@ -148,18 +148,18 @@ const RepoCard = React.memo(function RepoCard({ repo, onSelect, lang, compact }:
         </p>
       </div>
 
-      {/* Wiersz metadanych pod nazwą: flex flex-wrap items-center gap-x-2 gap-y-1.5 min-w-0 w-full */}
-      <div className="flex flex-wrap items-center gap-x-2 gap-y-1.5 pt-2.5 border-t border-editorial-border/30 font-mono text-xs text-editorial-muted w-full min-w-0">
+      {/* Wiersz metadanych pod nazwą: clean typographic tokens */}
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 pt-2.5 border-t border-editorial-border/30 font-mono text-xs text-editorial-muted w-full min-w-0">
         <span className="max-w-full truncate shrink min-w-0 text-[9px] sm:text-[10px] font-mono uppercase tracking-wider px-1.5 py-0.5 bg-neutral-900 border border-editorial-border text-editorial-accent font-bold">
           {catLabel.toUpperCase()}
         </span>
         {repo.createdYear && (
-          <span className="shrink-0 inline-flex items-center gap-1 text-[9px] sm:text-[10px] font-mono uppercase tracking-wider text-zinc-400 border border-editorial-border/60 px-1.5 py-0.5 font-bold" title={lang === 'en' ? 'Created year' : 'Rok utworzenia'}>
-            <Calendar size={10} className="text-sky-400 shrink-0" />
+          <span className="shrink-0 inline-flex items-center gap-1 text-[9.5px] sm:text-[10px] font-mono uppercase tracking-wider text-zinc-400 font-medium" title={lang === 'en' ? 'Created year' : 'Rok utworzenia'}>
+            <Calendar size={10} className="text-sky-400/80 shrink-0" />
             <span>{repo.createdYear}</span>
           </span>
         )}
-        <span className="shrink-0 inline-flex items-center gap-1.5 border border-editorial-border px-1.5 py-0.5 text-[9px] sm:text-[10px] font-mono uppercase tracking-wider font-bold">
+        <span className="shrink-0 inline-flex items-center gap-1.5 text-[9.5px] sm:text-[10px] font-mono uppercase tracking-wider font-medium">
           <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: langColor }} />
           <span translate="no" className="text-zinc-300 notranslate font-mono uppercase">
             {displayLang === 'Shell/Other' ? (lang === 'en' ? 'SHELL / OTHER' : 'SHELL / INNE') : displayLang.toUpperCase()}

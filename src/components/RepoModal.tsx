@@ -57,6 +57,8 @@ import { Repository } from '../types';
 import { CATEGORIES, LANG_COLORS } from '../data';
 import RepoArchitectureUml, { renderInlineMarkdown } from './RepoArchitectureUml';
 import MarqueeText from './MarqueeText';
+import ChatMessageView from './ChatMessageView';
+import { safeIsoDate } from '../lib/repoUtils';
 import { 
   detectAIProvider, 
   getLocalAIKey, 
@@ -65,6 +67,17 @@ import {
   getLocalAIModel, 
   getLocalAIProvider,
   getLocalAIBaseUrl,
+  getSessionTokenLimit,
+  setSessionTokenLimit,
+  getMaxOutputTokens,
+  setMaxOutputTokens,
+  getSessionTokensUsed,
+  addSessionTokensUsed,
+  resetSessionTokensUsed,
+  isSessionQuotaExhausted,
+  getSavedQuotaStatus,
+  setSavedQuotaStatus,
+  QuotaCheckStatus,
   PROVIDERS_CONFIG, 
   AIProviderId,
   AIProviderInfo 
@@ -72,6 +85,11 @@ import {
 import { 
   handleClientSideAiFallback, 
   generateClientSideSummary, 
+  validateAiKeyLive,
+  localizeQuotaCheckStatus,
+  streamAiChat,
+  StreamAiError,
+  TokenUsage,
   HAS_BACKEND 
 } from '../lib/clientAi';
 
@@ -462,6 +480,16 @@ export default function RepoModal({
     }
   };
 
+  // Bind Escape key only when full modal is open and not minimized
+  useEffect(() => {
+    if (!isOpen || isMinimized) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isOpen, isMinimized, onClose]);
+
   // Dynamic README
   const [readmeContent, setReadmeContent] = useState<string | null>(null);
   const [isLoadingReadme, setIsLoadingReadme] = useState(false);
@@ -480,6 +508,17 @@ export default function RepoModal({
   const [sessionOnlyKey, setSessionOnlyKey] = useState<boolean>(false);
   const [keyStatusFeedback, setKeyStatusFeedback] = useState<string | null>(null);
   const [serverConfigStatus, setServerConfigStatus] = useState<{ hasServerKey: boolean; supportedProviders?: string[]; serverDefault?: string } | null>(null);
+  const [quotaCheckStatus, setQuotaCheckStatus] = useState<QuotaCheckStatus | null>(() => getSavedQuotaStatus());
+  const [isCheckingKey, setIsCheckingKey] = useState<boolean>(false);
+  const [sessionTokenLimitInput, setSessionTokenLimitInput] = useState<string>(() => {
+    const val = getSessionTokenLimit();
+    return val ? String(val) : '';
+  });
+  const [maxOutputTokensInput, setMaxOutputTokensInput] = useState<string>(() => {
+    const val = getMaxOutputTokens();
+    return val ? String(val) : '';
+  });
+  const [tokensUsedSession, setTokensUsedSession] = useState<number>(() => getSessionTokensUsed());
 
   // Derived active and detected provider metadata
   const detectedFromInput = React.useMemo(() => detectAIProvider(apiKeyInput), [apiKeyInput]);
@@ -522,17 +561,43 @@ export default function RepoModal({
 
   // AI Chat Terminal State
   const [chatMessages, setChatMessages] = useState<Array<{
+    id?: string;
     role: 'user' | 'assistant' | 'system';
     text: string;
     time: string;
+    provider?: string;
+    sourcesUsed?: string[];
+    usage?: TokenUsage;
   }>>([]);
   const [chatInput, setChatInput] = useState('');
   const [isChatLoading, setIsChatLoading] = useState(false);
   const [showContextInspector, setShowContextInspector] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const chatMessagesContainerRef = useRef<HTMLDivElement>(null);
+  const chatTextareaRef = useRef<HTMLTextAreaElement>(null);
   const modalBodyRef = useRef<HTMLDivElement>(null);
   const chatAbortControllerRef = useRef<AbortController | null>(null);
+
+  // Auto-grow repo chat textarea proportionally to viewport height
+  useEffect(() => {
+    const resize = () => {
+      const el = chatTextareaRef.current;
+      if (!el) return;
+      el.style.height = 'auto';
+      const vh = typeof window !== 'undefined' ? window.innerHeight : 800;
+      const isShortViewport = vh <= 539;
+      const minHeight = isShortViewport ? 34 : 40;
+      const maxHeight = isShortViewport
+        ? Math.max(64, Math.min(88, Math.floor(vh * 0.19)))
+        : Math.max(88, Math.min(128, Math.floor(vh * 0.17)));
+      const nextHeight = Math.min(maxHeight, Math.max(minHeight, el.scrollHeight));
+      el.style.height = `${nextHeight}px`;
+      el.style.overflowY = el.scrollHeight > maxHeight ? 'auto' : 'hidden';
+    };
+    resize();
+    window.addEventListener('resize', resize);
+    return () => window.removeEventListener('resize', resize);
+  }, [chatInput, activeTab, repo?.name, isMinimized]);
 
   // Stop Chat AI Generation
   const handleStopChatAi = () => {
@@ -559,29 +624,27 @@ export default function RepoModal({
     return sanitizeReadmeMarkdown(readmeContent);
   }, [readmeContent]);
 
-  // Load local API key and server status
+  // Load and sync local API key and server status whenever modal opens / repo changes
   useEffect(() => {
     const key = getLocalAIKey();
     const model = getLocalAIModel();
     const prov = getLocalAIProvider();
     const baseUrl = getLocalAIBaseUrl();
-    
+
     setLocalApiKey(key);
     setApiKeyInput(key);
-    if (prov && prov !== 'unknown') {
-      setSelectedProviderId(prov);
-    }
-    if (baseUrl) {
-      setCustomBaseUrl(baseUrl);
-    }
+    setSelectedProviderId(prov && prov !== 'unknown' ? prov : 'unknown');
+    setCustomBaseUrl(baseUrl || '');
+    setSelectedModel(model || '');
     if (model) {
-      setSelectedModel(model);
       const isKnown = prov && PROVIDERS_CONFIG[prov]?.availableModels.some(m => m.id === model);
-      if (!isKnown && model) {
-        setIsCustomModelMode(true);
-        setCustomModelInput(model);
-      }
+      setIsCustomModelMode(!isKnown);
+      setCustomModelInput(isKnown ? '' : model);
+    } else {
+      setIsCustomModelMode(false);
+      setCustomModelInput('');
     }
+    setTokensUsedSession(getSessionTokensUsed());
 
     if (HAS_BACKEND) {
       fetch('/api/ai/config-status')
@@ -589,7 +652,7 @@ export default function RepoModal({
         .then(data => setServerConfigStatus(data))
         .catch(() => {});
     }
-  }, []);
+  }, [repo?.name]);
 
   // Update selected model when detected provider changes if input is modified and no explicit selection was made
   useEffect(() => {
@@ -649,12 +712,40 @@ export default function RepoModal({
     }
   }, [activeTab]);
 
+  // Verify API Key & Quota live
+  const handleCheckApiKeyQuota = async (overrideKey?: string, overrideProv?: AIProviderId, overrideModel?: string, overrideUrl?: string) => {
+    setIsCheckingKey(true);
+    try {
+      const keyToCheck = overrideKey !== undefined ? overrideKey.trim() : (apiKeyInput.trim() || getLocalAIKey());
+      const provToCheck = overrideProv || (selectedProviderId !== 'unknown' ? selectedProviderId : detectAIProvider(keyToCheck).id);
+      const modelToCheck = overrideModel || ((isCustomModelMode && customModelInput.trim()) ? customModelInput.trim() : activeModel);
+      const urlToCheck = overrideUrl !== undefined ? overrideUrl : customBaseUrl.trim();
+
+      const result = await validateAiKeyLive({
+        apiKey: keyToCheck,
+        provider: provToCheck,
+        model: modelToCheck,
+        baseUrl: urlToCheck,
+        siteLang: lang,
+      });
+      setQuotaCheckStatus(result);
+      return result;
+    } finally {
+      setIsCheckingKey(false);
+    }
+  };
+
   // Save / Clear local API Key and model configuration
-  const handleSaveApiKey = () => {
+  const handleSaveApiKey = async () => {
     const trimmedKey = apiKeyInput.trim();
     const provider = selectedProviderId !== 'unknown' ? selectedProviderId : detectAIProvider(trimmedKey).id;
     const providerConfig = PROVIDERS_CONFIG[provider] || PROVIDERS_CONFIG.unknown;
     const isLocalOrCustom = provider === 'ollama' || provider === 'lmstudio' || provider === 'custom' || providerConfig.requiresKey === false;
+
+    const parsedLimit = sessionTokenLimitInput.trim() ? Number(sessionTokenLimitInput.trim()) : null;
+    setSessionTokenLimit(parsedLimit && parsedLimit > 0 ? parsedLimit : null);
+    const parsedMaxOut = maxOutputTokensInput.trim() ? Number(maxOutputTokensInput.trim()) : null;
+    setMaxOutputTokens(parsedMaxOut && parsedMaxOut > 0 ? parsedMaxOut : null);
 
     if (!trimmedKey && !isLocalOrCustom) {
       clearLocalAIKey();
@@ -662,7 +753,8 @@ export default function RepoModal({
       setSelectedModel('');
       setCustomBaseUrl('');
       setSelectedProviderId('unknown');
-      setKeyStatusFeedback(lang === 'en' ? 'Custom API key removed.' : 'Usunięto klucz API.');
+      setQuotaCheckStatus(null);
+      setKeyStatusFeedback(lang === 'en' ? 'Custom API key removed. Token limits saved.' : 'Usunięto klucz API. Limity tokenów zapisane.');
     } else {
       const modelToSave = (isCustomModelMode && customModelInput.trim()) 
         ? customModelInput.trim() 
@@ -676,11 +768,22 @@ export default function RepoModal({
 
       setKeyStatusFeedback(
         lang === 'en'
-          ? `✅ Saved ${providerConfig.name} configuration (${modelToSave}) locally in browser!`
-          : `✅ Zapisano konfigurację ${providerConfig.name} (${modelToSave}) lokalnie w przeglądarce!`
+          ? `✅ Saved ${providerConfig.name} (${modelToSave}). Verifying key & quota...`
+          : `✅ Zapisano ${providerConfig.name} (${modelToSave}). Sprawdzam klucz i limit quota...`
       );
+
+      const check = await handleCheckApiKeyQuota(trimmedKey, provider, modelToSave, effectiveBaseUrl);
+      if (check?.valid) {
+        setKeyStatusFeedback(
+          lang === 'en'
+            ? `✅ Verified: ${check.providerLabel || providerConfig.name} (${check.resolvedModel || modelToSave})`
+            : `✅ Klucz działa! ${check.providerLabel || providerConfig.name} (model: ${check.resolvedModel || modelToSave})`
+        );
+      } else if (check) {
+        setKeyStatusFeedback(`⚠️ ${check.message}`);
+      }
     }
-    setTimeout(() => setKeyStatusFeedback(null), 4500);
+    setTimeout(() => setKeyStatusFeedback(null), 6500);
   };
 
   const handleClearApiKey = () => {
@@ -692,6 +795,8 @@ export default function RepoModal({
     setCustomBaseUrl('');
     setIsCustomModelMode(false);
     setSelectedProviderId('unknown');
+    setQuotaCheckStatus(null);
+    setSavedQuotaStatus(null);
     setKeyStatusFeedback(lang === 'en' ? '🗑️ AI configuration cleared from browser storage.' : '🗑️ Konfiguracja AI została usunięta z pamięci przeglądarki.');
     setTimeout(() => setKeyStatusFeedback(null), 4000);
   };
@@ -711,9 +816,9 @@ export default function RepoModal({
     ]);
     setIsChatLoading(true);
 
-    const activeKey = getLocalAIKey();
+    const activeKey = getLocalAIKey() || apiKeyInput.trim();
     const activeBaseUrl = getLocalAIBaseUrl() || customBaseUrl;
-    const activeProvider = getLocalAIProvider() || effectiveProviderInfo.id;
+    const activeProvider = (getLocalAIProvider() && getLocalAIProvider() !== 'unknown') ? getLocalAIProvider() : (effectiveProviderInfo.id || detectAIProvider(activeKey).id);
     const activeModelToUse = (isCustomModelMode && customModelInput.trim()) ? customModelInput.trim() : (getLocalAIModel() || activeModel);
 
     if (chatAbortControllerRef.current) {
@@ -768,7 +873,8 @@ export default function RepoModal({
       }
     };
 
-    if (!HAS_BACKEND) {
+    const isSummaryLocalEngine = activeProvider === 'ollama' || activeProvider === 'lmstudio' || effectiveProviderInfo.requiresKey === false;
+    if (!HAS_BACKEND || isSessionQuotaExhausted() || (!isSummaryLocalEngine && !activeKey && !serverConfigStatus?.hasServerKey)) {
       await runClientSummaryFallback();
       setIsChatLoading(false);
       return;
@@ -797,18 +903,19 @@ export default function RepoModal({
           customModel: activeModelToUse,
           customBaseUrl: activeBaseUrl,
           customProvider: activeProvider,
+          maxOutputTokens: getMaxOutputTokens(),
           siteLang: lang,
         }),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error ${response.status}`);
-      }
-
-      const data = await response.json();
+      const contentType = response.headers.get('content-type') || '';
+      const data = contentType.includes('application/json') ? await response.json().catch(() => ({})) : {};
       const replyTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
-      if (data.success) {
+      if (response.ok && data.success) {
+        if (data.usage?.totalTokens) {
+          setTokensUsedSession(addSessionTokensUsed(data.usage.totalTokens));
+        }
         const summaryText = lang === 'en' ? (data.summaryEn || data.summaryPl) : (data.summaryPl || data.summaryEn);
         let fullMarkdown = `### 📋 **${lang === 'en' ? 'Archival Summary' : 'Szczegółowy Opis Archiwalny'}**\n\n${summaryText}\n\n`;
         
@@ -823,7 +930,7 @@ export default function RepoModal({
 
         setChatMessages(prev => [
           ...prev,
-          { role: 'assistant', text: fullMarkdown, time: replyTime },
+          { role: 'assistant', text: fullMarkdown, time: replyTime, provider: data.provider, usage: data.usage },
         ]);
 
         if (onUpdateRepo) {
@@ -833,8 +940,20 @@ export default function RepoModal({
             longDescEn: data.summaryEn || repo.longDescEn,
           });
         }
+      } else if (response.status === 429 || data.quotaExhausted) {
+        await runClientSummaryFallback();
+      } else if ((data.invalidKey || response.status === 401 || response.status === 403 || response.status === 400) && !data.missingKey) {
+        setChatMessages(prev => [
+          ...prev,
+          {
+            role: 'assistant',
+            text: `⚠️ **${lang === 'en' ? 'API Key Error' : 'Błąd Klucza API'} (${response.status}):** ${data.error || 'Invalid key'}\n\n${data.hint ? `💡 *${data.hint}*` : ''}`,
+            time: replyTime,
+            provider: `GEMINI ERROR (${response.status})`,
+          },
+        ]);
       } else {
-        throw new Error(data.error || 'Generation failed');
+        throw new Error(data.error || `HTTP ${response.status}`);
       }
     } catch (err: any) {
       if (err.name === 'AbortError') return;
@@ -848,8 +967,8 @@ export default function RepoModal({
     setShowApiKeyConfig(true);
     const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
     const guideMsg = lang === 'en'
-      ? `### 🔑 **Quick Guide: How to Get a Free Google Gemini API Key**\n\nGoogle provides free API keys for developers to access Gemini Flash (Latest) and Gemini Pro models:\n\n1. **Open Google AI Studio**: Go to [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey).\n2. **Sign In**: Log in using your Google / Gmail account.\n3. **Create Key**: Click the blue **"Create API key"** button and select a project.\n4. **Copy Key**: Copy your generated key (starts with \`AIzaSy...\`).\n5. **Paste & Save**: Paste your key into the **"API Key"** field in the setup box above, then click **"Save Locally"**.\n\n---\n💡 **Local PC Models (100% Offline / No Key Needed)**\nIf you prefer running models locally without cloud accounts, switch the engine above to **"Local PC / Server"** and point to your local Ollama or LM Studio endpoint (\`http://localhost:11434/v1\`).`
-      : `### 🔑 **Szybki Przewodnik: Jak bezpłatnie uzyskać klucz API Google Gemini**\n\nGoogle udostępnia bezpłatne klucze API dla deweloperów z dostępem do modeli Gemini Flash (Latest) i Gemini Pro:\n\n1. **Otwórz Google AI Studio**: Wejdź na [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey).\n2. **Zaloguj się**: Użyj swojego konta Google / Gmail.\n3. **Utwórz klucz**: Kliknij niebieski przycisk **"Create API key"** i wybierz projekt.\n4. **Skopiuj klucz**: Skopiuj wygenerowany klucz (zaczyna się od \`AIzaSy...\`).\n5. **Wklej i zapisz**: Wklej klucz w pole **"Klucz API"** w panelu powyżej i kliknij **"Zapisz Lokalnie"**.\n\n---\n💡 **Lokalne Modele PC (100% Offline / Bez Klucza)**\nMożesz też przełączyć silnik powyżej na **"Lokalny PC (Ollama / LM Studio)"** i połączyć się z lokalną instancją (\`http://localhost:11434/v1\`) bez potrzeby posiadania żadnego klucza chmurowego.`;
+      ? `### 🔑 **Quick Guide: Google Gemini (` + '`AIza...`' + ` & Vertex Express ` + '`AQ....`' + `) Keys & Quota**\n\nGoogle provides free API keys for Gemini Flash and Vertex AI Express Mode:\n\n1. **Google AI Studio**: Go to [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) (` + '`AIzaSy...`' + ` or ` + '`AQ....`' + `).\n2. **Paste & Verify**: Paste your key into **"API Key"** above and click **"Save Locally"** or **"Check Key & Quota"**.\n3. **Token Budget**: You can set a **Session Token Quota Limit** and **Max Output Tokens** right in the setup panel. Offline Mode (` + '`AUTONOMOUS KNOWLEDGE`' + `) will **only** trigger automatically when tokens/quota run out (` + '`429`' + ` or your session limit is reached).`
+      : `### 🔑 **Przewodnik: Klucze Google Gemini (` + '`AIza...`' + ` i Vertex Express ` + '`AQ....`' + `) oraz Limity Tokenów**\n\nObsługiwane są zarówno klasyczne klucze Google AI Studio (` + '`AIzaSy...`' + `), jak i nowe klucze Google Cloud / Vertex Express (` + '`AQ....`' + `):\n\n1. **Pobierz klucz**: Wejdź na [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) lub Google Cloud Vertex Express.\n2. **Wklej i Sprawdź**: Wklej klucz w pole **"Klucz API"** powyżej i kliknij **"Zapisz Lokalnie"** lub **"Sprawdź Klucz & Limity"**, aby zobaczyć status quota.\n3. **Limity tokenów**: Możesz wpisać własny **Limit Tokenów Sesji** oraz **Maks. Tokenów Odpowiedzi**. Tryb Offline (` + '`AUTONOMOUS KNOWLEDGE`' + `) włączy się **dopiero wtedy, gdy zabraknie tokenów** (błąd ` + '`429`' + ` lub osiągnięcie limitu).`;
 
     setChatMessages(prev => [
       ...prev,
@@ -868,8 +987,11 @@ export default function RepoModal({
       return;
     }
 
-    const lower = textToSend.toLowerCase();
-    if (lower.includes('api key') || lower.includes('klucz') || lower.includes('guide') || lower.includes('instrukcj') || lower.includes('jak zdobyć') || lower.includes('how to get')) {
+    const lower = textToSend.toLowerCase().trim();
+    const isExplicitGuidePreset = textToSend === '🔑 API Key Guide' || textToSend === '🔑 Instrukcja klucza API';
+    const isExplicitGuideQuestion = /^(jak\s*(uzyskać|zdobyć|wygenerować|pobrać|znaleźć)\s*klucz|skąd\s*(wziąć|pobrać)\s*klucz|how\s*to\s*(get|obtain|find|generate)\s*(an?\s*)?api\s*key)/i.test(lower);
+
+    if (isExplicitGuidePreset || isExplicitGuideQuestion) {
       handleShowApiKeyGuideInChat();
       if (!presetText) setChatInput('');
       return;
@@ -881,10 +1003,11 @@ export default function RepoModal({
     if (!presetText) setChatInput('');
     setIsChatLoading(true);
 
-    const activeKey = getLocalAIKey();
+    const activeKey = getLocalAIKey() || apiKeyInput.trim();
     const activeBaseUrl = getLocalAIBaseUrl() || customBaseUrl;
-    const activeProvider = getLocalAIProvider() || effectiveProviderInfo.id;
+    const activeProvider = (getLocalAIProvider() && getLocalAIProvider() !== 'unknown') ? getLocalAIProvider() : (effectiveProviderInfo.id || detectAIProvider(activeKey).id);
     const activeModelToUse = (isCustomModelMode && customModelInput.trim()) ? customModelInput.trim() : (getLocalAIModel() || activeModel);
+    const maxOutputTokens = getMaxOutputTokens();
 
     if (chatAbortControllerRef.current) {
       chatAbortControllerRef.current.abort();
@@ -904,10 +1027,18 @@ export default function RepoModal({
           lang,
           signal: controller.signal
         });
+        setTokensUsedSession(getSessionTokensUsed());
         const replyTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
         setChatMessages(prev => [
           ...prev,
-          { role: 'assistant', text: fallback.reply, time: replyTime },
+          { 
+            role: 'assistant', 
+            text: fallback.reply, 
+            time: replyTime,
+            provider: fallback.provider,
+            sourcesUsed: fallback.sourcesUsed,
+            usage: fallback.usage,
+          },
         ]);
       } catch (clientErr: any) {
         if (clientErr.name === 'AbortError') return;
@@ -919,62 +1050,223 @@ export default function RepoModal({
             text: lang === 'en'
               ? `> ⚠️ **ERROR:** ${clientErr.message || 'Could not retrieve response from AI assistant.'}`
               : `> ⚠️ **BŁĄD:** ${clientErr.message || 'Nie udało się uzyskać odpowiedzi od modelu AI.'}`,
-            time: replyTime
+            time: replyTime,
+            provider: 'CLIENT ERROR',
           }
         ]);
       }
     };
 
-    if (!HAS_BACKEND) {
+    const isChatLocalEngine = activeProvider === 'ollama' || activeProvider === 'lmstudio' || effectiveProviderInfo.requiresKey === false;
+    // Enforce token quota limit and clean keyless offline fallback before sending online request
+    if (!HAS_BACKEND || isSessionQuotaExhausted() || (!isChatLocalEngine && !activeKey && !serverConfigStatus?.hasServerKey)) {
       await runChatFallback();
       chatAbortControllerRef.current = null;
       setIsChatLoading(false);
       return;
     }
 
+    const streamMsgId = `stream_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    const systemInstruction = `You are tomekdot AI Assistant on Tomasz Kaczak's (@tomekdot) GitHub Portfolio.
+Repository: "${repo.name}" (${repo.lang || 'Code'}, category: ${repo.cat?.join(', ') || 'Software'}).
+Description: ${repo.desc || repo.descPl || 'Software engineering repository.'}
+${sanitizedReadme ? `\nREADME.md context:\n${sanitizedReadme.slice(0, 6000)}` : ''}
+
+Instructions:
+- Reply naturally, accurately, and concisely in ${lang === 'en' ? 'English' : 'Polish'} using clean Markdown.
+- FORMATTING & READABILITY (ANTI-BLOAT):
+  * BE CONCISE, SCANNABLE, AND DIRECT. Avoid overwhelming walls of text.
+  * Keep explanations focused: 2-3 short sections max, with 2-3 sentences per paragraph and clean bullet lists.
+  * Keep code snippets tight (5-15 lines) with explicit language tags.
+  * If the user sends a short greeting like "czesc" or "hello", reply with a friendly 1-2 sentence welcome and 3 quick bulleted questions they can explore.
+  * Format code snippets, commands, and file paths in clean Markdown.`;
+
+    const priorHistory = chatMessages
+      .filter(m => (m.role === 'user' || m.role === 'assistant') && !m.provider?.includes('ERROR'))
+      .slice(-10)
+      .map(m => ({
+        role: m.role === 'assistant' ? ('model' as const) : ('user' as const),
+        content: m.text,
+      }));
+
+    const apiMessages = [
+      ...priorHistory,
+      { role: 'user' as const, content: textToSend },
+    ];
+
     try {
-      const response = await fetch('/api/ai/chat-repo', {
-        method: 'POST',
+      const streamResult = await streamAiChat({
+        messages: apiMessages,
+        systemInstruction,
+        provider: activeProvider,
+        model: activeModelToUse,
+        apiKey: activeKey,
+        baseUrl: activeBaseUrl,
+        maxOutputTokens,
+        siteLang: lang,
         signal: controller.signal,
-        headers: { 
-          'Content-Type': 'application/json',
-          'x-ai-api-key': activeKey,
-          'x-gemini-api-key': activeKey,
-          'x-ai-base-url': activeBaseUrl || '',
-          'x-ai-provider': activeProvider || '',
-          'x-ai-model': activeModelToUse || '',
+        timeoutMs: 22000,
+        onChunk: (fullText, _delta, meta) => {
+          const chunkTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          const provTag = meta?.endpointMode === 'vertex'
+            ? `GOOGLE VERTEX AQ. (${(meta?.model || activeModelToUse || 'GEMINI-3.1-FLASH-LITE').toUpperCase()})`
+            : `GOOGLE GEMINI (${(meta?.model || activeModelToUse || 'GEMINI-3.1-FLASH-LITE').toUpperCase()})`;
+
+          setChatMessages(prev => {
+            const exists = prev.some(m => m.id === streamMsgId);
+            if (!exists) {
+              return [
+                ...prev,
+                {
+                  id: streamMsgId,
+                  role: 'assistant',
+                  text: fullText,
+                  time: chunkTime,
+                  provider: provTag,
+                },
+              ];
+            }
+            return prev.map(m =>
+              m.id === streamMsgId
+                ? { ...m, text: fullText, provider: provTag }
+                : m
+            );
+          });
         },
-        body: JSON.stringify({
-          repoName: repo.name,
-          description: repo.desc || repo.descPl,
-          lang: repo.lang,
-          readme: sanitizedReadme || '',
-          userMessage: textToSend,
-          category: repo.cat?.join(', '),
-          customApiKey: activeKey,
-          customModel: activeModelToUse,
-          customBaseUrl: activeBaseUrl,
-          customProvider: activeProvider,
-          siteLang: lang,
-        }),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP ${response.status}`);
+      const replyTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      const finalText = streamResult.text?.trim();
+      if (!finalText) {
+        await runChatFallback();
+        return;
       }
 
-      const data = await response.json();
-      const replyTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      setChatMessages(prev => [
-        ...prev,
-        { role: 'assistant', text: data.reply || (lang === 'en' ? 'No output generated.' : 'Brak odpowiedzi.'), time: replyTime },
-      ]);
+      setTokensUsedSession(getSessionTokensUsed());
+      setQuotaCheckStatus(prev => {
+        const isVertex = streamResult.endpointMode === 'vertex' || /^AQ\./i.test(activeKey);
+        const resolved = streamResult.model || activeModelToUse;
+        const normalizedEndpoint: 'vertex' | 'studio' | undefined =
+          streamResult.endpointMode === 'vertex'
+            ? 'vertex'
+            : streamResult.endpointMode === 'studio'
+              ? 'studio'
+              : prev?.endpointMode;
+        const nextStatus: QuotaCheckStatus = {
+          ...(prev || { valid: true, status: 'ok' }),
+          valid: true,
+          status: 'ok',
+          lang: undefined, // force re-localization below with fresh model & active language
+          keyType: normalizedEndpoint === 'vertex' ? 'vertex_express' : 'ai_studio',
+          endpointMode: normalizedEndpoint,
+          providerLabel: streamResult.provider || prev?.providerLabel,
+          resolvedModel: resolved,
+          testTokensUsed: streamResult.usage?.totalTokens ?? prev?.testTokensUsed,
+          message: lang === 'en'
+            ? `Key active! Connected via ${streamResult.endpointMode === 'vertex' ? 'Vertex AI Express' : 'Google AI Studio'} (model: ${resolved}${streamResult.usage?.totalTokens ? `, last reply: ${streamResult.usage.totalTokens} tokens` : ''}).`
+            : `Klucz aktywny! Połączono przez ${streamResult.endpointMode === 'vertex' ? 'Vertex AI Express' : 'Google AI Studio'} (model: ${resolved}${streamResult.usage?.totalTokens ? `, ostatnia odp.: ${streamResult.usage.totalTokens} tok` : ''}).`,
+          quotaInfo: prev?.quotaInfo || (isVertex ? {
+            tier: 'Vertex AI Express / Google Cloud',
+            rpm: lang === 'en' ? 'Dynamic / Express Tier (GCP project dependent)' : 'Dynamiczny / Express Tier (zależny od projektu GCP)',
+            tpm: lang === 'en' ? 'Per GCP Vertex AI project quota (e.g. 1M+ TPM)' : 'Wg kwoty Vertex AI projektu (np. 1M+ TPM)',
+            rpd: lang === 'en' ? 'Per Vertex AI Express credits / quota' : 'Wg kredytów / limitu Vertex AI Express',
+          } : {
+            tier: 'Google AI Studio (Gemini API)',
+            rpm: lang === 'en' ? '15 RPM (Free) / up to 2,000 RPM (Tier 1+)' : '15 RPM (Free) / do 2 000 RPM (Tier 1+)',
+            tpm: lang === 'en' ? '250,000 – 1,000,000 tokens / min' : '250 000 – 1 000 000 tokenów / min',
+            rpd: lang === 'en' ? '1,500 req/day (Free) / unlimited on Tier 1' : '1 500 zap./dzień (Free) / brak limitu w Tier 1',
+          }),
+        };
+        const localized = localizeQuotaCheckStatus(nextStatus, lang) || nextStatus;
+        setSavedQuotaStatus(localized);
+        return localized;
+      });
+
+      const finalSources = [
+        repo.name,
+        sanitizedReadme ? 'README.md' : 'Repository Metadata',
+        `Google ${streamResult.endpointMode === 'vertex' ? 'Vertex AI Express' : 'Gemini API'} (${streamResult.model || activeModelToUse})`,
+      ];
+
+      setChatMessages(prev => {
+        const exists = prev.some(m => m.id === streamMsgId);
+        if (exists) {
+          return prev.map(m =>
+            m.id === streamMsgId
+              ? {
+                  ...m,
+                  text: finalText,
+                  time: replyTime,
+                  provider: streamResult.provider || m.provider || 'GOOGLE GEMINI',
+                  sourcesUsed: finalSources,
+                  usage: streamResult.usage,
+                }
+              : m
+          );
+        }
+        return [
+          ...prev,
+          {
+            id: streamMsgId,
+            role: 'assistant',
+            text: finalText,
+            time: replyTime,
+            provider: streamResult.provider || 'GOOGLE GEMINI',
+            sourcesUsed: finalSources,
+            usage: streamResult.usage,
+          },
+        ];
+      });
     } catch (err: any) {
-      if (err.name === 'AbortError' || err.message?.includes('aborted')) {
+      if (err?.name === 'AbortError' && controller.signal.aborted) {
         chatAbortControllerRef.current = null;
         return;
       }
-      // On backend error (e.g. 404 or network error), fallback seamlessly to client-side AI!
+
+      const replyTime = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+
+      if (err instanceof StreamAiError) {
+        if (err.quotaExhausted || err.code === 429) {
+          setQuotaCheckStatus({
+            valid: false,
+            status: 'quota_exhausted',
+            message: err.message,
+            hint: err.hint,
+            checkedAt: new Date().toISOString(),
+          });
+          setSavedQuotaStatus({
+            valid: false,
+            status: 'quota_exhausted',
+            message: err.message,
+            hint: err.hint,
+            checkedAt: new Date().toISOString(),
+          });
+          await runChatFallback();
+          return;
+        }
+
+        if ((err.invalidKey || err.code === 401 || err.code === 403 || err.code === 400) && !err.missingKey) {
+          setQuotaCheckStatus({
+            valid: false,
+            status: 'invalid_key',
+            message: err.message,
+            hint: err.hint,
+            checkedAt: new Date().toISOString(),
+          });
+          setChatMessages(prev => [
+            ...prev,
+            {
+              role: 'assistant',
+              text: `⚠️ **${lang === 'en' ? 'API Key Error' : 'Błąd Klucza API'} (${err.code}):** ${err.message || 'Invalid API key.'}\n\n${err.hint ? `💡 *${err.hint}*` : ''}`,
+              time: replyTime,
+              provider: `GEMINI ERROR (${err.code})`,
+              sourcesUsed: ['🔑 API Key Diagnostics'],
+            },
+          ]);
+          return;
+        }
+      }
+
       await runChatFallback();
     } finally {
       chatAbortControllerRef.current = null;
@@ -1236,11 +1528,11 @@ export default function RepoModal({
         <motion.div
           key="repo_minimized_dock"
           id="repo_minimized_dock"
-          initial={{ opacity: 0, y: 14, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 10, scale: 0.98 }}
-          transition={{ duration: 0.16, ease: [0.16, 1, 0.3, 1] }}
-          className="relative w-full min-w-0 max-w-full px-2 py-1 sm:p-2 [@media(max-height:520px)]:py-0.5 [@media(max-height:520px)]:px-1.5 flex items-center gap-1.5 sm:gap-2 bg-[#0D0D0D]/95 border border-cyan-500/80 sm:border-2 rounded-none font-mono text-white cursor-pointer shadow-xl select-none touch-manipulation transition-all landscape:max-w-[210px] sm:landscape:max-w-[240px]"
+          initial={{ opacity: 0, y: 8 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 6 }}
+          transition={{ duration: 0.13, ease: [0.22, 1, 0.36, 1] }}
+          className="relative w-full min-w-0 max-w-full px-2 py-1 sm:p-2 [@media(max-height:520px)]:py-0.5 [@media(max-height:520px)]:px-1.5 flex items-center gap-1.5 sm:gap-2 bg-[#0D0D0D] border border-cyan-500/70 sm:border-2 rounded-none font-mono text-white cursor-pointer shadow-xl select-none touch-manipulation landscape:max-w-[210px] sm:landscape:max-w-[240px]"
           onClick={onRestore}
           title={lang === 'en' ? 'Click to restore repository modal' : 'Kliknij, aby przywrócić okno projektu'}
         >
@@ -1331,7 +1623,7 @@ export default function RepoModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: 8 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-            className="relative z-10 bg-editorial-bg border-2 border-editorial-border shadow-2xl flex flex-col overflow-hidden min-w-0 w-[95vw] sm:w-[90vw] md:w-[85vw] max-w-3xl lg:max-w-4xl h-[86vh] max-h-[760px] short:h-[calc(100vh-1rem)] rounded-none my-auto"
+            className="relative z-10 bg-editorial-bg border-2 border-editorial-border shadow-2xl flex flex-col overflow-hidden min-w-0 w-[95vw] sm:w-[90vw] md:w-[85vw] max-w-3xl lg:max-w-4xl h-[86vh] max-h-[760px] land:h-[calc(100vh-1rem)] short:h-[calc(100vh-1rem)] rounded-none my-auto"
           >
             {/* iOS/iPhone-style pull-down handle (clean pill bar, no text) */}
             <div 
@@ -1345,7 +1637,7 @@ export default function RepoModal({
 
             {/* Header Block - draggable from blank areas */}
             <div 
-              className={`shrink-0 border-b border-editorial-border bg-editorial-sidebar-bg px-3.5 sm:px-6 transition-all duration-200 flex items-start justify-between select-none cursor-grab active:cursor-grabbing touch-none ${
+              className={`shrink-0 border-b border-editorial-border bg-editorial-sidebar-bg px-3.5 sm:px-6 flex items-start justify-between select-none cursor-grab active:cursor-grabbing touch-none ${
                 isShortTitleExpanded ? 'py-2.5 sm:py-4 short:py-2.5' : 'py-2.5 sm:py-4 short:py-2'
               }`}
               style={{ touchAction: 'none' }}
@@ -1447,7 +1739,7 @@ export default function RepoModal({
                       </span>
                     )}
                     {repo.isFork && (
-                      <span className="inline-flex items-center gap-1 bg-[#181126] text-purple-400 border border-purple-500/40 px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] font-mono uppercase tracking-wider font-bold shrink-0 whitespace-nowrap shadow-[0_0_8px_rgba(168,85,247,0.15)]">
+                      <span className="inline-flex items-center gap-1 bg-[#181126] text-purple-400 border border-purple-500/40 px-1.5 sm:px-2 py-0.5 text-[9px] sm:text-[10px] font-mono uppercase tracking-wider font-bold shrink-0 whitespace-nowrap">
                         <GitFork size={10} className="text-purple-400 shrink-0" />
                         <span className="hidden short:inline">FORK</span>
                         <span className="short:hidden">
@@ -1499,52 +1791,55 @@ export default function RepoModal({
             </div>
           </div>
 
-          {/* Navigation Tabs - Full width segmented on mobile, all tabs clearly visible */}
-          <div className="flex border-b border-editorial-border bg-editorial-bg px-1 sm:px-6 overflow-x-auto scrollbar-none shrink-0 w-full h-11 sm:h-12 short:h-9">
+          {/* Navigation Tabs - Sleek compact grid matching BlogStatsModal */}
+          <div className={`shrink-0 grid ${repo.isPrivate ? 'grid-cols-2' : 'grid-cols-3'} border-b border-editorial-border font-mono bg-editorial-bg`}>
             <button
               type="button"
               id="tab_info_btn"
+              title={lang === 'en' ? 'Overview' : 'Przegląd'}
               onClick={() => setActiveTab('info')}
-              className={`flex-1 sm:flex-initial flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 px-2 sm:px-4 h-full text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wider sm:tracking-widest border-b-2 transition-all cursor-pointer whitespace-nowrap box-border
-                ${activeTab === 'info' 
-                  ? 'text-editorial-accent border-editorial-accent bg-editorial-accent/5' 
-                  : 'text-editorial-muted border-transparent hover:text-white'}`}
+              className={`min-w-0 h-10 land:h-8 short:h-8 desk:h-9 xl:h-10 px-1.5 xl:px-4 flex items-center justify-center gap-1.5 border-b-2 text-[10.5px] xl:text-xs font-bold uppercase transition-all cursor-pointer touch-manipulation ${
+                activeTab === 'info'
+                  ? 'text-editorial-accent border-editorial-accent bg-editorial-accent/10'
+                  : 'text-editorial-muted border-transparent hover:text-white'
+              }`}
             >
               <FileText size={13} className="shrink-0" />
-              <span>{lang === 'en' ? 'Overview' : 'Przegląd'}</span>
+              <span className="truncate">{lang === 'en' ? 'Overview' : 'Przegląd'}</span>
             </button>
             
             {!repo.isPrivate && (
               <button
                 type="button"
                 id="tab_code_btn"
+                title="README.md"
                 onClick={() => setActiveTab('code')}
-                className={`flex-1 sm:flex-initial flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 px-2 sm:px-4 h-full text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wider sm:tracking-widest border-b-2 transition-all cursor-pointer whitespace-nowrap box-border
-                  ${activeTab === 'code' 
-                    ? 'text-editorial-accent border-editorial-accent bg-editorial-accent/5' 
-                    : 'text-editorial-muted border-transparent hover:text-white'}`}
+                className={`min-w-0 h-10 land:h-8 short:h-8 desk:h-9 xl:h-10 px-1.5 xl:px-4 flex items-center justify-center gap-1.5 border-b-2 text-[10.5px] xl:text-xs font-bold uppercase transition-all cursor-pointer touch-manipulation ${
+                  activeTab === 'code'
+                    ? 'text-editorial-accent border-editorial-accent bg-editorial-accent/10'
+                    : 'text-editorial-muted border-transparent hover:text-white'
+                }`}
               >
                 <Code size={13} className="shrink-0" />
-                <span className="sm:hidden">README</span>
-                <span className="hidden sm:inline">README.md</span>
+                <span className="truncate sm:hidden">README</span>
+                <span className="hidden sm:inline truncate">README.md</span>
               </button>
             )}
 
             <button
               type="button"
               id="tab_ai_btn"
+              title={lang === 'en' ? 'AI Terminal / Chat' : 'Asystent AI / Terminal'}
               onClick={() => setActiveTab('ai')}
-              className={`flex-1 sm:flex-initial flex items-center justify-center sm:justify-start gap-1.5 sm:gap-2 px-2 sm:px-4 h-full text-[11px] sm:text-xs font-mono font-bold uppercase tracking-wider sm:tracking-widest border-b-2 transition-all cursor-pointer whitespace-nowrap box-border
-                ${activeTab === 'ai' 
-                  ? 'text-editorial-accent border-editorial-accent bg-editorial-accent/10' 
-                  : 'text-editorial-muted border-transparent hover:text-white'}`}
+              className={`min-w-0 h-10 land:h-8 short:h-8 desk:h-9 xl:h-10 px-1.5 xl:px-4 flex items-center justify-center gap-1.5 border-b-2 text-[10.5px] xl:text-xs font-bold uppercase transition-all cursor-pointer touch-manipulation ${
+                activeTab === 'ai'
+                  ? 'text-editorial-accent border-editorial-accent bg-editorial-accent/10'
+                  : 'text-editorial-muted border-transparent hover:text-white'
+              }`}
             >
               <Bot size={13} className={`shrink-0 ${activeTab === 'ai' ? 'text-editorial-accent' : ''}`} />
-              <span className="sm:hidden">{lang === 'en' ? 'AI Chat' : 'Asystent AI'}</span>
-              <span className="hidden sm:inline">{lang === 'en' ? 'AI Terminal / Chat' : 'Asystent AI / Terminal'}</span>
-              <span className="hidden sm:inline-block text-[9px] font-mono px-1.5 py-0.5 leading-none bg-editorial-accent/20 text-editorial-accent border border-editorial-accent/40 uppercase font-bold tracking-wider">
-                AI
-              </span>
+              <span className="truncate 2xl:hidden">{lang === 'en' ? 'AI Chat' : 'Czat AI'}</span>
+              <span className="hidden 2xl:inline truncate">{lang === 'en' ? 'AI Terminal / Chat' : 'Asystent AI / Terminal'}</span>
             </button>
           </div>
 
@@ -1828,7 +2123,7 @@ export default function RepoModal({
                           href={`https://github.com/${repo.forkParent}`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="bg-[#181126] hover:bg-[#231738] border border-purple-500/40 hover:border-purple-400 px-2 py-1 rounded-none text-purple-300 hover:text-purple-200 flex items-center gap-1.5 shadow-[0_0_8px_rgba(168,85,247,0.15)] transition-all cursor-pointer group/fork"
+                          className="bg-[#181126] hover:bg-[#231738] border border-purple-500/40 hover:border-purple-400 px-2 py-1 rounded-none text-purple-300 hover:text-purple-200 flex items-center gap-1.5 transition-colors cursor-pointer group/fork"
                           title={lang === 'en' ? `Open upstream repository ${repo.forkParent}` : `Otwórz oryginalne repozytorium ${repo.forkParent}`}
                         >
                           <GitFork size={11} className="text-purple-400 group-hover/fork:scale-110 transition-transform shrink-0" />
@@ -1844,7 +2139,7 @@ export default function RepoModal({
                           href={`https://github.com/tomekdot/${repo.name}/network/members`}
                           target="_blank"
                           rel="noopener noreferrer"
-                          className="bg-[#181126] hover:bg-[#231738] border border-purple-500/40 hover:border-purple-400 px-2 py-1 rounded-none text-purple-300 hover:text-purple-200 flex items-center gap-1.5 shadow-[0_0_8px_rgba(168,85,247,0.15)] transition-all cursor-pointer group/fork"
+                          className="bg-[#181126] hover:bg-[#231738] border border-purple-500/40 hover:border-purple-400 px-2 py-1 rounded-none text-purple-300 hover:text-purple-200 flex items-center gap-1.5 transition-colors cursor-pointer group/fork"
                           title={lang === 'en' ? 'Find upstream repository in network graph' : 'Znajdź oryginalne repozytorium w grafie sieciowym'}
                         >
                           <GitFork size={11} className="text-purple-400 group-hover/fork:scale-110 transition-transform shrink-0" />
@@ -1861,9 +2156,9 @@ export default function RepoModal({
                         <span>{lang === 'en' ? 'Created: ' : 'Utworzono: '}{repo.createdYear}</span>
                       </span>
                     )}
-                    {repo.pushedAt && (
+                    {safeIsoDate(repo.pushedAt) && (
                       <span className="bg-neutral-900 border border-editorial-border px-2 py-1 rounded-none text-editorial-accent">
-                        {lang === 'en' ? 'Updated: ' : 'Aktualizacja: '}{new Date(repo.pushedAt).toISOString().replace('T', ' ').substring(0, 16)} UTC
+                        {lang === 'en' ? 'Updated: ' : 'Aktualizacja: '}{safeIsoDate(repo.pushedAt).replace('T', ' ').substring(0, 16)} UTC
                       </span>
                     )}
                   </div>
@@ -1910,7 +2205,7 @@ export default function RepoModal({
                     &gt;&gt; [FETCHING LIVE ARCHIVAL README.MD...]
                   </div>
                 ) : sanitizedReadme ? (
-                  <div className="markdown-body text-editorial-text space-y-4 p-3 sm:p-5 bg-neutral-950/30 border border-editorial-border min-w-0 max-w-full overflow-hidden">
+                  <div className="markdown-body text-editorial-text space-y-4 [&>*:first-child]:!mt-0 p-3 sm:p-5 bg-neutral-950/30 border border-editorial-border min-w-0 max-w-full overflow-hidden">
                     <Markdown
                       remarkPlugins={[remarkGfm]}
                       rehypePlugins={[rehypeRaw]}
@@ -1979,7 +2274,7 @@ export default function RepoModal({
                                 href={resolvedHref || '#'} 
                                 target="_blank" 
                                 rel="noopener noreferrer" 
-                                className="text-editorial-accent hover:underline decoration-dotted font-mono text-xs inline-flex items-center gap-1 mx-0.5 break-all"
+                                className="text-editorial-accent hover:underline decoration-dotted font-mono text-xs inline items-center gap-1 mx-0.5 break-words"
                               >
                                 {children}
                               </a>
@@ -2045,6 +2340,38 @@ export default function RepoModal({
                   </div>
 
                   <div className="flex items-center gap-2 flex-wrap">
+                    {/* Live Quota & Token Counter Badge */}
+                    {(() => {
+                      const limitVal = sessionTokenLimitInput.trim() ? Number(sessionTokenLimitInput.trim()) : getSessionTokenLimit();
+                      const exhausted = (limitVal !== null && limitVal > 0 && tokensUsedSession >= limitVal) || quotaCheckStatus?.status === 'quota_exhausted';
+                      const hasError = quotaCheckStatus?.status === 'invalid_key';
+                      return (
+                        <button
+                          type="button"
+                          onClick={() => setShowApiKeyConfig(true)}
+                          className={`inline-flex items-center gap-1.5 px-2 py-1 text-[10px] font-mono border transition-all cursor-pointer ${
+                            exhausted
+                              ? 'bg-amber-950/60 border-amber-500/70 text-amber-300'
+                              : hasError
+                              ? 'bg-rose-950/60 border-rose-500/70 text-rose-300'
+                              : 'bg-emerald-950/40 border-emerald-500/50 text-emerald-300 hover:bg-emerald-900/50'
+                          }`}
+                          title={lang === 'en' ? 'Token usage & quota limit status' : 'Zużycie tokenów i status limitu quota'}
+                        >
+                          <span>{exhausted ? '⚠️' : hasError ? '✖' : '⚡'}</span>
+                          <span>
+                            {exhausted
+                              ? (lang === 'en' ? 'Offline (Quota Exhausted)' : 'Offline (Brak tokenów)')
+                              : hasError
+                              ? (lang === 'en' ? 'Key Error' : 'Błąd Klucza')
+                              : limitVal
+                              ? `Quota: ${tokensUsedSession.toLocaleString()} / ${limitVal.toLocaleString()} tok`
+                              : `Quota: OK • ${tokensUsedSession.toLocaleString()} tok`}
+                          </span>
+                        </button>
+                      );
+                    })()}
+
                     {/* API Key Status Pill / Toggle Button */}
                     <button
                       type="button"
@@ -2151,10 +2478,11 @@ export default function RepoModal({
                                   setSelectedModel('local-model');
                                 } else if (provId === 'custom') {
                                   if (!customBaseUrl) setCustomBaseUrl('http://localhost:8080/v1');
-                                  if (!selectedModel || selectedModel === 'gemini-flash-latest') setSelectedModel('local-model');
+                                  if (!selectedModel || selectedModel.startsWith('gemini-')) setSelectedModel('local-model');
                                 } else {
                                   setCustomBaseUrl('');
-                                  setSelectedModel('gemini-flash-latest');
+                                  setSelectedModel('gemini-3.1-flash-lite');
+                                  setCustomModelInput('gemini-3.1-flash-lite');
                                 }
                               }}
                               className={`p-2.5 text-left border transition-all cursor-pointer flex items-center justify-between gap-2 ${
@@ -2238,23 +2566,65 @@ export default function RepoModal({
                         </div>
                       )}
 
-                      {/* Model Input - Direct type & name */}
+                      {/* Model Input - Quick-select pills + editable model name */}
                       <div className="pt-2 border-t border-editorial-border/40 space-y-1.5">
-                        <label className="text-[10px] text-editorial-muted uppercase font-bold flex items-center justify-between">
-                          <span>{lang === 'en' ? '2. Model Selection (Type & Name):' : '2. Wybór Modelu (Wpisz i Nazwij):'}</span>
+                        <label className="text-[10px] text-editorial-muted uppercase font-bold flex items-center justify-between gap-2 flex-wrap">
+                          <span>{lang === 'en' ? '2. Model Selection:' : '2. Wybór Modelu:'}</span>
                           <span className="text-[9px] text-editorial-muted font-mono lowercase">
-                            {effectiveProviderInfo.id === 'custom' || effectiveProviderInfo.isLocal ? 'np. llama3.2, deepseek-r1:8b, local-model' : 'np. gemini-flash-latest, gemini-pro-latest'}
+                            {effectiveProviderInfo.id === 'custom' || effectiveProviderInfo.isLocal
+                              ? 'np. llama3.2, deepseek-r1:8b, local-model'
+                              : 'gemini-3.1-flash-lite (default), gemini-3.5-flash-lite, gemini-3.8-flash, gemini-4-hydrogen, gemini-4-argon, gemini-4-carbon'}
                           </span>
                         </label>
+                        {effectiveProviderInfo.availableModels?.length > 0 && (
+                          <div className="flex flex-wrap gap-1.5 pb-1">
+                            {effectiveProviderInfo.availableModels.map((m) => {
+                              const currentVal = (customModelInput || selectedModel || effectiveProviderInfo.defaultModel).trim();
+                              const isCurrent = currentVal === m.id;
+                              const badgeLabel = m.badge === 'Default' ? (lang === 'en' ? 'Default' : 'Domyślny') : m.badge;
+                              return (
+                                <button
+                                  key={m.id}
+                                  type="button"
+                                  onClick={() => {
+                                    setSelectedModel(m.id);
+                                    setCustomModelInput(m.id);
+                                    setIsCustomModelMode(false);
+                                  }}
+                                  className={`px-2 py-1 text-[10px] font-mono border transition-all cursor-pointer flex items-center gap-1.5 ${
+                                    isCurrent
+                                      ? 'bg-sky-950/90 border-sky-400 text-sky-200 font-bold'
+                                      : 'bg-neutral-900 border-editorial-border text-neutral-300 hover:text-white hover:border-neutral-500'
+                                  }`}
+                                >
+                                  <span>{lang === 'en' ? m.labelEn : m.labelPl}</span>
+                                  {badgeLabel && (
+                                    <span className={`px-1 py-0.2 text-[8.5px] uppercase border ${
+                                      m.badge === 'Default'
+                                        ? 'border-cyan-400/70 text-cyan-300 bg-cyan-950/60'
+                                        : m.badge?.includes('Paid')
+                                        ? 'border-amber-500/60 text-amber-300 bg-amber-950/40'
+                                        : m.badge?.includes('New')
+                                        ? 'border-emerald-500/60 text-emerald-300 bg-emerald-950/40'
+                                        : 'border-white/15 text-neutral-300 bg-black/30'
+                                    }`}>
+                                      {badgeLabel}
+                                    </span>
+                                  )}
+                                </button>
+                              );
+                            })}
+                          </div>
+                        )}
                         <input
                           type="text"
-                          value={customModelInput || selectedModel || (effectiveProviderInfo.isLocal ? 'llama3.2' : 'gemini-flash-latest')}
+                          value={customModelInput || selectedModel || (effectiveProviderInfo.isLocal ? 'llama3.2' : 'gemini-3.1-flash-lite')}
                           onChange={(e) => {
                             setSelectedModel(e.target.value);
                             setCustomModelInput(e.target.value);
                             setIsCustomModelMode(true);
                           }}
-                          placeholder={effectiveProviderInfo.isLocal ? 'llama3.2' : 'gemini-flash-latest'}
+                          placeholder={effectiveProviderInfo.isLocal ? 'llama3.2' : 'gemini-3.1-flash-lite'}
                           className="w-full bg-neutral-900 border border-editorial-border focus:border-editorial-accent px-2.5 py-1.5 text-xs font-mono text-white placeholder-neutral-600 focus:outline-none"
                         />
                       </div>
@@ -2291,6 +2661,18 @@ export default function RepoModal({
 
                         <button
                           type="button"
+                          id="btn_check_api_key_quota"
+                          disabled={isCheckingKey}
+                          onClick={() => handleCheckApiKeyQuota()}
+                          className="px-3 py-2 bg-sky-950/80 border border-sky-500/70 text-sky-200 font-mono font-bold text-xs uppercase tracking-wider hover:bg-sky-900 flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap disabled:opacity-50"
+                          title={lang === 'en' ? 'Test API key & check Quota / Tokens' : 'Sprawdź klucz API i limity Quota / Tokenów'}
+                        >
+                          <Sparkles size={12} className={isCheckingKey ? 'animate-spin' : ''} />
+                          <span>{isCheckingKey ? (lang === 'en' ? 'Checking...' : 'Sprawdzam...') : (lang === 'en' ? 'Check Quota' : 'Sprawdź Limity')}</span>
+                        </button>
+
+                        <button
+                          type="button"
                           id="btn_save_custom_api_key"
                           onClick={handleSaveApiKey}
                           className="px-3.5 py-2 bg-editorial-accent text-neutral-950 font-mono font-bold text-xs uppercase tracking-wider hover:brightness-110 flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap"
@@ -2299,18 +2681,157 @@ export default function RepoModal({
                           <span>{lang === 'en' ? 'Save Locally' : 'Zapisz Lokalnie'}</span>
                         </button>
 
-                        {(localApiKey || customBaseUrl || selectedProviderId !== 'unknown') && (
+                        {(localApiKey || apiKeyInput || customBaseUrl || selectedModel || customModelInput || selectedProviderId !== 'unknown') && (
                           <button
                             type="button"
                             id="btn_clear_custom_api_key"
                             onClick={handleClearApiKey}
                             className="px-3 py-2 bg-rose-950/70 border border-rose-800 text-rose-300 font-mono font-bold text-xs uppercase tracking-wider hover:bg-rose-900 flex items-center gap-1.5 transition-all cursor-pointer whitespace-nowrap"
-                            title={lang === 'en' ? 'Clear AI settings from browser' : 'Usuń ustawienia AI z przeglądarki'}
+                            title={lang === 'en' ? 'Exit paid/cloud API mode and clear browser config' : 'Wyjdź z trybu płatnego / API i wróć do darmowego trybu offline'}
                           >
                             <Trash2 size={12} />
-                            <span>{lang === 'en' ? 'Reset' : 'Wyczyść'}</span>
+                            <span>{lang === 'en' ? 'Reset / Offline' : 'Wyłącz / Offline'}</span>
                           </button>
                         )}
+                      </div>
+
+                      {/* Quota & Token Budget Configuration Panel */}
+                      <div className="p-3 bg-neutral-900/75 border border-editorial-border space-y-2.5 text-[11px] font-mono">
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-neutral-800 pb-1.5">
+                          <span className="text-editorial-accent font-bold uppercase text-[10px]">
+                            {lang === 'en' ? '4. Quota Limit & Token Budget Settings:' : '4. Limity Quota i Zarządzanie Tokenami w Czacie:'}
+                          </span>
+                          <div className="flex items-center gap-2 text-[10px]">
+                            <span className="text-neutral-300">
+                              {lang === 'en' ? 'Used:' : 'Zużyto:'}{' '}
+                              <strong className="text-white">{tokensUsedSession.toLocaleString()}</strong>
+                              {sessionTokenLimitInput.trim() ? ` / ${Number(sessionTokenLimitInput).toLocaleString()} tok` : ' tok'}
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                resetSessionTokensUsed();
+                                setTokensUsedSession(0);
+                              }}
+                              className="px-1.5 py-0.5 bg-neutral-800 hover:bg-neutral-700 border border-neutral-700 text-neutral-300 text-[9px] uppercase cursor-pointer"
+                            >
+                              {lang === 'en' ? 'Reset counter' : 'Resetuj licznik'}
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                          <div className="space-y-1">
+                            <label className="text-[9.5px] text-editorial-muted uppercase block">
+                              {lang === 'en' ? 'Chat Session Token Limit (empty = API limit):' : 'Limit tokenów sesji czatu (puste = limit API):'}
+                            </label>
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="number"
+                                min={100}
+                                step={1000}
+                                value={sessionTokenLimitInput}
+                                onChange={(e) => {
+                                  setSessionTokenLimitInput(e.target.value);
+                                  const v = e.target.value.trim() ? Number(e.target.value.trim()) : null;
+                                  setSessionTokenLimit(v && v > 0 ? v : null);
+                                }}
+                                placeholder={lang === 'en' ? 'Unlimited (e.g. 50000)' : 'Bez limitu (np. 50000)'}
+                                className="w-full bg-neutral-950 border border-editorial-border px-2 py-1 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-editorial-accent"
+                              />
+                              {[10000, 50000].map(preset => (
+                                <button
+                                  key={preset}
+                                  type="button"
+                                  onClick={() => {
+                                    setSessionTokenLimitInput(String(preset));
+                                    setSessionTokenLimit(preset);
+                                  }}
+                                  className="px-1.5 py-1 bg-neutral-950 hover:bg-neutral-800 border border-editorial-border text-[9px] text-neutral-300 shrink-0 cursor-pointer"
+                                >
+                                  {preset / 1000}k
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div className="space-y-1">
+                            <label className="text-[9.5px] text-editorial-muted uppercase block">
+                              {lang === 'en' ? 'Max Output Tokens per Reply:' : 'Maks. tokenów na odpowiedź (maxOutputTokens):'}
+                            </label>
+                            <div className="flex items-center gap-1.5">
+                              <input
+                                type="number"
+                                min={64}
+                                max={65536}
+                                step={256}
+                                value={maxOutputTokensInput}
+                                onChange={(e) => {
+                                  setMaxOutputTokensInput(e.target.value);
+                                  const v = e.target.value.trim() ? Number(e.target.value.trim()) : null;
+                                  setMaxOutputTokens(v && v > 0 ? v : null);
+                                }}
+                                placeholder={lang === 'en' ? 'Default (e.g. 2048)' : 'Domyślny (np. 2048)'}
+                                className="w-full bg-neutral-950 border border-editorial-border px-2 py-1 text-xs text-white placeholder-neutral-600 focus:outline-none focus:border-editorial-accent"
+                              />
+                              {[1024, 4096].map(preset => (
+                                <button
+                                  key={preset}
+                                  type="button"
+                                  onClick={() => {
+                                    setMaxOutputTokensInput(String(preset));
+                                    setMaxOutputTokens(preset);
+                                  }}
+                                  className="px-1.5 py-1 bg-neutral-950 hover:bg-neutral-800 border border-editorial-border text-[9px] text-neutral-300 shrink-0 cursor-pointer"
+                                >
+                                  {preset}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Live Key & Quota Inspection Result */}
+                        {(() => {
+                          const displayQuota = localizeQuotaCheckStatus(quotaCheckStatus, lang);
+                          if (!displayQuota) return null;
+                          return (
+                            <div className={`p-2.5 border text-[10.5px] font-sans space-y-1 ${
+                              displayQuota.valid
+                                ? 'bg-emerald-950/30 border-emerald-500/60 text-emerald-200'
+                                : displayQuota.status === 'quota_exhausted'
+                                ? 'bg-amber-950/35 border-amber-500/70 text-amber-200'
+                                : 'bg-rose-950/35 border-rose-500/70 text-rose-200'
+                            }`}>
+                              <div className="font-mono font-bold flex items-center justify-between gap-2">
+                                <span>
+                                  {displayQuota.valid ? '✅ ' : displayQuota.status === 'quota_exhausted' ? '⚠️ ' : '✖ '}
+                                  {displayQuota.providerLabel || (displayQuota.valid ? 'API Active' : 'API Check')}
+                                </span>
+                                {displayQuota.resolvedModel && (
+                                  <span className="text-[9.5px] px-1.5 py-0.5 bg-black/40 border border-white/15">
+                                    {displayQuota.resolvedModel}
+                                  </span>
+                                )}
+                              </div>
+                              {displayQuota.message && <p>{displayQuota.message}</p>}
+                              {displayQuota.quotaInfo && (
+                                <div className="grid grid-cols-1 sm:grid-cols-3 gap-1.5 pt-1 text-[9.5px] font-mono text-neutral-300 border-t border-white/10">
+                                  <div><strong>RPM:</strong> {displayQuota.quotaInfo.rpm}</div>
+                                  <div><strong>TPM:</strong> {displayQuota.quotaInfo.tpm}</div>
+                                  <div><strong>RPD:</strong> {displayQuota.quotaInfo.rpd}</div>
+                                </div>
+                              )}
+                              {displayQuota.hint && <p className="text-[10px] opacity-85 italic">{displayQuota.hint}</p>}
+                            </div>
+                          );
+                        })()}
+
+                        <p className="text-[9.5px] text-neutral-400 font-sans">
+                          {lang === 'en'
+                            ? 'ℹ️ Offline Mode (Autonomous Knowledge) stays disabled while your API key/tokens are active and only activates automatically when quota/tokens run out (429 or session limit reached).'
+                            : 'ℹ️ Tryb Offline (Autonomous Knowledge) włączy się automatycznie dopiero wtedy, gdy zabraknie tokenów (limit 429 lub osiągnięcie powyższego limitu sesji).'}
+                        </p>
                       </div>
 
                       {/* Session-only checkbox option */}
@@ -2524,46 +3045,11 @@ export default function RepoModal({
                   className="bg-neutral-950 border border-editorial-border p-3 sm:p-4 short:p-2 min-h-[160px] sm:min-h-[220px] short:min-h-[120px] max-h-[360px] short:max-h-[45dvh] overflow-y-auto space-y-3 sm:space-y-3.5 short:space-y-2 scrollbar-thin scrollbar-thumb-neutral-800"
                 >
                   {chatMessages.map((msg, index) => (
-                    <div
-                      key={index}
-                      className={`space-y-1 ${
-                        msg.role === 'user'
-                          ? 'border-l-2 border-editorial-accent pl-3 py-1 bg-editorial-accent/5'
-                          : msg.role === 'system'
-                          ? 'border-l-2 border-emerald-500/80 pl-3 py-1 bg-emerald-950/20'
-                          : 'border-l-2 border-neutral-700 pl-3 py-1 bg-neutral-900/40'
-                      }`}
-                    >
-                      <div className="flex items-center justify-between text-[9px] text-editorial-muted">
-                        <span className="font-bold uppercase tracking-wider">
-                          {msg.role === 'user' ? (lang === 'en' ? '> YOU' : '> TY') : msg.role === 'system' ? '⚡ SYSTEM' : '🤖 AI ASSISTANT'}
-                        </span>
-                        <span>{msg.time}</span>
-                      </div>
-                      <div className="text-xs text-editorial-text leading-relaxed font-sans prose prose-invert max-w-none">
-                        <Markdown
-                          remarkPlugins={[remarkGfm]}
-                          components={{
-                            p: ({ children }) => <div className="mb-1.5 text-xs text-editorial-text leading-relaxed font-sans">{children}</div>,
-                            code: ({ children, className }) => {
-                              const isInline = !className;
-                              return isInline ? (
-                                <code translate="no" className="bg-neutral-900 text-editorial-accent font-mono text-[11px] px-1 py-0.5 border border-editorial-border notranslate">{children}</code>
-                              ) : (
-                                <pre className="bg-black p-2.5 border border-neutral-800 font-mono text-xs text-emerald-400 overflow-x-auto my-2 rounded-none">
-                                  <code translate="no" className="notranslate">{children}</code>
-                                </pre>
-                              );
-                            },
-                            ul: ({ children }) => <ul className="my-1.5 space-y-1 list-disc pl-4 text-xs text-editorial-text font-sans">{children}</ul>,
-                            li: ({ children }) => <li className="text-xs text-editorial-text font-sans">{children}</li>,
-                            strong: ({ children }) => <strong className="text-white font-bold">{children}</strong>,
-                          }}
-                        >
-                          {msg.text}
-                        </Markdown>
-                      </div>
-                    </div>
+                    <ChatMessageView
+                      key={msg.id || index}
+                      message={msg}
+                      lang={lang}
+                    />
                   ))}
 
                   {/* Blinking loader indicator */}
@@ -2588,7 +3074,7 @@ export default function RepoModal({
                   <div ref={chatEndRef} />
                 </div>
 
-                {/* Input form */}
+                {/* Unified Auto-Growing Composer Box */}
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
@@ -2598,52 +3084,82 @@ export default function RepoModal({
                       handleSendChatMessage();
                     }
                   }}
-                  className="flex items-center gap-2 bg-neutral-900 border border-editorial-border p-1.5 sm:p-2 shrink-0 mb-1 sm:mb-1.5 shadow-sm"
+                  className="bg-neutral-950 border border-editorial-border focus-within:border-editorial-accent transition-colors flex flex-col shrink-0 mb-1 sm:mb-1.5 shadow-sm min-w-0"
                 >
-                  <span className="text-editorial-accent pl-2 text-xs font-mono select-none">&gt;</span>
-                  <input
-                    type="text"
+                  <textarea
+                    ref={chatTextareaRef}
                     id="chat_repo_input"
                     value={chatInput}
                     onChange={(e) => setChatInput(e.target.value)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault();
+                        if (!isChatLoading && chatInput.trim()) {
+                          handleSendChatMessage();
+                        }
+                      }
+                    }}
+                    rows={1}
                     placeholder={
                       isChatLoading
-                        ? (lang === 'en' ? "AI is generating... Click Stop to cancel." : "AI generuje odpowiedź... Kliknij Zatrzymaj, aby anulować.")
+                        ? (lang === 'en' ? 'AI is generating... Click Stop to cancel.' : 'AI generuje odpowiedź... Kliknij Zatrzymaj, aby anulować.')
                         : (lang === 'en'
-                            ? "Ask what this plugin does, how to configure it, etc..."
-                            : "Zadaj pytanie co robi ten plugin, jak go skonfigurować...")
+                            ? 'Ask what this plugin does, paste code/logs, or ask how to configure it...'
+                            : 'Zadaj pytanie co robi ten plugin, wklej kod/logi lub zapytaj o konfigurację...')
                     }
                     disabled={isChatLoading}
-                    className="flex-1 bg-transparent border-none text-xs text-white placeholder-neutral-500 font-mono focus:outline-none px-2 py-1 disabled:opacity-60"
+                    className="w-full bg-transparent border-0 px-3 pt-2 pb-1.5 land:px-2.5 land:pt-1.5 land:pb-1 text-xs text-white placeholder-neutral-500 font-mono outline-none disabled:opacity-60 resize-none leading-relaxed scrollbar-thin scrollbar-thumb-neutral-800 min-w-0"
                   />
-                  {isChatLoading ? (
-                    <button
-                      type="button"
-                      onClick={handleStopChatAi}
-                      className="px-3 py-1.5 bg-red-950 hover:bg-red-900 border border-red-500 text-red-300 hover:text-white text-xs font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer animate-pulse"
-                      title={lang === 'en' ? 'Stop AI analysis' : 'Zatrzymaj odpowiedź AI'}
-                    >
-                      <Square size={11} className="fill-red-300" />
-                      <span>{lang === 'en' ? 'Stop' : 'Zatrzymaj'}</span>
-                    </button>
-                  ) : (
-                    <button
-                      type="submit"
-                      id="chat_repo_submit_btn"
-                      disabled={!chatInput.trim()}
-                      className="px-3 py-1.5 bg-editorial-accent text-neutral-950 hover:brightness-110 disabled:opacity-40 text-xs font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer"
-                    >
-                      <span>{lang === 'en' ? 'Send' : 'Wyślij'}</span>
-                      <Send size={12} />
-                    </button>
-                  )}
+                  <div className="flex items-center justify-between gap-2 px-2.5 py-1.5 land:px-2 land:py-1 border-t border-editorial-border/50 bg-[#080B10]/80">
+                    <div className="flex items-center gap-2 min-w-0 text-[9.5px] font-mono text-neutral-500">
+                      <span className="hidden desk:inline truncate">
+                        {lang === 'en' ? 'Enter = send · Shift+Enter = newline' : 'Enter = wyślij · Shift+Enter = nowa linia'}
+                      </span>
+                      <span className="desk:hidden truncate text-[9px]">
+                        {chatInput.length === 0
+                          ? (lang === 'en' ? 'Ask or paste text' : 'Wpisz lub wklej')
+                          : `${chatInput.length.toLocaleString()} ${lang === 'en' ? 'chars' : 'zn.'}`}
+                      </span>
+                      {chatInput.length > 0 && !isChatLoading && (
+                        <button
+                          type="button"
+                          onClick={() => setChatInput('')}
+                          className="text-neutral-400 hover:text-rose-300 underline cursor-pointer shrink-0 uppercase text-[9px]"
+                        >
+                          {lang === 'en' ? 'Clear' : 'Wyczyść'}
+                        </button>
+                      )}
+                    </div>
+
+                    {isChatLoading ? (
+                      <button
+                        type="button"
+                        onClick={handleStopChatAi}
+                        className="h-8 land:h-7 px-3 bg-red-950 hover:bg-red-900 border border-red-500 text-red-300 hover:text-white text-xs font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer animate-pulse shrink-0"
+                        title={lang === 'en' ? 'Stop AI analysis' : 'Zatrzymaj odpowiedź AI'}
+                      >
+                        <Square size={11} className="fill-red-300" />
+                        <span>{lang === 'en' ? 'Stop' : 'Zatrzymaj'}</span>
+                      </button>
+                    ) : (
+                      <button
+                        type="submit"
+                        id="chat_repo_submit_btn"
+                        disabled={!chatInput.trim()}
+                        className="h-8 land:h-7 px-3 bg-editorial-accent text-neutral-950 hover:brightness-110 disabled:opacity-40 disabled:cursor-not-allowed text-xs font-mono font-bold uppercase tracking-wider flex items-center gap-1.5 transition-all cursor-pointer shrink-0"
+                      >
+                        <span>{lang === 'en' ? 'Send' : 'Wyślij'}</span>
+                        <Send size={12} />
+                      </button>
+                    )}
+                  </div>
                 </form>
               </div>
             )}
           </div>
 
           {/* Actions / Buttons Footer */}
-          <div className="shrink-0 bg-editorial-sidebar-bg border-t border-editorial-border px-3.5 sm:px-6 py-2.5 sm:py-3.5 flex flex-wrap items-center justify-between gap-2.5 font-medium min-w-0 short:hidden">
+          <div className="shrink-0 bg-editorial-sidebar-bg border-t border-editorial-border px-3.5 sm:px-6 py-2.5 sm:py-3.5 flex land:hidden short:hidden desk:flex flex-wrap items-center justify-between gap-2.5 font-medium min-w-0">
             <div className="text-xs text-editorial-muted font-mono uppercase tracking-wider">
               {repo.isPrivate ? (
                 lang === 'en' ? '🔒 Private Archive' : '🔒 Prywatne Archiwum'

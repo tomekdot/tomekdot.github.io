@@ -1,6 +1,8 @@
 @import "tailwindcss";
 
 @custom-variant short (@media (max-height: 520px));
+@custom-variant land (@media (min-width: 640px) and (max-height: 539px));
+@custom-variant desk (@media (min-width: 640px) and (min-height: 540px));
 
 @theme {
   --font-sans: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
@@ -134,21 +136,21 @@ input[type="range"].range-slider-thumb::-moz-range-thumb:active {
 
 /* Marquee / Auto-Scrolling Ping-Pong Text Animation */
 @keyframes marquee-pingpong {
-  0%, 28% {
-    transform: translateX(0px);
+  0%, 30% {
+    transform: translate3d(0px, 0, 0);
   }
   68%, 82% {
-    transform: translateX(var(--max-scroll, -40px));
+    transform: translate3d(var(--max-scroll, -40px), 0, 0);
   }
   100% {
-    transform: translateX(0px);
+    transform: translate3d(0px, 0, 0);
   }
 }
 
 .animate-marquee-pingpong {
   display: inline-block;
   white-space: nowrap;
-  animation: marquee-pingpong var(--marquee-duration, 8s) ease-in-out infinite;
+  animation: marquee-pingpong var(--marquee-duration, 8s) ease-in-out 0.35s infinite;
   will-change: transform;
 }
 

@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useMemo, useEffect, useCallback, Suspense, lazy } from 'react';
+import React, { useState, useMemo, useEffect, useCallback, useRef, Suspense } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Search, 
@@ -51,14 +51,27 @@ import LanguageChart from './components/LanguageChart';
 import RepoCard from './components/RepoCard';
 import BlogCard from './components/BlogCard';
 import YearRangeFilter from './components/YearRangeFilter';
+import ErrorBoundary from './components/ErrorBoundary';
+import { lazyWithRetry, safeDateYmd, safeRepoYear, safeTimeMs, sanitizeRepo } from './lib/repoUtils';
 
-// Lazy-load heavy modals and console to optimize initial bundle size & LCP
-const RepoModal = lazy(() => import('./components/RepoModal'));
-const BlogModal = lazy(() => import('./components/BlogModal'));
-const DeveloperStatsModal = lazy(() => import('./components/DeveloperStatsModal'));
-const BlogStatsModal = lazy(() => import('./components/BlogStatsModal'));
-const GalaxyGraphModal = lazy(() => import('./components/GalaxyGraphModal'));
-const TerminalConsole = lazy(() => import('./components/TerminalConsole'));
+// Lazy-load heavy modals and console with automatic retry on transient chunk failure
+const RepoModal = lazyWithRetry(() => import('./components/RepoModal'));
+const BlogModal = lazyWithRetry(() => import('./components/BlogModal'));
+const DeveloperStatsModal = lazyWithRetry(() => import('./components/DeveloperStatsModal'));
+const BlogStatsModal = lazyWithRetry(() => import('./components/BlogStatsModal'));
+const GalaxyGraphModal = lazyWithRetry(() => import('./components/GalaxyGraphModal'));
+const TerminalConsole = lazyWithRetry(() => import('./components/TerminalConsole'));
+
+function ModalLoadingFallback({ lang }: { lang: 'en' | 'pl' }) {
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 pointer-events-auto">
+      <div className="bg-[#0D0D0D] border border-editorial-border px-4 py-3 flex items-center gap-2.5 font-mono text-xs text-editorial-accent shadow-xl">
+        <RefreshCw size={14} className="animate-spin shrink-0" />
+        <span>{lang === 'en' ? 'Loading module...' : 'Ładowanie widoku...'}</span>
+      </div>
+    </div>
+  );
+}
 
 export default function App() {
   const [activeWorkspaceTab, setActiveWorkspaceTab] = useState<'projects' | 'blog'>('projects');
@@ -69,6 +82,11 @@ export default function App() {
   const [blogViewLayout, setBlogViewLayout] = useState<'grid' | 'compact' | 'grouped'>('grid');
   const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
   const [isBlogStatsModalOpen, setIsBlogStatsModalOpen] = useState(false);
+  const [blogStatsTargetPostId, setBlogStatsTargetPostId] = useState<string | null>(null);
+  const [blogStatsInitialTab, setBlogStatsInitialTab] = useState<'synthesis' | 'analytics' | 'interactive_chat'>('synthesis');
+  const [blogStatsInitialVersionMode, setBlogStatsInitialVersionMode] = useState<'v2_ai' | 'v1_draft' | 'diff'>('v2_ai');
+  const [blogStatsInitialPrompt, setBlogStatsInitialPrompt] = useState<string | null>(null);
+  const [blogStatsOpenKey, setBlogStatsOpenKey] = useState<number>(0);
   const [isGalaxyModalOpen, setIsGalaxyModalOpen] = useState(false);
   const [galaxyFilterMode, setGalaxyFilterMode] = useState<'all' | 'posts' | 'tags'>('all');
 
@@ -97,10 +115,14 @@ export default function App() {
   useEffect(() => { if (selectedRepo) setRepoMounted(true); }, [selectedRepo]);
   useEffect(() => { if (selectedBlogPost) setBlogMounted(true); }, [selectedBlogPost]);
 
-  // Defer modal chunks loading until first user interaction to keep initial page load ultra-fast (100 Lighthouse score)
+  // Defer modal chunks prefetch until first user interaction or idle to keep initial load fast & clicks instant
   useEffect(() => {
     const prefetch = () => {
+      import('./components/RepoModal');
       import('./components/BlogModal');
+      import('./components/DeveloperStatsModal');
+      import('./components/BlogStatsModal');
+      import('./components/GalaxyGraphModal');
     };
     if (typeof window !== 'undefined') {
       const trigger = () => {
@@ -110,6 +132,10 @@ export default function App() {
       };
       window.addEventListener('pointerdown', trigger, { once: true, passive: true });
       window.addEventListener('keydown', trigger, { once: true, passive: true });
+      return () => {
+        window.removeEventListener('pointerdown', trigger);
+        window.removeEventListener('keydown', trigger);
+      };
     }
   }, []);
 
@@ -124,6 +150,33 @@ export default function App() {
     setSelectedBlogPost(post);
     setIsBlogMinimized(false);
   }, []);
+
+  const handleOpenBlogAiTools = useCallback((post: BlogPost, mode: 'chat' | 'critique' | 'diff' = 'chat') => {
+    const pTitle = appLang === 'en' ? post.titleEn : post.titlePl;
+    setSelectedBlogPost(null);
+    setIsBlogMinimized(false);
+    setBlogStatsTargetPostId(post.id);
+    if (mode === 'diff') {
+      setBlogStatsInitialTab('synthesis');
+      setBlogStatsInitialVersionMode('diff');
+      setBlogStatsInitialPrompt(null);
+    } else if (mode === 'critique') {
+      setBlogStatsInitialTab('interactive_chat');
+      setBlogStatsInitialVersionMode('v2_ai');
+      setBlogStatsInitialPrompt(
+        appLang === 'en'
+          ? `Let's debate article #${post.id} ("${pTitle}") critically. State: (1) what is technically sound (Agree), (2) what claims, code snippets, or metrics are questionable/oversimplified or added only in v2.0 vs v1.0 Raw (Disagree / Gaps), and (3) what should be improved.`
+          : `Podyskutujmy krytycznie o artykule #${post.id} („${pTitle}”). Wypunktuj: (1) z czym się zgadzasz, (2) z czym można polemizować, co jest zbyt uproszczone lub dopisane dopiero w v2.0 względem v1.0 Raw (w tym kod i liczby), oraz (3) co warto poprawić.`
+      );
+    } else {
+      setBlogStatsInitialTab('interactive_chat');
+      setBlogStatsInitialVersionMode('v2_ai');
+      setBlogStatsInitialPrompt(null);
+    }
+    setBlogStatsOpenKey(k => k + 1);
+    setBlogStatsMounted(true);
+    setIsBlogStatsModalOpen(true);
+  }, [appLang]);
 
   const handleUpdateRepo = useCallback((updated: Repository) => {
     React.startTransition(() => {
@@ -148,19 +201,20 @@ export default function App() {
         const parsed = JSON.parse(cached);
         if (Array.isArray(parsed) && parsed.length > 0) {
           return parsed
-            .filter((r: Repository) => {
+            .filter((r: any) => {
+              if (!r || typeof r.name !== 'string') return false;
               const isBlacklisted = REPO_BLACKLIST.some(b => b.toLowerCase() === r.name.toLowerCase());
-              if (isBlacklisted) return false;
-              return true;
+              return !isBlacklisted;
             })
             .map((r: Repository) => {
+              const safeR = sanitizeRepo(r);
               const base = REPOS.find(orig => 
-                orig.name.toLowerCase() === r.name.toLowerCase() || 
-                orig.url.toLowerCase() === r.url.toLowerCase()
+                orig.name.toLowerCase() === safeR.name.toLowerCase() || 
+                orig.url.toLowerCase() === safeR.url.toLowerCase()
               );
-              const isContributed = (base && base.isContributed) || r.isContributed || CONTRIBUTED_FORKS.some(cf => cf.toLowerCase() === r.name.toLowerCase());
-              const merged: Repository = {
-                ...r,
+              const isContributed = (base && base.isContributed) || safeR.isContributed || CONTRIBUTED_FORKS.some(cf => cf.toLowerCase() === safeR.name.toLowerCase());
+              const merged = sanitizeRepo({
+                ...safeR,
                 ...(base ? {
                   desc: base.desc,
                   descPl: base.descPl,
@@ -171,10 +225,10 @@ export default function App() {
                   codeSnippet: base.codeSnippet,
                   capabilities: base.capabilities,
                 } : {}),
-                isPrivate: base ? (base.isPrivate || base.cat.includes('kul')) : r.isPrivate,
+                isPrivate: base ? (base.isPrivate || base.cat.includes('kul')) : safeR.isPrivate,
                 isContributed: isContributed,
-                cat: (base ? base.cat : (r.cat && r.cat.length > 0 ? r.cat : ['other'])) as CategoryKey[]
-              };
+                cat: (base ? base.cat : (safeR.cat && safeR.cat.length > 0 ? safeR.cat : ['other'])) as CategoryKey[]
+              });
               return autoEnrichRepo(merged);
             });
         }
@@ -185,19 +239,18 @@ export default function App() {
     return REPOS
       .filter(r => {
         const isBlacklisted = REPO_BLACKLIST.some(b => b.toLowerCase() === r.name.toLowerCase());
-        if (isBlacklisted) return false;
-        return true;
+        return !isBlacklisted;
       })
       .map(r => {
         const isPrivateOrAcademic = r.isPrivate || r.cat.includes('kul');
-        const formatted = {
+        const formatted = sanitizeRepo({
           ...r,
           cat: r.cat,
           isPrivate: isPrivateOrAcademic,
           isContributed: r.isContributed || CONTRIBUTED_FORKS.some(cf => cf.toLowerCase() === r.name.toLowerCase()),
           stars: isPrivateOrAcademic ? 0 : r.stars,
           commitsCount: isPrivateOrAcademic ? 0 : r.commitsCount
-        };
+        });
         return autoEnrichRepo(formatted);
       });
   });
@@ -281,8 +334,14 @@ export default function App() {
     }
   }, [reposList]);
 
-  // Live GitHub API synchronizer
+  const appLangRef = useRef(appLang);
+  useEffect(() => {
+    appLangRef.current = appLang;
+  }, [appLang]);
+
+  // Live GitHub API synchronizer (independent of UI language changes)
   const fetchGitHubData = useCallback(async (forced = false) => {
+    const langNow = appLangRef.current;
     try {
       setIsSyncing(true);
       setSyncFailed(false);
@@ -314,11 +373,11 @@ export default function App() {
           if (!userRes.ok) {
             console.error('GitHub authentication verify failed with status:', userRes.status);
             if (userRes.status === 401) {
-              setTokenError(appLang === 'en' 
+              setTokenError(langNow === 'en' 
                 ? 'Invalid token (401). Verify if the token is correct, not expired, and has correct scopes.' 
                 : 'Błędny token (401). Sprawdź, czy token jest poprawny, nie wygasł i posiada odpowiedni zakres uprawnień.');
             } else {
-              setTokenError(appLang === 'en' 
+              setTokenError(langNow === 'en' 
                 ? `GitHub API Auth Error (${userRes.status})` 
                 : `Błąd autoryzacji API GitHub (${userRes.status})`);
             }
@@ -329,7 +388,7 @@ export default function App() {
           const userData = await userRes.json();
           if (userData && userData.login) {
             if (userData.login.toLowerCase() !== 'tomekdot') {
-              setTokenError(appLang === 'en' 
+              setTokenError(langNow === 'en' 
                 ? "Access denied. Only the portfolio owner ('tomekdot') can synchronize private repositories." 
                 : "Brak dostępu. Tylko właściciel portfolio ('tomekdot') może synchronizować prywatne projekty.");
               localStorage.removeItem('github_personal_token');
@@ -345,7 +404,7 @@ export default function App() {
           }
         } catch (e) {
           console.error('Error during GitHub token verification:', e);
-          setTokenError(appLang === 'en' ? 'Connection error.' : 'Błąd połączenia z API.');
+          setTokenError(langNow === 'en' ? 'Connection error.' : 'Błąd połączenia z API.');
           setSyncFailed(true);
           setIsSyncing(false);
           return;
@@ -475,7 +534,10 @@ export default function App() {
 
           let createdYear = 2024;
           if (item.created_at) {
-            createdYear = new Date(item.created_at).getFullYear();
+            const parsedY = new Date(item.created_at).getFullYear();
+            if (Number.isFinite(parsedY) && parsedY > 1990) {
+              createdYear = parsedY;
+            }
           } else if (matchInStatic?.createdYear) {
             createdYear = matchInStatic.createdYear;
           }
@@ -484,7 +546,7 @@ export default function App() {
           const isFork = !!item.fork;
           const isContributed = (item.fork ? CONTRIBUTED_FORKS.some(cf => cf.toLowerCase() === item.name.toLowerCase()) : false) || (matchInStatic ? matchInStatic.isContributed : false);
 
-          const enrichedRepo = autoEnrichRepo({
+          const enrichedRepo = autoEnrichRepo(sanitizeRepo({
             name: item.name, // Always use live name from GitHub
             desc: item.description || matchInStatic?.desc || '',
             descPl: matchInStatic?.descPl || item.description || matchInStatic?.desc || '',
@@ -503,7 +565,7 @@ export default function App() {
             isContributed: isContributed,
             forkParent: item.parent?.full_name || item.source?.full_name || matchInStatic?.forkParent,
             defaultBranch: item.default_branch || matchInStatic?.defaultBranch,
-          });
+          }));
 
           processedMap.set(enrichedRepo.name.toLowerCase(), enrichedRepo);
         });
@@ -522,7 +584,7 @@ export default function App() {
             if (!existsInMap) {
               const isPrivateOrAcademic = staticRepo.isPrivate || staticRepo.cat.includes('kul');
               if (isPrivateOrAcademic) {
-                processedMap.set(key, autoEnrichRepo(staticRepo));
+                processedMap.set(key, autoEnrichRepo(sanitizeRepo(staticRepo)));
               }
             }
           });
@@ -552,10 +614,26 @@ export default function App() {
     } finally {
       setIsSyncing(false);
     }
-  }, [appLang]);
+  }, []);
 
   useEffect(() => {
-    fetchGitHubData(false);
+    let timerId: any;
+    if (typeof window !== 'undefined' && 'requestIdleCallback' in window) {
+      timerId = (window as any).requestIdleCallback(() => {
+        fetchGitHubData(false);
+      });
+    } else {
+      timerId = setTimeout(() => {
+        fetchGitHubData(false);
+      }, 1500);
+    }
+    return () => {
+      if (typeof window !== 'undefined' && 'cancelIdleCallback' in window) {
+        (window as any).cancelIdleCallback(timerId);
+      } else {
+        clearTimeout(timerId);
+      }
+    };
   }, [fetchGitHubData]);
 
   // Prevent browser default navigation when dropping local files onto the page
@@ -575,11 +653,14 @@ export default function App() {
     };
   }, []);
 
+  const visibleStatsRepos = useMemo(
+    () => reposList.filter(repo => !hidePrivate || !repo.isPrivate),
+    [reposList, hidePrivate]
+  );
+
   // Statistics counters (fully synchronized with private visibility filter)
   const stats = useMemo(() => {
-    const visibleList = reposList.filter(repo => {
-      return !hidePrivate || !repo.isPrivate;
-    });
+    const visibleList = visibleStatsRepos;
     const total = visibleList.length;
     const pyplanet = visibleList.filter(r => r.cat.includes('pyplanet')).length;
     const openplanet = visibleList.filter(r => r.cat.includes('openplanet')).length;
@@ -595,12 +676,8 @@ export default function App() {
 
     // Latest modified / updated repository
     const sortedByActivity = [...visibleList]
-      .filter(r => !!r.pushedAt)
-      .sort((a, b) => {
-        const timeA = a.pushedAt ? new Date(a.pushedAt).getTime() : 0;
-        const timeB = b.pushedAt ? new Date(b.pushedAt).getTime() : 0;
-        return timeB - timeA;
-      });
+      .filter(r => safeTimeMs(r.pushedAt) > 0)
+      .sort((a, b) => safeTimeMs(b.pushedAt) - safeTimeMs(a.pushedAt));
     const latestUpdated = sortedByActivity[0] || null;
 
     return {
@@ -618,7 +695,7 @@ export default function App() {
       forked,
       latestUpdated
     };
-  }, [reposList, hidePrivate]);
+  }, [visibleStatsRepos]);
 
   // Category item counts synchronized with hidePrivate visibility toggle
   const categoryCounts = useMemo(() => {
@@ -673,21 +750,20 @@ export default function App() {
 
     // Stable boundaries across the whole catalog
     reposList.forEach(r => {
-      const yr = r.createdYear || (r.pushedAt ? new Date(r.pushedAt).getFullYear() : 2024);
+      const yr = safeRepoYear(r);
       if (yr < min) min = yr;
       if (yr > max) max = yr;
     });
 
     // Histogram distribution for currently visible repositories
     const dist: Record<number, number> = {};
-    const visibleList = reposList.filter(repo => !hidePrivate || !repo.isPrivate);
-    visibleList.forEach(r => {
-      const yr = r.createdYear || (r.pushedAt ? new Date(r.pushedAt).getFullYear() : 2024);
+    visibleStatsRepos.forEach(r => {
+      const yr = safeRepoYear(r);
       dist[yr] = (dist[yr] || 0) + 1;
     });
 
     return { minAvailableYear: min, maxAvailableYear: max, yearDistribution: dist };
-  }, [reposList, hidePrivate]);
+  }, [reposList, visibleStatsRepos]);
 
   // Synchronize year range bounds when dataset bounds update
   useEffect(() => {
@@ -756,7 +832,7 @@ export default function App() {
       const matchesPrivate = !hidePrivate || !repo.isPrivate;
 
       // 5. Created Year filter select
-      const repoYear = repo.createdYear || (repo.pushedAt ? new Date(repo.pushedAt).getFullYear() : 2024);
+      const repoYear = safeRepoYear(repo);
       const matchesYear = repoYear >= selectedYearRange[0] && repoYear <= selectedYearRange[1];
 
       return matchesSearch && matchesCategory && matchesLanguage && matchesPrivate && matchesYear;
@@ -815,7 +891,7 @@ export default function App() {
       const matchesPrivate = !hidePrivate || !repo.isPrivate;
 
       // 4. Created Year
-      const repoYear = repo.createdYear || (repo.pushedAt ? new Date(repo.pushedAt).getFullYear() : 2024);
+      const repoYear = safeRepoYear(repo);
       const matchesYear = repoYear >= selectedYearRange[0] && repoYear <= selectedYearRange[1];
 
       return matchesSearch && matchesCategory && matchesPrivate && matchesYear;
@@ -905,6 +981,16 @@ export default function App() {
       document.body.style.overflow = '';
     }
   }, [isAnyModalOpen]);
+
+  // Close token admin modal on Escape
+  useEffect(() => {
+    if (!isTokenModalOpen) return;
+    const handleEsc = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setIsTokenModalOpen(false);
+    };
+    window.addEventListener('keydown', handleEsc);
+    return () => window.removeEventListener('keydown', handleEsc);
+  }, [isTokenModalOpen]);
 
   return (
     <div className="min-h-screen bg-editorial-bg text-editorial-text font-sans flex flex-col justify-between selection:bg-editorial-accent selection:text-editorial-bg border-2 sm:border-4 md:border-8 border-[#1A1A1A]">
@@ -1052,41 +1138,11 @@ export default function App() {
             </div>
 
             <div className="flex flex-wrap justify-center sm:justify-start gap-2 sm:gap-2.5 mt-3 sm:mt-4 text-[11px] sm:text-xs">
-            <a
-              href="https://github.com/tomekdot"
-              target="_blank"
-              rel="noreferrer"
-              className="h-8 sm:h-9 px-2.5 sm:px-3 inline-flex items-center justify-center gap-1.5 border border-editorial-border hover:border-white bg-[#0D0D0D] hover:bg-neutral-900 font-mono text-editorial-muted hover:text-white transition-all rounded-none shrink-0"
-              title="GitHub Profile"
-            >
-              <Github size={13} />
-              <span>GITHUB</span>
-            </a>
-            <a
-              href="https://youtube.com/@tomekdot"
-              target="_blank"
-              rel="noreferrer"
-              className="h-8 sm:h-9 px-2.5 sm:px-3 inline-flex items-center justify-center gap-1.5 border border-editorial-border hover:border-[#FF0000] bg-[#0D0D0D] hover:bg-red-950/10 font-mono text-editorial-muted hover:text-white transition-all rounded-none shrink-0"
-              title="YouTube (@tomekdot)"
-            >
-              <Youtube size={13} className="text-[#FF0000]" />
-              <span>YOUTUBE</span>
-            </a>
-            <a
-              href="https://paypal.me/tomekdot"
-              target="_blank"
-              rel="noreferrer"
-              className="h-8 sm:h-9 px-2.5 sm:px-3 inline-flex items-center justify-center gap-1.5 border border-editorial-border hover:border-[#0079C1] bg-[#0D0D0D] hover:bg-blue-950/10 font-mono text-editorial-muted hover:text-white transition-all rounded-none shrink-0"
-              title="PayPal Sponsor (@tomekdot)"
-            >
-              <Heart size={13} className="text-[#0079C1]" />
-              <span>PAYPAL</span>
-            </a>
             <button
               type="button"
               id="admin_sync_btn"
               onClick={() => setIsTokenModalOpen(true)}
-              className={`h-8 sm:h-9 px-2.5 sm:px-3 inline-flex items-center justify-center gap-1.5 border font-mono transition-all rounded-none cursor-pointer group shrink-0 ${
+              className={`h-8 sm:h-9 px-2.5 sm:px-3 inline-flex items-center justify-center gap-1.5 border font-mono transition-colors rounded-none cursor-pointer group shrink-0 ${
                 hasGithubToken 
                   ? 'border-emerald-700/80 bg-emerald-950/20 hover:bg-emerald-950/40 text-emerald-400 hover:text-emerald-300' 
                   : 'border-amber-900/60 hover:border-amber-500 bg-[#0D0D0D] hover:bg-amber-950/20 text-amber-400/90 hover:text-amber-300'
@@ -1105,11 +1161,10 @@ export default function App() {
                       </span>
                     )}
                   </span>
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse shrink-0 ml-0.5" />
                 </>
               ) : (
                 <>
-                  <Lock size={11} className="text-amber-500 group-hover:scale-110 transition-transform" />
+                  <Lock size={11} className="text-amber-500" />
                   <span className="font-bold">{appLang === 'en' ? 'SYNC PRIVATE' : 'DODAJ PRYWATNE'}</span>
                   <span className="text-[8px] sm:text-[9px] uppercase px-1 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold ml-0.5">
                     {appLang === 'en' ? 'ADMIN' : 'ADMIN'}
@@ -1297,9 +1352,9 @@ export default function App() {
                   type="button"
                   id="filter_plugins_sidebar_tile"
                   onClick={() => setSelectedCategory(selectedCategory === 'plugins' ? 'all' : 'plugins')}
-                  className={`p-2 sm:p-2.5 transition-all text-left flex flex-col justify-between group cursor-pointer overflow-hidden min-w-0 ${
+                  className={`p-2 sm:p-2.5 transition-colors text-left flex flex-col justify-between group cursor-pointer overflow-hidden min-w-0 ${
                     selectedCategory === 'plugins'
-                      ? 'bg-emerald-950/60 border-2 border-emerald-400 shadow-[0_0_12px_rgba(52,211,153,0.3)]'
+                      ? 'bg-emerald-950/60 border-2 border-emerald-400'
                       : 'bg-emerald-950/25 hover:bg-emerald-950/40 border border-emerald-800/50 hover:border-emerald-500'
                   }`}
                   title={appLang === 'en' ? `Show all ${stats.totalPlugins} Trackmania Plugins (PyPlanet & Openplanet)` : `Pokaż wszystkie ${stats.totalPlugins} wtyczki (PyPlanet & Openplanet)`}
@@ -1328,9 +1383,9 @@ export default function App() {
                   type="button"
                   id="filter_ai_sidebar_tile"
                   onClick={() => setSelectedCategory(selectedCategory === 'ai' ? 'all' : 'ai')}
-                  className={`p-2 sm:p-2.5 transition-all text-left flex flex-col justify-between group cursor-pointer overflow-hidden min-w-0 ${
+                  className={`p-2 sm:p-2.5 transition-colors text-left flex flex-col justify-between group cursor-pointer overflow-hidden min-w-0 ${
                     selectedCategory === 'ai'
-                      ? 'bg-cyan-950/60 border-2 border-cyan-400 shadow-[0_0_12px_rgba(34,211,238,0.3)]'
+                      ? 'bg-cyan-950/60 border-2 border-cyan-400'
                       : 'bg-cyan-950/25 hover:bg-cyan-950/40 border border-cyan-800/50 hover:border-cyan-500'
                   }`}
                   title={appLang === 'en' ? 'Filter AI & Autonomous Agents' : 'Pokaż Agentów AI'}
@@ -1359,9 +1414,9 @@ export default function App() {
                   type="button"
                   id="filter_forks_sidebar_tile"
                   onClick={() => setSelectedCategory(selectedCategory === 'forked' ? 'all' : 'forked')}
-                  className={`p-2 sm:p-2.5 transition-all text-left flex flex-col justify-between group cursor-pointer overflow-hidden min-w-0 ${
+                  className={`p-2 sm:p-2.5 transition-colors text-left flex flex-col justify-between group cursor-pointer overflow-hidden min-w-0 ${
                     selectedCategory === 'forked'
-                      ? 'bg-purple-950/60 border-2 border-purple-400 shadow-[0_0_12px_rgba(192,132,252,0.3)]'
+                      ? 'bg-purple-950/60 border-2 border-purple-400'
                       : 'bg-purple-950/25 hover:bg-purple-950/40 border border-purple-800/50 hover:border-purple-500'
                   }`}
                   title={appLang === 'en' ? `Show all ${stats.forked} Forked Repositories` : `Pokaż wszystkie ${stats.forked} sforkowane repozytoria`}
@@ -1390,16 +1445,16 @@ export default function App() {
               {stats.latestUpdated && (
                 <div
                   onClick={() => stats.latestUpdated && handleSelectRepo(stats.latestUpdated)}
-                  className="p-2 sm:p-2.5 bg-[#0B0B0B] hover:bg-[#141414] border border-editorial-border hover:border-editorial-accent/70 transition-all cursor-pointer space-y-1 group overflow-hidden"
+                  className="p-2 sm:p-2.5 bg-[#0B0B0B] hover:bg-[#141414] border border-editorial-border hover:border-editorial-accent/70 transition-colors cursor-pointer space-y-1 group overflow-hidden"
                 >
                   <div className="flex items-center justify-between text-editorial-accent text-[9px] sm:text-[9.5px] font-mono font-bold uppercase">
                     <span className="flex items-center gap-1.5 truncate">
-                      <span className="w-1.5 h-1.5 rounded-full bg-editorial-accent animate-pulse inline-block shrink-0" />
+                      <span className="w-1.5 h-1.5 rounded-full bg-editorial-accent inline-block shrink-0" />
                       <span className="truncate">{appLang === 'en' ? 'Latest Update' : 'Ostatnia Zmiana'}</span>
                     </span>
-                    {stats.latestUpdated.pushedAt && (
+                    {safeDateYmd(stats.latestUpdated.pushedAt) && (
                       <span className="text-zinc-400 font-mono font-normal text-[8px] sm:text-[8.5px] shrink-0 ml-1">
-                        {new Date(stats.latestUpdated.pushedAt).toISOString().split('T')[0]}
+                        {safeDateYmd(stats.latestUpdated.pushedAt)}
                       </span>
                     )}
                   </div>
@@ -1506,7 +1561,11 @@ export default function App() {
               <button
                 type="button"
                 id="open_blog_stats_modal_sidebar_btn"
-                onClick={() => setIsBlogStatsModalOpen(true)}
+                onClick={() => {
+                  setBlogStatsInitialPrompt(null);
+                  setBlogStatsOpenKey(k => k + 1);
+                  setIsBlogStatsModalOpen(true);
+                }}
                 className="w-full py-2 sm:py-2.5 px-2 bg-[#1C160E] hover:bg-[#2A2012] border-2 border-editorial-accent hover:border-[#f59e0b] text-editorial-accent hover:text-white font-mono font-bold uppercase tracking-normal sm:tracking-wide text-[10.5px] sm:text-[11px] transition-all cursor-pointer flex items-center justify-center gap-1.5 shadow-md group overflow-hidden"
               >
                 <Sparkles size={12} className="text-editorial-accent group-hover:rotate-12 transition-transform shrink-0" />
@@ -1626,9 +1685,9 @@ export default function App() {
                       type="button"
                       id="toggle_year_filter_drawer_btn"
                       onClick={() => setIsYearFilterOpen(!isYearFilterOpen)}
-                      className={`flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 border transition-all cursor-pointer text-[10.5px] sm:text-xs uppercase tracking-wider rounded-none shrink-0 group ${
+                      className={`flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 border transition-colors cursor-pointer text-[10.5px] sm:text-xs uppercase tracking-wider rounded-none shrink-0 group ${
                         !isFullYearRange
-                          ? 'border-sky-500 bg-sky-950/50 text-sky-300 font-bold shadow-[0_0_8px_rgba(88,166,255,0.25)]'
+                          ? 'border-sky-500 bg-sky-950/50 text-sky-300 font-bold'
                           : isYearFilterOpen
                             ? 'border-sky-500/60 bg-neutral-900 text-sky-300'
                             : 'border-editorial-border bg-[#0D0D0D] hover:border-editorial-accent/50 text-editorial-muted hover:text-white'
@@ -1640,7 +1699,7 @@ export default function App() {
                         {appLang === 'en' ? 'YEAR' : 'ROK'}: {selectedYearRange[0] === selectedYearRange[1] ? selectedYearRange[0] : `${selectedYearRange[0]}–${selectedYearRange[1]}`}
                       </span>
                       {!isFullYearRange && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-sky-400 animate-pulse ml-0.5" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-sky-400 ml-0.5" />
                       )}
                       <ChevronDown size={11} className={`transition-transform duration-200 ml-0.5 ${isYearFilterOpen ? 'rotate-180 text-sky-300' : 'text-editorial-muted group-hover:text-white'}`} />
                     </button>
@@ -1729,7 +1788,7 @@ export default function App() {
               {(selectedCategory !== 'all' || !isFullYearRange || (filterLang !== 'all' && filterLang !== '')) && (
                 <div className="p-2 sm:p-2.5 bg-[#13110C] border border-editorial-accent/60 flex flex-wrap items-center justify-between gap-2 font-mono text-xs text-white">
                   <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-                    <span className="w-2 h-2 rounded-full bg-editorial-accent animate-pulse shrink-0" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-editorial-accent shrink-0" />
                     <span className="text-editorial-accent font-bold uppercase shrink-0">
                       {appLang === 'en' ? 'FILTERS APPLIED:' : 'AKTYWNE FILTRY:'}
                     </span>
@@ -1806,7 +1865,7 @@ export default function App() {
               </div>
 
               {/* Repositories stream view with custom Layout configurations */}
-              <div>
+              <div className="min-h-[520px]">
                 {filteredAndSortedRepos.length === 0 ? (
                   <div className="text-center py-20 border-2 border-dashed border-editorial-border bg-editorial-sidebar-bg">
                     <Sparkles size={28} className="mx-auto text-editorial-muted mb-3" />
@@ -2048,7 +2107,7 @@ export default function App() {
               {selectedBlogTag !== 'all' && (
                 <div className="p-3 bg-[#13110C] border border-editorial-accent/60 flex items-center justify-between font-mono text-xs text-white">
                   <div className="flex items-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-editorial-accent animate-pulse" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-editorial-accent" />
                     <span className="text-editorial-accent font-bold uppercase">
                       {appLang === 'en' ? 'TAG FILTER APPLIED:' : 'AKTYWNY FILTR TAGA:'}
                     </span>
@@ -2161,116 +2220,136 @@ export default function App() {
         <div className="flex items-end justify-between gap-1.5 sm:gap-2 pointer-events-auto w-full">
           <div id="bottom_dock_slot" className="min-w-0 flex-1 max-w-[min(20rem,calc(100vw-5.25rem))] sm:max-w-[22rem] landscape:max-w-[calc(100vw-5.5rem)] flex flex-col landscape:flex-row gap-1 sm:gap-1.5">
             {repoMounted && (
-              <Suspense fallback={null}>
-                <RepoModal
-                  repo={activeSelectedRepo}
-                  onClose={() => {
-                    setSelectedRepo(null);
-                    setIsRepoMinimized(false);
-                  }}
-                  lang={appLang}
-                  isMinimized={isRepoMinimized}
-                  onMinimize={() => setIsRepoMinimized(true)}
-                  onRestore={() => setIsRepoMinimized(false)}
-                  onUpdateRepo={handleUpdateRepo}
-                />
-              </Suspense>
+              <ErrorBoundary compact lang={appLang} onReset={() => { setSelectedRepo(null); setIsRepoMinimized(false); }}>
+                <Suspense fallback={activeSelectedRepo && !isRepoMinimized ? <ModalLoadingFallback lang={appLang} /> : null}>
+                  <RepoModal
+                    repo={activeSelectedRepo}
+                    onClose={() => {
+                      setSelectedRepo(null);
+                      setIsRepoMinimized(false);
+                    }}
+                    lang={appLang}
+                    isMinimized={isRepoMinimized}
+                    onMinimize={() => setIsRepoMinimized(true)}
+                    onRestore={() => setIsRepoMinimized(false)}
+                    onUpdateRepo={handleUpdateRepo}
+                  />
+                </Suspense>
+              </ErrorBoundary>
             )}
             {blogMounted && (
-              <Suspense fallback={null}>
-                <BlogModal
-                  post={selectedBlogPost}
-                  onClose={() => {
-                    setSelectedBlogPost(null);
-                    setIsBlogMinimized(false);
-                  }}
-                  lang={appLang}
-                  isMinimized={isBlogMinimized}
-                  onMinimize={() => setIsBlogMinimized(true)}
-                  onRestore={() => setIsBlogMinimized(false)}
-                />
-              </Suspense>
+              <ErrorBoundary compact lang={appLang} onReset={() => { setSelectedBlogPost(null); setIsBlogMinimized(false); }}>
+                <Suspense fallback={selectedBlogPost && !isBlogMinimized ? <ModalLoadingFallback lang={appLang} /> : null}>
+                  <BlogModal
+                    post={selectedBlogPost}
+                    onClose={() => {
+                      setSelectedBlogPost(null);
+                      setIsBlogMinimized(false);
+                    }}
+                    lang={appLang}
+                    isMinimized={isBlogMinimized}
+                    onMinimize={() => setIsBlogMinimized(true)}
+                    onRestore={() => setIsBlogMinimized(false)}
+                    onOpenAiTools={handleOpenBlogAiTools}
+                  />
+                </Suspense>
+              </ErrorBoundary>
             )}
           </div>
           <div className="shrink-0">
-            <Suspense fallback={null}>
-              <TerminalConsole 
-                onSelectCategory={(cat) => setSelectedCategory(cat as any)} 
-                lang={appLang} 
-                repos={reposList} 
-                isModalOpen={isAnyModalOpen} 
-                onOpenRepo={handleSelectRepo}
-              />
-            </Suspense>
+            <ErrorBoundary compact lang={appLang}>
+              <Suspense fallback={null}>
+                <TerminalConsole 
+                  onSelectCategory={(cat) => setSelectedCategory(cat as any)} 
+                  lang={appLang} 
+                  repos={reposList} 
+                  isModalOpen={isAnyModalOpen} 
+                  onOpenRepo={handleSelectRepo}
+                />
+              </Suspense>
+            </ErrorBoundary>
           </div>
         </div>
       </div>
 
       {/* 9. Full Developer Statistics & Changelog Modal for Repos */}
       {statsMounted && (
-        <Suspense fallback={null}>
-          <DeveloperStatsModal
-            isOpen={isStatsModalOpen}
-            onClose={() => setIsStatsModalOpen(false)}
-            repos={reposList.filter(r => !hidePrivate || !r.isPrivate)}
-            lang={appLang}
-            initialTab="new_plugins"
-            onSelectRepo={(r) => {
-              setIsStatsModalOpen(false);
-              handleSelectRepo(r);
-            }}
-          />
-        </Suspense>
+        <ErrorBoundary compact lang={appLang} onReset={() => setIsStatsModalOpen(false)}>
+          <Suspense fallback={isStatsModalOpen ? <ModalLoadingFallback lang={appLang} /> : null}>
+            <DeveloperStatsModal
+              isOpen={isStatsModalOpen}
+              onClose={() => setIsStatsModalOpen(false)}
+              repos={visibleStatsRepos}
+              lang={appLang}
+              initialTab="new_plugins"
+              onSelectRepo={(r) => {
+                setIsStatsModalOpen(false);
+                handleSelectRepo(r);
+              }}
+            />
+          </Suspense>
+        </ErrorBoundary>
       )}
 
       {/* 9.5 Full Blog Stats & Interactive AI Synthesis Modal */}
       {blogStatsMounted && (
-        <Suspense fallback={null}>
-          <BlogStatsModal
-            isOpen={isBlogStatsModalOpen}
-            onClose={() => setIsBlogStatsModalOpen(false)}
-            blogPosts={BLOG_POSTS}
-            lang={appLang}
-            onSelectBlogPost={(post) => {
-              setIsBlogStatsModalOpen(false);
-              handleSelectBlogPost(post);
-            }}
-            onOpenGalaxyGraph={(tag) => {
-              if (tag && tag !== 'all') {
-                setSelectedBlogTag(tag);
-              }
-              setGalaxyFilterMode('tags');
-              setIsGalaxyModalOpen(true);
-            }}
-          />
-        </Suspense>
+        <ErrorBoundary compact lang={appLang} onReset={() => setIsBlogStatsModalOpen(false)}>
+          <Suspense fallback={isBlogStatsModalOpen ? <ModalLoadingFallback lang={appLang} /> : null}>
+            <BlogStatsModal
+              isOpen={isBlogStatsModalOpen}
+              onClose={() => {
+                setIsBlogStatsModalOpen(false);
+                setBlogStatsInitialPrompt(null);
+              }}
+              blogPosts={BLOG_POSTS}
+              lang={appLang}
+              initialPostId={blogStatsTargetPostId}
+              initialTab={blogStatsInitialTab}
+              initialVersionMode={blogStatsInitialVersionMode}
+              initialPrompt={blogStatsInitialPrompt}
+              openRequestKey={blogStatsOpenKey}
+              onSelectBlogPost={(post) => {
+                setIsBlogStatsModalOpen(false);
+                handleSelectBlogPost(post);
+              }}
+              onOpenGalaxyGraph={(tag) => {
+                if (tag && tag !== 'all') {
+                  setSelectedBlogTag(tag);
+                }
+                setGalaxyFilterMode('tags');
+                setIsGalaxyModalOpen(true);
+              }}
+            />
+          </Suspense>
+        </ErrorBoundary>
       )}
 
       {/* 9.6 Obsidian Galaxy Constellation Network Graph Modal */}
       {galaxyMounted && (
-        <Suspense fallback={null}>
-          <GalaxyGraphModal
-            isOpen={isGalaxyModalOpen}
-            onClose={() => setIsGalaxyModalOpen(false)}
-            blogPosts={BLOG_POSTS}
-            repositories={reposList}
-            lang={appLang}
-            initialFilterMode={galaxyFilterMode}
-            onSelectBlogPost={(post) => {
-              setIsGalaxyModalOpen(false);
-              handleSelectBlogPost(post);
-            }}
-            onSelectTag={(tag) => {
-              setSelectedBlogTag(tag);
-              setActiveWorkspaceTab('blog');
-            }}
-            onOpenAiDiscussion={(post) => {
-              setIsGalaxyModalOpen(false);
-              setIsBlogStatsModalOpen(true);
-              handleSelectBlogPost(post);
-            }}
-          />
-        </Suspense>
+        <ErrorBoundary compact lang={appLang} onReset={() => setIsGalaxyModalOpen(false)}>
+          <Suspense fallback={isGalaxyModalOpen ? <ModalLoadingFallback lang={appLang} /> : null}>
+            <GalaxyGraphModal
+              isOpen={isGalaxyModalOpen}
+              onClose={() => setIsGalaxyModalOpen(false)}
+              blogPosts={BLOG_POSTS}
+              repositories={reposList}
+              lang={appLang}
+              initialFilterMode={galaxyFilterMode}
+              onSelectBlogPost={(post) => {
+                setIsGalaxyModalOpen(false);
+                handleSelectBlogPost(post);
+              }}
+              onSelectTag={(tag) => {
+                setSelectedBlogTag(tag);
+                setActiveWorkspaceTab('blog');
+              }}
+              onOpenAiDiscussion={(post) => {
+                setIsGalaxyModalOpen(false);
+                handleOpenBlogAiTools(post, 'chat');
+              }}
+            />
+          </Suspense>
+        </ErrorBoundary>
       )}
 
       {/* 10. GitHub Token Config Modal */}
@@ -2374,7 +2453,7 @@ export default function App() {
               {syncStats.lastSync && (
                 <div className="mb-3 p-2.5 bg-neutral-900 border border-editorial-border font-mono text-[10px] leading-normal select-none">
                   <div className="text-editorial-accent font-bold uppercase tracking-wider mb-1.5 text-[9px] flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-editorial-accent animate-pulse inline-block" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-editorial-accent inline-block" />
                     <span>{appLang === 'en' ? 'ADMIN SYNC SUMMARY' : 'PODSUMOWANIE SYNCHRONIZACJI'}</span>
                   </div>
                   <div className="flex justify-between border-b border-neutral-800 py-0.5">

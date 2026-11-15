@@ -3,7 +3,8 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import React, { useState, useEffect, useMemo, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useLayoutEffect, useMemo, useRef, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, 
@@ -340,20 +341,36 @@ export default function GalaxyGraphModal({
     setSelectedNodeId(prev => (prev === nodeId ? null : nodeId));
   }, []);
 
+  // Adaptive initial zoom so the whole constellation fits inside narrow portrait OR short landscape screens
+  const getDefaultZoom = useCallback((width: number, height: number) => {
+    const safeW = Math.max(240, width);
+    const safeH = Math.max(200, height);
+    const fitScale = Math.min((safeW - 24) / 700, (safeH - 24) / 700);
+    if (safeW < 640 || safeH < 560) {
+      return Math.max(0.34, Math.min(0.88, fitScale));
+    }
+    return 1;
+  }, []);
+
   // State
-  const [filterType, setFilterType] = useState<'all' | 'posts' | 'tags'>('all');
+  const [filterType, setFilterType] = useState<'all' | 'posts' | 'tags'>(initialFilterMode);
   const [searchQuery, setSearchQuery] = useState('');
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
   const [zoomLevel, setZoomLevel] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isLegendOpenMobile, setIsLegendOpenMobile] = useState(false);
-  
+  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
+  const [isMobileTimelineOpen, setIsMobileTimelineOpen] = useState(false);
+  const [isCanvasReady, setIsCanvasReady] = useState(false);
+
   // High-performance direct DOM transform tracking
   const groupRef = useRef<SVGGElement | null>(null);
   const transformRef = useRef({ x: 0, y: 0, z: 1 });
   const rafIdRef = useRef<number | null>(null);
   const debounceTimerRef = useRef<any>(null);
+  const hasAutoFitRef = useRef(false);
+  const lastMeasuredSizeRef = useRef({ width: 0, height: 0 });
 
   // Timeline playback state
   const [isPlayingTimeline, setIsPlayingTimeline] = useState(false);
@@ -363,14 +380,19 @@ export default function GalaxyGraphModal({
   // Canvas & SVG Container size references
   const canvasRef = useRef<HTMLDivElement | null>(null);
   const svgRef = useRef<SVGSVGElement | null>(null);
-  const [dimensions, setDimensions] = useState({ width: 900, height: 700 });
+  const [dimensions, setDimensions] = useState(() => {
+    if (typeof window !== 'undefined') {
+      return { width: window.innerWidth, height: Math.max(260, window.innerHeight - 108) };
+    }
+    return { width: 900, height: 700 };
+  });
 
   // Direct DOM transform without triggering React re-renders
-  const applyTransform = useCallback(() => {
+  const applyTransform = useCallback((w = dimensions.width, h = dimensions.height) => {
     if (!groupRef.current) return;
     const { x, y, z } = transformRef.current;
-    const cx = dimensions.width / 2 + x;
-    const cy = dimensions.height / 2 + y;
+    const cx = w / 2 + x;
+    const cy = h / 2 + y;
     groupRef.current.setAttribute('transform', `translate(${cx}, ${cy}) scale(${z})`);
   }, [dimensions.width, dimensions.height]);
 
@@ -382,25 +404,44 @@ export default function GalaxyGraphModal({
     });
   }, [applyTransform]);
 
-  // Sync transform when dimensions change or on mount
-  useEffect(() => {
-    applyTransform();
-  }, [applyTransform, dimensions]);
-
-  // Update filter type when modal opens
-  useEffect(() => {
-    if (isOpen) {
-      setFilterType(initialFilterMode);
-      setHoveredNodeId(null);
-      setSelectedNodeId(null);
-      transformRef.current = { x: 0, y: 0, z: 1 };
-      applyTransform();
-      setZoomLevel(1);
-      setPanOffset({ x: 0, y: 0 });
-      setTimelineProgress(1);
-      setIsPlayingTimeline(false);
+  // Synchronously initialize modal state & measure SVG canvas BEFORE first paint to prevent frame-1 jump/flicker
+  useLayoutEffect(() => {
+    if (!isOpen) {
+      setIsCanvasReady(false);
+      hasAutoFitRef.current = false;
+      return;
     }
-  }, [isOpen, initialFilterMode, applyTransform]);
+
+    setFilterType(initialFilterMode);
+    setHoveredNodeId(null);
+    setSelectedNodeId(null);
+    setIsMobileSearchOpen(false);
+    setIsMobileTimelineOpen(false);
+    setIsLegendOpenMobile(false);
+    setTimelineProgress(1);
+    setIsPlayingTimeline(false);
+
+    const el = svgRef.current;
+    const nextW = el?.clientWidth || (typeof window !== 'undefined' ? window.innerWidth : 900);
+    const nextH = el?.clientHeight || (typeof window !== 'undefined' ? Math.max(260, window.innerHeight - 108) : 700);
+    const fitZ = getDefaultZoom(nextW, nextH);
+
+    hasAutoFitRef.current = true;
+    lastMeasuredSizeRef.current = { width: nextW, height: nextH };
+    transformRef.current = { x: 0, y: 0, z: fitZ };
+    setDimensions({ width: nextW, height: nextH });
+    setZoomLevel(fitZ);
+    setPanOffset({ x: 0, y: 0 });
+    applyTransform(nextW, nextH);
+    setIsCanvasReady(true);
+  }, [isOpen, initialFilterMode, getDefaultZoom, applyTransform]);
+
+  // Sync transform synchronously whenever dimensions update (e.g. device rotation)
+  useLayoutEffect(() => {
+    if (isOpen) {
+      applyTransform(dimensions.width, dimensions.height);
+    }
+  }, [isOpen, applyTransform, dimensions.width, dimensions.height]);
 
   // Escape key listener to close modal
   useEffect(() => {
@@ -422,7 +463,7 @@ export default function GalaxyGraphModal({
     const onWheel = (e: WheelEvent) => {
       e.preventDefault();
       const zoomFactor = e.deltaY < 0 ? 1.12 : 0.88;
-      const nextZoom = Math.min(3.2, Math.max(0.35, transformRef.current.z * zoomFactor));
+      const nextZoom = Math.min(3.2, Math.max(0.32, transformRef.current.z * zoomFactor));
       transformRef.current.z = nextZoom;
       requestTransformUpdate();
 
@@ -440,23 +481,40 @@ export default function GalaxyGraphModal({
     };
   }, [isOpen, requestTransformUpdate]);
 
-  // ResizeObserver using clientWidth & clientHeight (immune to CSS scale animations)
+  // ResizeObserver using clientWidth & clientHeight + auto-recenter when viewport rotates 90 degrees
   useEffect(() => {
     const el = svgRef.current;
     if (!el || !isOpen) return;
 
     const updateDimensions = () => {
-      setDimensions({
-        width: el.clientWidth || 900,
-        height: el.clientHeight || 700,
-      });
+      const nextW = el.clientWidth;
+      const nextH = el.clientHeight;
+      if (!nextW || !nextH) return;
+
+      const prev = lastMeasuredSizeRef.current;
+      const flippedOrientation =
+        prev.width > 0 &&
+        prev.height > 0 &&
+        (prev.width < prev.height) !== (nextW < nextH);
+
+      lastMeasuredSizeRef.current = { width: nextW, height: nextH };
+      setDimensions({ width: nextW, height: nextH });
+
+      if (!hasAutoFitRef.current || flippedOrientation) {
+        hasAutoFitRef.current = true;
+        const fitZ = getDefaultZoom(nextW, nextH);
+        transformRef.current = { x: 0, y: 0, z: fitZ };
+        setZoomLevel(fitZ);
+        setPanOffset({ x: 0, y: 0 });
+        applyTransform(nextW, nextH);
+      }
+      setIsCanvasReady(true);
     };
 
-    updateDimensions();
     const ro = new ResizeObserver(updateDimensions);
     ro.observe(el);
     return () => ro.disconnect();
-  }, [isOpen]);
+  }, [isOpen, getDefaultZoom, applyTransform]);
 
   // Date ranges calculation (core = oldest · outer = newer)
   const { minTime, maxTime, sortedPosts } = useMemo(() => {
@@ -722,6 +780,8 @@ export default function GalaxyGraphModal({
   const isDraggingRef = useRef(false);
   const dragStartRef = useRef({ x: 0, y: 0 });
   const touchStartRef = useRef<{ x: number; y: number } | null>(null);
+  const touchOriginRef = useRef<{ x: number; y: number } | null>(null);
+  const touchMovedRef = useRef(false);
   const pinchStartDistRef = useRef<number | null>(null);
   const pinchStartZoomRef = useRef<number>(1);
 
@@ -757,6 +817,7 @@ export default function GalaxyGraphModal({
 
   // Touch Handlers for Mobile single-finger pan and 2-finger pinch zoom
   const handleTouchStart = (e: React.TouchEvent) => {
+    touchMovedRef.current = false;
     if (e.touches.length === 1) {
       const touch = e.touches[0];
       const target = e.target as HTMLElement;
@@ -764,6 +825,7 @@ export default function GalaxyGraphModal({
         setSelectedNodeId(null);
       }
       isDraggingRef.current = true;
+      touchOriginRef.current = { x: touch.clientX, y: touch.clientY };
       touchStartRef.current = {
         x: touch.clientX - transformRef.current.x,
         y: touch.clientY - transformRef.current.y,
@@ -772,6 +834,7 @@ export default function GalaxyGraphModal({
     } else if (e.touches.length === 2) {
       isDraggingRef.current = false;
       touchStartRef.current = null;
+      touchMovedRef.current = true;
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       pinchStartDistRef.current = Math.hypot(dx, dy);
@@ -782,10 +845,15 @@ export default function GalaxyGraphModal({
   const handleTouchMove = (e: React.TouchEvent) => {
     if (e.touches.length === 1 && touchStartRef.current && isDraggingRef.current) {
       const touch = e.touches[0];
+      if (touchOriginRef.current) {
+        const dist = Math.hypot(touch.clientX - touchOriginRef.current.x, touch.clientY - touchOriginRef.current.y);
+        if (dist > 8) touchMovedRef.current = true;
+      }
       transformRef.current.x = touch.clientX - touchStartRef.current.x;
       transformRef.current.y = touch.clientY - touchStartRef.current.y;
       requestTransformUpdate();
     } else if (e.touches.length === 2 && pinchStartDistRef.current) {
+      touchMovedRef.current = true;
       const dx = e.touches[0].clientX - e.touches[1].clientX;
       const dy = e.touches[0].clientY - e.touches[1].clientY;
       const currentDist = Math.hypot(dx, dy);
@@ -800,6 +868,7 @@ export default function GalaxyGraphModal({
     if (e.touches.length === 0) {
       isDraggingRef.current = false;
       touchStartRef.current = null;
+      touchOriginRef.current = null;
       pinchStartDistRef.current = null;
       // Single state sync after touch ends
       setPanOffset({ x: transformRef.current.x, y: transformRef.current.y });
@@ -814,7 +883,7 @@ export default function GalaxyGraphModal({
     }
   };
 
-  // Zoom handlers (consistent bounds: 0.35 to 3.2)
+  // Zoom handlers (consistent bounds: 0.32 to 3.2)
   const handleZoomIn = () => {
     const nextZoom = Math.min(3.2, transformRef.current.z + 0.25);
     transformRef.current.z = nextZoom;
@@ -823,22 +892,23 @@ export default function GalaxyGraphModal({
   };
 
   const handleZoomOut = () => {
-    const nextZoom = Math.max(0.35, transformRef.current.z - 0.25);
+    const nextZoom = Math.max(0.32, transformRef.current.z - 0.25);
     transformRef.current.z = nextZoom;
     applyTransform();
     setZoomLevel(nextZoom);
   };
 
   const handleResetView = () => {
-    transformRef.current = { x: 0, y: 0, z: 1 };
+    const fitZ = getDefaultZoom(dimensions.width, dimensions.height);
+    transformRef.current = { x: 0, y: 0, z: fitZ };
     applyTransform();
-    setZoomLevel(1);
+    setZoomLevel(fitZ);
     setPanOffset({ x: 0, y: 0 });
     setSelectedNodeId(null);
     setTimelineProgress(1);
   };
 
-  return (
+  const modalContent = (
     <AnimatePresence>
       {isOpen && (
         <motion.div 
@@ -847,65 +917,95 @@ export default function GalaxyGraphModal({
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
-          transition={{ duration: 0.16 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-2 sm:p-4 md:p-6 bg-black/90 select-none overscroll-contain"
+          transition={{ duration: 0.12 }}
+          className="fixed inset-0 z-50 flex items-center justify-center p-0 desk:p-4 md:desk:p-6 bg-black/90 select-none overscroll-contain"
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
         >
-          <motion.div
-            initial={{ opacity: 0, scale: 0.98, y: 10 }}
-            animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.98, y: 10 }}
-            transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-            className="relative w-[94%] sm:w-full max-w-6xl h-[78svh] sm:h-[92vh] max-h-[80svh] sm:max-h-[850px] bg-[#07090E] border border-editorial-border/80 flex flex-col overflow-hidden shadow-2xl rounded-none overscroll-contain my-auto"
+          <div
+            className="relative w-full h-full max-h-full desk:h-[92vh] desk:max-h-[850px] desk:max-w-6xl bg-[#07090E] border-0 desk:border desk:border-editorial-border/80 flex flex-col overflow-hidden shadow-2xl rounded-none overscroll-contain"
           >
           {/* TOP HEADER & TIMELINE SCRUBBER */}
-          <div className="flex flex-col lg:flex-row items-stretch lg:items-center justify-between px-3 sm:px-5 py-2.5 bg-[#090C12] border-b border-editorial-border z-20 shrink-0 gap-3">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between px-3 sm:px-4 desk:px-5 py-2 land:py-1 desk:py-2.5 bg-[#090C12] border-b border-editorial-border z-20 shrink-0 gap-1.5 sm:gap-2 desk:lg:gap-3">
             
-            <div className="flex items-center justify-between lg:w-auto gap-3">
+            <div className="flex items-center justify-between sm:w-auto gap-2 min-w-0 shrink-0">
               {/* Left Title & Status */}
-              <div className="flex items-center gap-2 sm:gap-3 min-w-0">
-                <div className="p-1.5 bg-[#121824] border border-cyan-500/40 text-cyan-400 shrink-0">
-                  <Compass size={16} className="animate-spin-slow" />
+              <div className="flex items-center gap-2 sm:gap-2.5 min-w-0">
+                <div className="p-1.5 land:p-1 bg-[#121824] border border-cyan-500/40 text-cyan-400 shrink-0">
+                  <Compass size={15} className="animate-spin-slow" />
                 </div>
                 <div className="min-w-0">
-                  <div className="flex items-center gap-1.5 text-[9px] uppercase tracking-wider text-editorial-muted font-mono">
+                  <div className="hidden desk:flex items-center gap-1.5 text-[9px] uppercase tracking-wider text-editorial-muted font-mono">
                     <span className="text-emerald-400 font-bold">@tomekdot</span>
-                    <span className="hidden sm:inline">•</span>
-                    <span className="hidden sm:inline">{lang === 'en' ? 'Knowledge Network' : 'Sieć Wiedzy'}</span>
+                    <span>•</span>
+                    <span>{lang === 'en' ? 'Knowledge Network' : 'Sieć Wiedzy'}</span>
                   </div>
-                  <h2 className="text-xs sm:text-sm font-bold font-mono text-white uppercase tracking-wider truncate">
-                    {lang === 'en' ? 'CONSTELLATION NETWORK' : 'SIEĆ POWIĄZAŃ WIEDZY'}
+                  <h2 className="text-xs sm:text-xs desk:text-sm font-bold font-mono text-white uppercase tracking-wider truncate">
+                    <span className="sm:hidden">{lang === 'en' ? 'CONSTELLATION NETWORK' : 'SIEĆ KONSTELACJI'}</span>
+                    <span className="hidden sm:inline">{lang === 'en' ? 'CONSTELLATION NETWORK' : 'SIEĆ POWIĄZAŃ WIEDZY'}</span>
                   </h2>
                 </div>
               </div>
 
-              {/* Close Button (Visible on Mobile here for top-right alignment) */}
-              <div className="flex lg:hidden items-center shrink-0">
+              {/* Compact Portrait Mobile Actions (< sm) */}
+              <div className="flex sm:hidden items-center gap-1.5 shrink-0">
                 <button
                   type="button"
+                  id="galaxy_mobile_timeline_toggle_btn"
+                  onClick={() => setIsMobileTimelineOpen(prev => !prev)}
+                  className={`w-9 h-9 flex items-center justify-center border transition-colors cursor-pointer touch-manipulation ${
+                    isMobileTimelineOpen || isPlayingTimeline || timelineProgress < 0.99
+                      ? 'bg-cyan-950/70 border-cyan-500 text-cyan-300'
+                      : 'bg-neutral-900 border-editorial-border text-editorial-muted hover:text-white'
+                  }`}
+                  title={lang === 'en' ? 'Toggle timeline scrubber' : 'Pokaż oś czasu'}
+                  aria-label={lang === 'en' ? 'Toggle timeline scrubber' : 'Pokaż oś czasu'}
+                >
+                  <Clock size={15} />
+                </button>
+                <button
+                  type="button"
+                  id="galaxy_mobile_search_toggle_btn"
+                  onClick={() => setIsMobileSearchOpen(prev => !prev)}
+                  className={`w-9 h-9 flex items-center justify-center border transition-colors cursor-pointer touch-manipulation relative ${
+                    isMobileSearchOpen || searchQuery.trim()
+                      ? 'bg-cyan-950/70 border-cyan-500 text-cyan-300'
+                      : 'bg-neutral-900 border-editorial-border text-editorial-muted hover:text-white'
+                  }`}
+                  title={lang === 'en' ? 'Search nodes' : 'Szukaj węzłów'}
+                  aria-label={lang === 'en' ? 'Search nodes' : 'Szukaj węzłów'}
+                >
+                  <Search size={15} />
+                  {searchQuery.trim() && (
+                    <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-cyan-400" />
+                  )}
+                </button>
+                <button
+                  type="button"
+                  id="galaxy_close_mobile_btn"
                   onClick={onClose}
-                  className="p-1.5 text-editorial-muted hover:text-white bg-neutral-900 border border-editorial-border hover:border-editorial-accent transition-all cursor-pointer"
+                  className="w-9 h-9 flex items-center justify-center text-rose-400 hover:text-white bg-neutral-900 border border-rose-500/50 hover:bg-rose-950/40 transition-colors cursor-pointer touch-manipulation"
                   title={lang === 'en' ? 'Close view (Esc)' : 'Zamknij widok (Esc)'}
+                  aria-label={lang === 'en' ? 'Close view' : 'Zamknij widok'}
                 >
                   <X size={16} />
                 </button>
               </div>
             </div>
 
-            {/* Top Center Timeline Bar Scrubber */}
-            <div className="flex items-center gap-2 bg-[#0E131F] border border-editorial-border px-3 py-1.5 font-mono text-xs w-full lg:max-w-md mx-auto">
+            {/* Top Center Timeline Bar Scrubber (Inline on sm+: landscape, tablet, desktop) */}
+            <div className={`${isMobileTimelineOpen ? 'flex' : 'hidden sm:flex'} items-center gap-2 bg-[#0E131F] border border-editorial-border px-2.5 sm:px-3 py-1.5 land:py-1 font-mono text-xs flex-1 w-full sm:max-w-sm desk:max-w-md mx-auto min-w-0`}>
               <button
                 type="button"
                 onClick={() => setIsPlayingTimeline(prev => !prev)}
-                className="p-1 bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/60 text-cyan-300 hover:text-white transition-all cursor-pointer shrink-0"
+                className="w-7 h-7 sm:w-auto sm:h-auto sm:p-1 flex items-center justify-center bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/60 text-cyan-300 hover:text-white transition-colors cursor-pointer shrink-0"
                 title={isPlayingTimeline ? 'Pause timeline' : 'Play chronological timeline expansion'}
               >
                 {isPlayingTimeline ? <Pause size={12} /> : <Play size={12} />}
               </button>
 
               {/* Scrubber timeline bar with event dots */}
-              <div className="relative flex-1 flex items-center h-4 cursor-pointer min-w-0">
+              <div className="relative flex-1 flex items-center h-5 land:h-4 cursor-pointer min-w-0">
                 {/* Background track */}
                 <div className="w-full h-1 bg-neutral-800 relative rounded-full overflow-hidden">
                   <div 
@@ -914,7 +1014,7 @@ export default function GalaxyGraphModal({
                   />
                 </div>
 
-                {/* Event points (simple, no transition-all to eliminate repaints) */}
+                {/* Event points */}
                 <div className="absolute inset-0 flex items-center justify-between pointer-events-none px-1">
                   {sortedPosts.map((p) => {
                     const norm = (p.t - minTime) / (maxTime - minTime || 1);
@@ -922,7 +1022,7 @@ export default function GalaxyGraphModal({
                       <div 
                         key={p.id}
                         className={`w-1.5 h-1.5 rounded-full ${
-                          norm <= timelineProgress ? 'bg-emerald-400 shadow-[0_0_6px_#4ade80]' : 'bg-neutral-600'
+                          norm <= timelineProgress ? 'bg-emerald-400' : 'bg-neutral-600'
                         }`}
                         style={{ position: 'absolute', left: `${norm * 96 + 2}%` }}
                       />
@@ -950,13 +1050,15 @@ export default function GalaxyGraphModal({
               </span>
             </div>
 
-            {/* Right Window Actions (Desktop) */}
-            <div className="hidden lg:flex items-center gap-1.5 shrink-0">
+            {/* Right Window Close Button (sm+: landscape, tablet, desktop) */}
+            <div className="hidden sm:flex items-center gap-1.5 shrink-0">
               <button
                 type="button"
+                id="galaxy_close_desktop_btn"
                 onClick={onClose}
-                className="p-1.5 text-editorial-muted hover:text-white bg-neutral-900 border border-editorial-border hover:border-editorial-accent transition-all cursor-pointer"
+                className="p-1.5 land:p-1 text-editorial-muted hover:text-white bg-neutral-900 border border-editorial-border hover:border-editorial-accent transition-colors cursor-pointer"
                 title={lang === 'en' ? 'Close view (Esc)' : 'Zamknij widok (Esc)'}
+                aria-label={lang === 'en' ? 'Close view' : 'Zamknij widok'}
               >
                 <X size={16} />
               </button>
@@ -964,81 +1066,89 @@ export default function GalaxyGraphModal({
           </div>
 
           {/* SECONDARY TOOLBAR: FILTER PILLS, SEARCH, & ZOOM CONTROLS */}
-          <div className="relative flex flex-wrap items-center justify-between gap-2 px-3 sm:px-5 py-2 bg-[#0A0D14] border-b border-editorial-border/60 z-20 shrink-0 font-mono text-xs">
-            {/* Filter Mode Pills matching Repo modal button sizing */}
-            <div className="flex items-center gap-1 bg-neutral-950 p-1 sm:p-0.5 border border-editorial-border max-w-full overflow-x-auto no-scrollbar">
+          <div className="relative flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 px-3 sm:px-4 desk:px-5 py-1.5 land:py-1 desk:py-2 bg-[#0A0D14] border-b border-editorial-border/60 z-20 shrink-0 font-mono text-xs">
+            {/* Filter Mode Segmented Bar */}
+            <div className="grid grid-cols-3 sm:flex items-center gap-1 bg-neutral-950 p-1 sm:p-0.5 border border-editorial-border w-full sm:w-auto shrink-0">
               <button
                 type="button"
+                id="galaxy_filter_all_btn"
                 onClick={(e) => {
                   e.stopPropagation();
                   setFilterType('all');
                 }}
-                className={`min-h-[38px] sm:min-h-0 px-3 sm:px-2.5 py-2 sm:py-1 text-[11px] sm:text-[10.5px] uppercase font-bold transition-all cursor-pointer select-none touch-manipulation active:scale-95 whitespace-nowrap shrink-0 ${
+                className={`min-h-[36px] sm:min-h-0 px-1.5 sm:px-2.5 py-1 land:py-0.5 text-[10.5px] sm:text-[10px] desk:text-[10.5px] uppercase font-bold cursor-pointer select-none touch-manipulation whitespace-nowrap flex items-center justify-center truncate ${
                   filterType === 'all'
                     ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/60'
                     : 'text-editorial-muted hover:text-white border border-transparent'
                 }`}
               >
-                {lang === 'en' ? 'All Orbitals' : 'Wszystko'} ({nodes.length})
+                <span className="md:hidden">{lang === 'en' ? 'All' : 'Wszystko'} ({nodes.length})</span>
+                <span className="hidden md:inline">{lang === 'en' ? 'All Orbitals' : 'Wszystko'} ({nodes.length})</span>
               </button>
               <button
                 type="button"
+                id="galaxy_filter_posts_btn"
                 onClick={(e) => {
                   e.stopPropagation();
                   setFilterType('posts');
                 }}
-                className={`min-h-[38px] sm:min-h-0 px-3 sm:px-2.5 py-2 sm:py-1 text-[11px] sm:text-[10.5px] uppercase font-bold transition-all cursor-pointer select-none touch-manipulation active:scale-95 whitespace-nowrap shrink-0 ${
+                className={`min-h-[36px] sm:min-h-0 px-1.5 sm:px-2.5 py-1 land:py-0.5 text-[10.5px] sm:text-[10px] desk:text-[10.5px] uppercase font-bold cursor-pointer select-none touch-manipulation whitespace-nowrap flex items-center justify-center gap-1 truncate ${
                   filterType === 'posts'
                     ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/60'
                     : 'text-editorial-muted hover:text-white border border-transparent'
                 }`}
               >
-                ● {lang === 'en' ? 'Posts' : 'Wpisy'} ({sortedPosts.length})
+                <span className="text-emerald-400">●</span>
+                <span>{lang === 'en' ? 'Posts' : 'Wpisy'} ({sortedPosts.length})</span>
               </button>
               <button
                 type="button"
+                id="galaxy_filter_tags_btn"
                 onClick={(e) => {
                   e.stopPropagation();
                   setFilterType('tags');
                 }}
-                className={`min-h-[38px] sm:min-h-0 px-3 sm:px-2.5 py-2 sm:py-1 text-[11px] sm:text-[10.5px] uppercase font-bold transition-all cursor-pointer select-none touch-manipulation active:scale-95 whitespace-nowrap shrink-0 ${
+                className={`min-h-[36px] sm:min-h-0 px-1.5 sm:px-2.5 py-1 land:py-0.5 text-[10.5px] sm:text-[10px] desk:text-[10.5px] uppercase font-bold cursor-pointer select-none touch-manipulation whitespace-nowrap flex items-center justify-center gap-1 truncate ${
                   filterType === 'tags'
                     ? 'bg-fuchsia-950 text-fuchsia-300 border border-fuchsia-500/60'
                     : 'text-editorial-muted hover:text-white border border-transparent'
                 }`}
               >
-                ◆ {lang === 'en' ? 'Tags' : 'Tagi'} ({allTagsList.length})
+                <span className="text-fuchsia-400">◆</span>
+                <span>{lang === 'en' ? 'Tags' : 'Tagi'} ({allTagsList.length})</span>
               </button>
             </div>
 
-            {/* Search Input & Zoom Toolbar */}
-            <div className="flex items-center gap-2 flex-1 justify-end max-w-md">
-              <div className="relative flex-1 max-w-[200px] sm:max-w-xs">
+            {/* Search Input & Toolbar Zoom (Inline on sm+: landscape, tablet, desktop) */}
+            <div className={`${isMobileSearchOpen ? 'flex' : 'hidden sm:flex'} items-center gap-1.5 sm:gap-2 w-full sm:w-auto sm:flex-1 sm:justify-end min-w-0`}>
+              <div className="relative w-full flex-1 sm:max-w-[200px] md:max-w-xs min-w-0">
                 <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-editorial-muted" />
                 <input
                   type="text"
+                  id="galaxy_nodes_search_input"
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
-                  placeholder={lang === 'en' ? 'Search galaxy nodes...' : 'Szukaj węzłów w galaktyce...'}
-                  className="w-full bg-neutral-950 border border-editorial-border pl-7 pr-6 py-1 text-[11px] text-white font-mono placeholder:text-neutral-600 focus:border-cyan-400 outline-none uppercase"
+                  placeholder={lang === 'en' ? 'Search galaxy nodes...' : 'Szukaj węzłów...'}
+                  className="w-full h-9 sm:h-7 desk:h-auto bg-neutral-950 border border-editorial-border pl-7 pr-7 py-1 land:py-0.5 text-xs sm:text-[11px] text-white font-mono placeholder:text-neutral-600 focus:border-cyan-400 outline-none uppercase"
                 />
                 {searchQuery && (
                   <button 
                     type="button" 
                     onClick={() => setSearchQuery('')}
-                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white p-0.5 cursor-pointer"
+                    className="absolute right-1.5 top-1/2 -translate-y-1/2 text-neutral-500 hover:text-white p-1 cursor-pointer"
+                    aria-label="Clear search"
                   >
-                    <X size={11} />
+                    <X size={12} />
                   </button>
                 )}
               </div>
 
-              {/* Zoom Buttons matching repo control sizes */}
-              <div className="flex items-center gap-1 bg-neutral-950 p-1 sm:p-0.5 border border-editorial-border shrink-0">
+              {/* Toolbar Zoom Buttons (sm+: landscape, tablet, desktop) */}
+              <div className="hidden sm:flex items-center gap-1 bg-neutral-950 p-0.5 border border-editorial-border shrink-0">
                 <button
                   type="button"
                   onClick={handleZoomIn}
-                  className="p-2 sm:p-1 min-w-[34px] sm:min-w-0 min-h-[34px] sm:min-h-0 flex items-center justify-center text-editorial-muted hover:text-white hover:bg-neutral-900 transition-all cursor-pointer touch-manipulation active:scale-95"
+                  className="p-1 flex items-center justify-center text-editorial-muted hover:text-white hover:bg-neutral-900 transition-colors cursor-pointer"
                   title="Zoom in"
                 >
                   <ZoomIn size={14} />
@@ -1046,7 +1156,7 @@ export default function GalaxyGraphModal({
                 <button
                   type="button"
                   onClick={handleZoomOut}
-                  className="p-2 sm:p-1 min-w-[34px] sm:min-w-0 min-h-[34px] sm:min-h-0 flex items-center justify-center text-editorial-muted hover:text-white hover:bg-neutral-900 transition-all cursor-pointer touch-manipulation active:scale-95"
+                  className="p-1 flex items-center justify-center text-editorial-muted hover:text-white hover:bg-neutral-900 transition-colors cursor-pointer"
                   title="Zoom out"
                 >
                   <ZoomOut size={14} />
@@ -1054,7 +1164,7 @@ export default function GalaxyGraphModal({
                 <button
                   type="button"
                   onClick={handleResetView}
-                  className="p-2 sm:p-1 min-w-[34px] sm:min-w-0 min-h-[34px] sm:min-h-0 flex items-center justify-center text-editorial-muted hover:text-white hover:bg-neutral-900 transition-all cursor-pointer touch-manipulation active:scale-95"
+                  className="p-1 flex items-center justify-center text-editorial-muted hover:text-white hover:bg-neutral-900 transition-colors cursor-pointer"
                   title="Reset galaxy coordinate center"
                 >
                   <RotateCcw size={14} />
@@ -1073,6 +1183,7 @@ export default function GalaxyGraphModal({
             onTouchEnd={handleTouchEnd}
           >
             <svg
+              id="galaxy_svg_canvas"
               ref={svgRef}
               className="w-full h-full"
               viewBox={`0 0 ${dimensions.width} ${dimensions.height}`}
@@ -1117,8 +1228,12 @@ export default function GalaxyGraphModal({
                 </filter>
               </defs>
 
-              {/* TRANSFORM CONTAINER WITH PAN & ZOOM (DRIVEN DIRECTLY VIA DOM REF, NO EXPENSIVE DROP-SHADOW ON GROUP) */}
-              <g ref={groupRef}>
+              {/* TRANSFORM CONTAINER WITH PAN & ZOOM (Pre-centered on initial commit to prevent frame-1 jump) */}
+              <g
+                ref={groupRef}
+                transform={`translate(${dimensions.width / 2 + panOffset.x}, ${dimensions.height / 2 + panOffset.y}) scale(${zoomLevel})`}
+                style={{ opacity: isCanvasReady ? 1 : 0 }}
+              >
                 {/* CONCENTRIC ORBITAL RINGS & TIMELINE AXIS (MEMOIZED LAYER) */}
                 <OrbitalRingsLayer
                   orbitalRings={orbitalRings}
@@ -1156,12 +1271,24 @@ export default function GalaxyGraphModal({
                   const isDimmed = activeFocusNode && !isNeighbor;
                   const nodeLabel = lang === 'en' ? node.labelEn : node.labelPl;
 
-                  // Hide text when zoomed out far (< 0.7) unless hovered, selected or neighbor to save CPU/GPU rasterization
-                  const showLabel = zoomLevel >= 0.7 || isHovered || isSelected || isNeighbor;
+                  // Show posts, multi-post tag hubs, active selection/neighbors, and filtered views cleanly; reveal leaf tag labels on zoom
+                  const isMultiHubTag = node.type === 'tag' && node.connectedIds.length > 1;
+                  const showLabel =
+                    zoomLevel >= 0.68 ||
+                    filterType !== 'all' ||
+                    node.type === 'post' ||
+                    isMultiHubTag ||
+                    isHovered ||
+                    isSelected ||
+                    isNeighbor;
+                  const effectiveTextScale = Math.max(0.58, Math.min(1, zoomLevel));
+                  const labelFontSize = ((node.type === 'tag' ? 10 : 9.5) / effectiveTextScale).toFixed(1);
 
                   return (
                     <g
                       key={node.id}
+                      data-node-id={node.id}
+                      data-node-type={node.type}
                       transform={`translate(${node.x}, ${node.y})`}
                       onMouseEnter={() => setHoveredNodeId(node.id)}
                       onMouseLeave={() => setHoveredNodeId(null)}
@@ -1170,12 +1297,15 @@ export default function GalaxyGraphModal({
                         handleNodeSelect(node.id);
                       }}
                       onTouchEnd={(e) => {
+                        if (touchMovedRef.current) return;
                         e.stopPropagation();
                         handleNodeSelect(node.id);
                       }}
                       className="cursor-pointer transition-opacity duration-150"
                       opacity={isDimmed ? 0.25 : 1}
                     >
+                      {/* Expanded touch hit area so nodes are easy to tap on mobile */}
+                      <circle cx="0" cy="0" r={Math.max(20, node.size * 2.2)} fill="transparent" />
                       {/* Outer pulse aura when focused (disabled on low-end for battery saving) */}
                       {!isLowEnd && (isHovered || isSelected) && (
                         <circle
@@ -1212,17 +1342,20 @@ export default function GalaxyGraphModal({
                         />
                       )}
 
-                      {/* Node Label Text (Cull at low zoom levels) */}
+                      {/* Node Label Text with subtle backdrop halo for readability over orbital rings */}
                       {showLabel && (
                         <text
                           x="0"
-                          y={node.size + 13}
+                          y={node.size + Math.round(13 / effectiveTextScale)}
                           textAnchor="middle"
-                          fill={isHovered || isSelected ? '#ffffff' : isNeighbor ? '#e2e8f0' : '#94a3b8'}
-                          fontSize={node.type === 'tag' ? '10' : '9.5'}
+                          fill={isHovered || isSelected ? '#ffffff' : isNeighbor ? '#e2e8f0' : '#cbd5e1'}
+                          stroke="#06080D"
+                          strokeWidth={(2.5 / effectiveTextScale).toFixed(1)}
+                          paintOrder="stroke"
+                          fontSize={labelFontSize}
                           fontFamily="monospace"
                           fontWeight={isHovered || isSelected || node.type === 'tag' ? 'bold' : 'normal'}
-                          className="pointer-events-none select-none shadow-black"
+                          className="pointer-events-none select-none"
                         >
                           {node.type === 'tag' ? nodeLabel : nodeLabel.length > 20 ? `${nodeLabel.slice(0, 18)}…` : nodeLabel}
                         </text>
@@ -1233,64 +1366,75 @@ export default function GalaxyGraphModal({
               </g>
             </svg>
 
-            {/* FLOATING HUD TOOLTIP CARD (Solid dark background, no GPU-crushing backdrop-blur) */}
+            {/* FLOATING HUD INSPECTOR: Mobile Portrait Bottom Sheet / Mobile Landscape Side Panel / Desktop Right Panel */}
             {hudNode && (
               <motion.div
-                initial={{ opacity: 0, y: 8, scale: 0.96 }}
-                animate={{ opacity: 1, y: 0, scale: 1 }}
-                exit={{ opacity: 0, scale: 0.96 }}
-                className="absolute top-2 sm:top-4 right-2 sm:right-4 z-30 w-[calc(100%-1rem)] sm:w-80 max-h-[50svh] overflow-y-auto bg-[#0B0F19] border border-editorial-border p-3 sm:p-3.5 shadow-2xl font-mono text-xs space-y-2.5 overscroll-contain"
+                id="galaxy_hud_card"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: 6 }}
+                transition={{ duration: 0.14 }}
+                className="absolute inset-x-0 bottom-0 sm:inset-auto sm:top-2 sm:bottom-2 sm:right-2 desk:bottom-auto desk:top-4 desk:right-4 z-30 w-full sm:w-72 desk:w-80 max-h-[64%] sm:max-h-none desk:max-h-[calc(100%-2rem)] bg-[#0B0F19] border-t-2 sm:border border-editorial-accent/60 sm:border-editorial-border rounded-t-2xl sm:rounded-none shadow-2xl font-mono text-xs flex flex-col overflow-hidden"
+                onClick={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchMove={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
               >
-                {/* HUD Header */}
-                <div className="flex items-center justify-between pb-2 border-b border-editorial-border">
-                  <div className="flex items-center gap-2">
-                    <span className={`px-2 py-0.5 text-[9.5px] uppercase font-bold ${
-                      hudNode.type === 'tag' 
-                        ? 'bg-fuchsia-950 text-fuchsia-300 border border-fuchsia-500' 
-                        : 'bg-emerald-950 text-emerald-300 border border-emerald-500'
-                    }`}>
-                      {hudNode.type === 'tag' ? (lang === 'en' ? 'TAG' : 'TAG') : (lang === 'en' ? 'POST' : 'WPIS / POST')}
-                    </span>
+                {/* Fixed Sheet Top Header */}
+                <div className="shrink-0 px-4 pt-2.5 pb-2 sm:p-3 desk:p-3.5 border-b border-editorial-border bg-[#090D16]">
+                  {/* Mobile Portrait Grab Handle */}
+                  <div className="sm:hidden w-10 h-1 rounded-full bg-neutral-700 mx-auto mb-2" />
 
-                    {hudNode.dateStr && (
-                      <span className="text-[10px] text-editorial-muted flex items-center gap-1">
-                        <Calendar size={10} className="text-editorial-accent" />
-                        {hudNode.dateStr}
-                      </span>
-                    )}
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1 space-y-1">
+                      <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider">
+                        <span className={hudNode.type === 'tag' ? 'text-fuchsia-400 font-bold' : 'text-emerald-400 font-bold'}>
+                          {hudNode.type === 'tag' ? 'TAG' : (lang === 'en' ? 'POST' : 'WPIS')}
+                        </span>
+                        {hudNode.dateStr && (
+                          <span className="inline-flex land:hidden short:hidden desk:inline-flex items-center gap-2">
+                            <span className="text-neutral-600">·</span>
+                            <span className="text-editorial-muted flex items-center gap-1">
+                              <Calendar size={10} className="text-editorial-accent shrink-0" />
+                              {hudNode.dateStr}
+                            </span>
+                          </span>
+                        )}
+                      </div>
+                      <h3 className="font-bold text-white text-sm leading-snug break-words">
+                        {lang === 'en' ? hudNode.labelEn : hudNode.labelPl}
+                      </h3>
+                      {hudNode.excerpt && (
+                        <p className="text-zinc-400 text-xs sm:text-[11px] font-sans leading-relaxed line-clamp-2 short:hidden">
+                          {hudNode.excerpt}
+                        </p>
+                      )}
+                    </div>
+
+                    <button
+                      type="button"
+                      id="galaxy_hud_close_btn"
+                      onClick={() => {
+                        setSelectedNodeId(null);
+                        setHoveredNodeId(null);
+                      }}
+                      className="w-9 h-9 desk:w-7 desk:h-7 flex items-center justify-center text-editorial-muted hover:text-white bg-neutral-900 hover:bg-neutral-800 transition-colors cursor-pointer border border-editorial-border shrink-0"
+                      title={lang === 'en' ? 'Deselect' : 'Odznacz'}
+                      aria-label={lang === 'en' ? 'Close node details' : 'Zamknij szczegóły węzła'}
+                    >
+                      <X size={15} />
+                    </button>
                   </div>
-
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setSelectedNodeId(null);
-                      setHoveredNodeId(null);
-                    }}
-                    className="p-1 text-editorial-muted hover:text-white hover:bg-neutral-800 transition-all cursor-pointer border border-editorial-border/60 shrink-0"
-                    title={lang === 'en' ? 'Deselect (X)' : 'Odznacz (X)'}
-                  >
-                    <X size={13} />
-                  </button>
                 </div>
 
-                {/* HUD Title & Description */}
-                <div>
-                  <h3 className="font-bold text-white text-sm leading-snug mb-1">
-                    {lang === 'en' ? hudNode.labelEn : hudNode.labelPl}
-                  </h3>
-                  {hudNode.excerpt && (
-                    <p className="text-editorial-muted text-[11px] font-sans leading-relaxed line-clamp-3">
-                      {hudNode.excerpt}
-                    </p>
-                  )}
-                </div>
-
-                {/* Connected Tags / Nodes list */}
-                <div className="pt-2 border-t border-editorial-border/60">
-                  <span className="text-[9px] uppercase text-editorial-muted font-bold block mb-1.5">
-                    {lang === 'en' ? 'Connected Constellation Nodes:' : 'Połączone Węzły Konstelacji:'}
+                {/* Scrollable Connected Nodes List */}
+                <div className="flex-1 min-h-0 overflow-y-auto px-4 py-2.5 sm:p-3 desk:p-3.5 space-y-1.5 overscroll-contain scrollbar-thin scrollbar-thumb-neutral-800">
+                  <span className="text-[10px] uppercase tracking-wider text-editorial-muted font-bold block">
+                    {lang === 'en'
+                      ? `Connected Nodes (${hudNode.connectedIds.length})`
+                      : `Połączone węzły (${hudNode.connectedIds.length})`}
                   </span>
-                  <div className="flex flex-wrap gap-1 max-h-24 overflow-y-auto">
+                  <div className="flex flex-col gap-1.5">
                     {hudNode.connectedIds.map(id => {
                       const target = nodes.find(n => n.id === id);
                       if (!target) return null;
@@ -1299,46 +1443,49 @@ export default function GalaxyGraphModal({
                           key={id}
                           type="button"
                           onClick={() => setSelectedNodeId(id)}
-                          className="px-1.5 py-0.5 bg-neutral-900 border border-editorial-border hover:border-cyan-400 text-zinc-300 hover:text-white text-[9.5px] cursor-pointer"
+                          className="w-full text-left min-h-[40px] desk:min-h-0 px-3 sm:px-2.5 py-2 sm:py-1.5 bg-neutral-900/90 border border-editorial-border hover:border-cyan-500/60 hover:bg-neutral-800 text-zinc-200 hover:text-white text-xs sm:text-[11px] desk:text-[10.5px] cursor-pointer transition-colors focus:outline-none select-none leading-snug flex items-center justify-between gap-2"
                         >
-                          {lang === 'en' ? target.labelEn : target.labelPl}
+                          <span className="line-clamp-2">{lang === 'en' ? target.labelEn : target.labelPl}</span>
+                          <span className="text-[10px] text-cyan-400 shrink-0">→</span>
                         </button>
                       );
                     })}
                   </div>
                 </div>
 
-                {/* Action Buttons */}
-                <div className="pt-2 border-t border-editorial-border flex gap-2">
+                {/* Pinned Bottom Action Bar */}
+                <div className="shrink-0 px-4 py-2.5 sm:p-2.5 desk:p-3 border-t border-editorial-border bg-[#080B12] flex gap-2">
                   {hudNode.type === 'post' && hudNode.rawPost && (
                     <>
                       <button
                         type="button"
+                        id="galaxy_hud_read_article_btn"
                         onClick={() => {
                           if (onSelectBlogPost && hudNode.rawPost) {
                             onSelectBlogPost(hudNode.rawPost);
                             onClose();
                           }
                         }}
-                        className="flex-1 py-1.5 bg-emerald-950 hover:bg-emerald-900 border border-emerald-500 text-emerald-300 hover:text-white font-bold uppercase tracking-wider text-[10.5px] flex items-center justify-center gap-1 cursor-pointer transition-all"
+                        className="flex-1 h-10 desk:h-9 bg-emerald-950 hover:bg-emerald-900 border border-emerald-500 text-emerald-200 hover:text-white font-bold uppercase tracking-wider text-xs sm:text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition-colors touch-manipulation"
                       >
-                        <BookOpen size={12} />
+                        <BookOpen size={14} />
                         <span>{lang === 'en' ? 'Read Article' : 'Czytaj Wpis'}</span>
                       </button>
 
                       {onOpenAiDiscussion && (
                         <button
                           type="button"
+                          id="galaxy_hud_ai_discuss_btn"
                           onClick={() => {
                             if (onOpenAiDiscussion && hudNode.rawPost) {
                               onOpenAiDiscussion(hudNode.rawPost);
                               onClose();
                             }
                           }}
-                          className="py-1.5 px-2.5 bg-fuchsia-950 hover:bg-fuchsia-900 border border-fuchsia-500 text-fuchsia-300 hover:text-white font-bold uppercase text-[10.5px] flex items-center justify-center gap-1 cursor-pointer transition-all"
-                          title="Discuss with AI"
+                          className="h-10 w-11 desk:h-9 desk:w-auto desk:px-3 bg-fuchsia-950 hover:bg-fuchsia-900 border border-fuchsia-500 text-fuchsia-200 hover:text-white font-bold uppercase text-xs sm:text-[10.5px] flex items-center justify-center gap-1 cursor-pointer transition-colors touch-manipulation"
+                          title={lang === 'en' ? 'Discuss with AI' : 'Dyskutuj z AI'}
                         >
-                          <Bot size={12} />
+                          <Bot size={15} />
                         </button>
                       )}
                     </>
@@ -1347,15 +1494,16 @@ export default function GalaxyGraphModal({
                   {hudNode.type === 'tag' && hudNode.rawTag && onSelectTag && (
                     <button
                       type="button"
+                      id="galaxy_hud_filter_tag_btn"
                       onClick={() => {
                         if (onSelectTag && hudNode.rawTag) {
                           onSelectTag(hudNode.rawTag);
                           onClose();
                         }
                       }}
-                      className="w-full py-1.5 bg-fuchsia-950 hover:bg-fuchsia-900 border border-fuchsia-500 text-fuchsia-300 hover:text-white font-bold uppercase tracking-wider text-[10.5px] flex items-center justify-center gap-1.5 cursor-pointer transition-all"
+                      className="w-full h-10 desk:h-9 bg-fuchsia-950 hover:bg-fuchsia-900 border border-fuchsia-500 text-fuchsia-200 hover:text-white font-bold uppercase tracking-wider text-xs sm:text-[11px] flex items-center justify-center gap-2 cursor-pointer transition-colors touch-manipulation"
                     >
-                      <TagIcon size={12} />
+                      <TagIcon size={14} />
                       <span>{lang === 'en' ? 'Filter by this tag' : 'Filtruj wg tego tagu'}</span>
                     </button>
                   )}
@@ -1363,74 +1511,111 @@ export default function GalaxyGraphModal({
               </motion.div>
             )}
 
-            {/* BOTTOM LEFT LEGEND - Solid dark background, no backdrop-blur */}
-            <div className="absolute bottom-3 sm:bottom-4 left-3 sm:left-4 z-20 font-mono text-xs pointer-events-auto">
-              {/* Mobile Toggle Button */}
+            {/* PORTRAIT MOBILE THUMB-ZONE ZOOM CONTROLS (< sm) */}
+            {!hudNode && (
+              <div
+                className="sm:hidden absolute bottom-2.5 right-2.5 z-20 flex items-center gap-1 bg-[#090C14]/95 p-1 border border-editorial-border shadow-xl"
+                onClick={(e) => e.stopPropagation()}
+                onTouchStart={(e) => e.stopPropagation()}
+                onTouchEnd={(e) => e.stopPropagation()}
+              >
+                <button
+                  type="button"
+                  id="galaxy_mobile_zoom_in_btn"
+                  onClick={handleZoomIn}
+                  className="w-9 h-9 flex items-center justify-center text-zinc-300 hover:text-white hover:bg-neutral-900 active:bg-neutral-800 cursor-pointer touch-manipulation"
+                  title="Zoom in"
+                  aria-label="Zoom in"
+                >
+                  <ZoomIn size={15} />
+                </button>
+                <button
+                  type="button"
+                  id="galaxy_mobile_zoom_out_btn"
+                  onClick={handleZoomOut}
+                  className="w-9 h-9 flex items-center justify-center text-zinc-300 hover:text-white hover:bg-neutral-900 active:bg-neutral-800 cursor-pointer touch-manipulation"
+                  title="Zoom out"
+                  aria-label="Zoom out"
+                >
+                  <ZoomOut size={15} />
+                </button>
+                <button
+                  type="button"
+                  id="galaxy_mobile_zoom_reset_btn"
+                  onClick={handleResetView}
+                  className="w-9 h-9 flex items-center justify-center text-zinc-300 hover:text-white hover:bg-neutral-900 active:bg-neutral-800 cursor-pointer touch-manipulation"
+                  title="Reset view"
+                  aria-label="Reset view"
+                >
+                  <RotateCcw size={15} />
+                </button>
+              </div>
+            )}
+
+            {/* BOTTOM LEFT LEGEND */}
+            {(!hudNode || dimensions.width >= 640) && (
+            <div className="absolute bottom-2.5 desk:bottom-4 left-2.5 desk:left-4 z-20 font-mono text-xs pointer-events-auto">
+              {/* Compact Legend Toggle on Portrait Mobile (< sm) */}
               <div className="sm:hidden">
                 {!isLegendOpenMobile ? (
                   <button
                     type="button"
                     id="toggle_mobile_galaxy_legend_btn"
-                    onClick={() => setIsLegendOpenMobile(true)}
-                    className="px-2.5 py-1.5 bg-[#090C14] border border-editorial-border text-editorial-accent font-bold text-[10px] uppercase flex items-center gap-1.5 shadow-xl rounded-none cursor-pointer hover:border-editorial-accent transition-all"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsLegendOpenMobile(true);
+                    }}
+                    className="h-[46px] px-3 bg-[#090C14]/95 border border-editorial-border text-editorial-accent font-bold text-[10.5px] uppercase flex items-center gap-1.5 shadow-xl rounded-none cursor-pointer hover:border-editorial-accent transition-colors touch-manipulation"
                   >
-                    <Compass size={12} className="text-editorial-accent shrink-0" />
+                    <Compass size={13} className="text-editorial-accent shrink-0" />
                     <span>{lang === 'en' ? 'LEGEND' : 'LEGENDA'}</span>
-                    <span className="text-editorial-muted text-[9px]">▲</span>
                   </button>
                 ) : (
-                  <div className="bg-[#090C14] border border-editorial-border p-2.5 font-mono text-xs space-y-1.5 shadow-2xl max-w-[220px]">
-                    <div className="flex items-center justify-between pb-1 border-b border-editorial-border/60">
+                  <div className="bg-[#090C14] border border-editorial-border p-3 font-mono text-xs space-y-2 shadow-2xl w-[220px]">
+                    <div className="flex items-center justify-between pb-1.5 border-b border-editorial-border/60">
                       <span className="text-[10px] font-bold uppercase text-editorial-accent">
-                        {lang === 'en' ? 'CONSTELLATION LEGEND' : 'LEGENDA KONSTELACJI'}
+                        {lang === 'en' ? 'LEGEND' : 'LEGENDA'}
                       </span>
                       <button
                         type="button"
                         onClick={() => setIsLegendOpenMobile(false)}
-                        className="text-editorial-muted hover:text-white p-0.5 cursor-pointer ml-2"
+                        className="w-7 h-7 flex items-center justify-center text-editorial-muted hover:text-white cursor-pointer"
                         title="Close legend"
                       >
-                        <X size={12} />
+                        <X size={13} />
                       </button>
                     </div>
                     <div className="flex items-center gap-2 text-emerald-400">
-                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#4ade80] shrink-0" />
-                      <span className="text-[10px] font-bold uppercase">{lang === 'en' ? 'POST' : 'WPIS / POST'}</span>
+                      <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shrink-0" />
+                      <span className="text-[11px] font-bold uppercase">{lang === 'en' ? 'POST' : 'WPIS / POST'}</span>
                     </div>
                     <div className="flex items-center gap-2 text-fuchsia-400">
-                      <span className="w-2.5 h-2.5 rotate-45 bg-fuchsia-400 shadow-[0_0_6px_#c084fc] shrink-0" />
-                      <span className="text-[10px] font-bold uppercase">{lang === 'en' ? 'TAG' : 'TAG'}</span>
+                      <span className="w-2.5 h-2.5 rotate-45 bg-fuchsia-400 shrink-0" />
+                      <span className="text-[11px] font-bold uppercase">TAG</span>
                     </div>
-                    <div className="text-[9px] text-editorial-muted pt-1 border-t border-editorial-border/60">
-                      <span className="text-zinc-400 font-medium">core = oldest · outer = newer</span>
-                    </div>
-                    <div className="text-[9.5px] text-zinc-300 font-bold flex items-center justify-between gap-1 pt-0.5">
-                      <span className="text-emerald-400">
-                        {new Date(minTime).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
-                      </span>
-                      <span className="text-editorial-muted">→</span>
-                      <span className="text-fuchsia-400">
-                        {new Date(maxTime).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: '2-digit' })}
-                      </span>
+                    <div className="text-[10px] text-zinc-400 pt-1 border-t border-editorial-border/60">
+                      {lang === 'en' ? 'Tap node to inspect' : 'Kliknij węzeł, aby otworzyć'}
                     </div>
                   </div>
                 )}
               </div>
 
-              {/* Desktop Legend Card */}
-              <div className="hidden sm:block bg-[#090C14] border border-editorial-border p-3 space-y-1.5 shadow-xl">
-                <div className="flex items-center gap-2 text-emerald-400">
-                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_6px_#4ade80]" />
-                  <span className="text-[11px] font-bold uppercase">{lang === 'en' ? 'POST' : 'WPIS / POST'}</span>
+              {/* Unified Legend Card (sm+: landscape, tablet, desktop) */}
+              <div className="hidden sm:block bg-[#090C14]/95 border border-editorial-border p-2.5 land:p-2 desk:p-3 space-y-1.5 land:space-y-1 shadow-xl">
+                <div className="flex items-center gap-2 land:gap-3 desk:block desk:space-y-1.5">
+                  <div className="flex items-center gap-1.5 text-emerald-400">
+                    <span className="w-2.5 h-2.5 land:w-2 land:h-2 rounded-full bg-emerald-400" />
+                    <span className="text-[11px] land:text-[10px] font-bold uppercase">{lang === 'en' ? 'POST' : 'WPIS / POST'}</span>
+                  </div>
+                  <div className="flex items-center gap-1.5 text-fuchsia-400">
+                    <span className="w-2.5 h-2.5 land:w-2 land:h-2 rotate-45 bg-fuchsia-400" />
+                    <span className="text-[11px] land:text-[10px] font-bold uppercase">TAG</span>
+                  </div>
                 </div>
-                <div className="flex items-center gap-2 text-fuchsia-400">
-                  <span className="w-2.5 h-2.5 rotate-45 bg-fuchsia-400 shadow-[0_0_6px_#c084fc]" />
-                  <span className="text-[11px] font-bold uppercase">{lang === 'en' ? 'TAG' : 'TAG'}</span>
-                </div>
-                <div className="text-[9.5px] text-editorial-muted pt-1 border-t border-editorial-border/60">
+                <div className="hidden desk:block text-[9.5px] text-editorial-muted pt-1 border-t border-editorial-border/60">
                   <span className="text-zinc-400 font-medium">core = oldest · outer = newer</span>
                 </div>
-                <div className="text-[10px] text-zinc-300 font-bold flex items-center justify-between gap-2 pt-0.5">
+                <div className="text-[10px] land:text-[9px] text-zinc-300 font-bold flex items-center justify-between gap-2 pt-0.5 land:pt-1 land:border-t land:border-editorial-border/50">
                   <span className="text-emerald-400">
                     {new Date(minTime).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
                   </span>
@@ -1441,10 +1626,13 @@ export default function GalaxyGraphModal({
                 </div>
               </div>
             </div>
+            )}
           </div>
-        </motion.div>
+        </div>
       </motion.div>
       )}
     </AnimatePresence>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : modalContent;
 }

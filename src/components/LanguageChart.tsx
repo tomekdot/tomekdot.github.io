@@ -126,12 +126,12 @@ export default function LanguageChart({ repos, lang, selectedLang, onSelectLang 
               type="button"
               key={stat.name}
               onClick={() => onSelectLang && onSelectLang(isSelected ? 'all' : stat.name)}
-              className={`group flex flex-col justify-between p-2 sm:p-2.5 min-h-[44px] text-left transition-all duration-150 cursor-pointer rounded-none border focus:outline-none ${
+              className={`group flex flex-col justify-between p-2 sm:p-2.5 min-h-[44px] text-left transition-colors duration-150 cursor-pointer rounded-none border focus:outline-none ${
                 isSelected
-                  ? 'border-editorial-accent bg-editorial-accent/15 shadow-[0_0_12px_rgba(230,175,46,0.25)] ring-1 ring-editorial-accent scale-[1.02]'
+                  ? 'border-editorial-accent bg-editorial-accent/15 ring-1 ring-editorial-accent/70'
                   : isDimmed
                     ? 'border-editorial-border/40 bg-neutral-950/20 opacity-60 hover:opacity-100 hover:border-editorial-accent/60 hover:bg-neutral-900/60'
-                    : 'border-editorial-border bg-neutral-950/40 hover:border-editorial-accent/60 hover:bg-neutral-900/70 hover:shadow-sm'
+                    : 'border-editorial-border bg-neutral-950/40 hover:border-editorial-accent/60 hover:bg-neutral-900/70'
               }`}
               aria-label={`${displayName}: ${stat.percentage}%, ${stat.count} ${stat.count === 1 ? 'repo' : 'repos'}`}
               title={

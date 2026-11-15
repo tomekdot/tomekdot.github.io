@@ -14,6 +14,9 @@ import {
   getLocalAIModel,
   getLocalAIBaseUrl,
   getLocalAIProvider,
+  getMaxOutputTokens,
+  addSessionTokensUsed,
+  isSessionQuotaExhausted,
   PROVIDERS_CONFIG
 } from './apiKeyStorage';
 import { handleClientSideAiFallback, HAS_BACKEND } from './clientAi';
@@ -766,13 +769,14 @@ export async function executeTerminalCommand(rawInput: string, ctx: TerminalCont
         }
       };
 
-      if (!HAS_BACKEND) {
+      if (!HAS_BACKEND || isSessionQuotaExhausted()) {
         runFallback();
         break;
       }
 
+      const maxOutputTokens = getMaxOutputTokens();
+
       // Use backend proxy endpoint
-      // NOTE: We only send API key in 'x-ai-api-key' header; customApiKey removed from body!
       fetch('/api/ai/chat-repo', {
         method: 'POST',
         headers: { 
@@ -793,38 +797,47 @@ export async function executeTerminalCommand(rawInput: string, ctx: TerminalCont
           customModel: customModel || detectedProvider.defaultModel,
           customBaseUrl,
           customProvider,
+          maxOutputTokens,
           siteLang: ctx.lang,
         }),
         signal: controller.signal
       })
         .then(async res => {
-          if (!res.ok) {
-            throw new Error(`HTTP ${res.status}: ${res.statusText}`);
-          }
-          return res.json();
+          const ct = res.headers.get('content-type') || '';
+          const data = ct.includes('application/json') ? await res.json().catch(() => ({})) : {};
+          return { res, data };
         })
-        .then(data => {
+        .then(({ res, data }) => {
           if (controller.signal.aborted) {
             ctx.addOutput(t.aiCancelled, 'comment');
             return;
           }
 
-          const sourceLabel = data.provider || (data.source === 'gemini' 
-            ? 'GEMINI 2.5 FLASH' 
-            : (ctx.lang === 'en' ? 'KNOWLEDGE BASE / OFFLINE' : 'BAZA WIEDZY / OFFLINE'));
-          
-          ctx.addOutput(`🤖 [AI // ${sourceLabel}]:\n${data.reply || t.aiNoResponse}`, 'success');
-          if (data.sourcesUsed && Array.isArray(data.sourcesUsed) && data.sourcesUsed.length > 0) {
-            ctx.addOutput(`🔍 [${t.aiKnowledgeSources}]: ${data.sourcesUsed.join(' • ')}`, 'comment');
+          if (res.ok && data.reply) {
+            if (data.usage?.totalTokens) {
+              addSessionTokensUsed(data.usage.totalTokens);
+            }
+            const sourceLabel = data.provider || 'GEMINI';
+            const tokSuffix = data.usage?.totalTokens ? ` [${data.usage.totalTokens} tok]` : '';
+            ctx.addOutput(`🤖 [AI // ${sourceLabel}${tokSuffix}]:\n${data.reply}`, 'success');
+            if (data.sourcesUsed && Array.isArray(data.sourcesUsed) && data.sourcesUsed.length > 0) {
+              ctx.addOutput(`🔍 [${t.aiKnowledgeSources}]: ${data.sourcesUsed.join(' • ')}`, 'comment');
+            }
+            ctx.setIsAiLoading(false);
+          } else if (res.status === 429 || data.quotaExhausted) {
+            runFallback();
+          } else if ((data.invalidKey || res.status === 401 || res.status === 403 || res.status === 400) && !data.missingKey) {
+            ctx.addOutput(`⚠️ [API KEY ERROR ${res.status}]: ${data.error || 'Invalid API key'}${data.hint ? ` (${data.hint})` : ''}`, 'error');
+            ctx.setIsAiLoading(false);
+          } else {
+            runFallback();
           }
-          ctx.setIsAiLoading(false);
         })
         .catch(async err => {
           if (err.name === 'AbortError' || controller.signal.aborted) {
             ctx.addOutput(t.aiCancelled, 'comment');
             ctx.setIsAiLoading(false);
           } else {
-            // Attempt client-side offline fallback with proper error handling
             try {
               await runFallback();
             } catch (fallbackError: any) {
