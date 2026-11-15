@@ -1090,12 +1090,31 @@ export default function App() {
                 </p>
               </div>
 
-              {/* Framed Archival Index & Status Badge (Unified for Desktop and Mobile) */}
+              {/* Framed Archival Index (discreet GitHub PAT Admin Trigger) & Status Badge */}
               <div className="flex items-center justify-between sm:justify-end gap-4 sm:gap-6 px-3.5 py-2.5 bg-editorial-sidebar-bg border border-editorial-border w-full md:w-auto font-mono shrink-0 shadow-sm my-1 md:my-0">
-                <div className="text-left sm:text-right">
-                  <span className="text-[9px] sm:text-[10px] uppercase tracking-widest text-[#8b949e] block">Archival Index</span>
-                  <span className="text-xs sm:text-sm font-bold text-white">VOL. 2026</span>
-                </div>
+                <button
+                  type="button"
+                  id="admin_sync_btn"
+                  onClick={() => setIsTokenModalOpen(true)}
+                  className="text-left sm:text-right cursor-pointer group/archival select-none focus:outline-none"
+                  title={
+                    hasGithubToken
+                      ? (appLang === 'en' ? 'Admin Sync Active (Click to manage GitHub token)' : 'Synchronizacja aktywna (Kliknij, aby zarządzać kluczem GitHub)')
+                      : (appLang === 'en' ? 'Archival Index • Owner GitHub API Sync' : 'Archival Index • Synchronizacja kluczem GitHub')
+                  }
+                >
+                  <span className="text-[9px] sm:text-[10px] uppercase tracking-widest text-[#8b949e] group-hover/archival:text-white transition-colors flex items-center sm:justify-end gap-1">
+                    <span>Archival Index</span>
+                    {hasGithubToken ? (
+                      <ShieldCheck size={10} className="text-emerald-400 shrink-0" />
+                    ) : (
+                      <Lock size={9} className="text-neutral-600 group-hover/archival:text-amber-400 transition-colors shrink-0" />
+                    )}
+                  </span>
+                  <span className={`text-xs sm:text-sm font-bold transition-colors ${hasGithubToken ? 'text-emerald-400' : 'text-white group-hover/archival:text-editorial-accent'}`}>
+                    {hasGithubToken && syncStats?.lastSync ? `SYNC ${syncStats.lastSync}` : 'VOL. 2026'}
+                  </span>
+                </button>
                 <div className="h-6 w-px bg-editorial-border shrink-0" />
                 <div 
                   className="text-right cursor-pointer group/status select-none" 
@@ -1137,42 +1156,41 @@ export default function App() {
               </div>
             </div>
 
-            <div className="flex flex-wrap justify-center sm:justify-start gap-2 sm:gap-2.5 mt-3 sm:mt-4 text-[11px] sm:text-xs">
-            <button
-              type="button"
-              id="admin_sync_btn"
-              onClick={() => setIsTokenModalOpen(true)}
-              className={`h-8 sm:h-9 px-2.5 sm:px-3 inline-flex items-center justify-center gap-1.5 border font-mono transition-colors rounded-none cursor-pointer group shrink-0 ${
-                hasGithubToken 
-                  ? 'border-emerald-700/80 bg-emerald-950/20 hover:bg-emerald-950/40 text-emerald-400 hover:text-emerald-300' 
-                  : 'border-amber-900/60 hover:border-amber-500 bg-[#0D0D0D] hover:bg-amber-950/20 text-amber-400/90 hover:text-amber-300'
-              }`}
-              title={appLang === 'en' ? 'Admin Access: Sync Private Repositories' : 'Dostęp Administratora: Synchronizacja prywatnych repozytoriów'}
-            >
-              {hasGithubToken ? (
-                <>
-                  <ShieldCheck size={12} className="text-emerald-400 shrink-0" />
-                  <span className="font-bold flex items-center">
-                    <span className="hidden sm:inline">{appLang === 'en' ? 'ADMIN: SYNC ACTIVE' : 'ADMIN: SYNCHRONIZACJA AKTYWNA'}</span>
-                    <span className="sm:hidden">{appLang === 'en' ? 'SYNC ACTIVE' : 'AKTYWNA'}</span>
-                    {syncStats?.lastSync && (
-                      <span className="text-[9px] sm:text-[10px] bg-emerald-500/20 text-emerald-300 px-1.5 py-0.5 ml-2 border border-emerald-500/30">
-                        {syncStats.lastSync}
-                      </span>
-                    )}
-                  </span>
-                </>
-              ) : (
-                <>
-                  <Lock size={11} className="text-amber-500" />
-                  <span className="font-bold">{appLang === 'en' ? 'SYNC PRIVATE' : 'DODAJ PRYWATNE'}</span>
-                  <span className="text-[8px] sm:text-[9px] uppercase px-1 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold ml-0.5">
-                    {appLang === 'en' ? 'ADMIN' : 'ADMIN'}
-                  </span>
-                </>
-              )}
-            </button>
-          </div>
+            {/* Social Media & Community Action Buttons */}
+            <div className="flex flex-wrap justify-center sm:justify-start gap-2 sm:gap-2.5 mt-3 sm:mt-4 text-[11px] sm:text-xs font-mono">
+              <a
+                href="https://github.com/tomekdot"
+                target="_blank"
+                rel="noreferrer"
+                className="h-8 sm:h-9 px-3 inline-flex items-center justify-center gap-1.5 border border-editorial-border hover:border-white bg-[#0D0D0D] hover:bg-neutral-900 text-zinc-200 hover:text-white transition-colors rounded-none shrink-0 font-bold uppercase tracking-wider"
+                title="GitHub — @tomekdot"
+              >
+                <Github size={13} className="text-white shrink-0" />
+                <span>GitHub</span>
+              </a>
+
+              <a
+                href="https://youtube.com/@tomekdot"
+                target="_blank"
+                rel="noreferrer"
+                className="h-8 sm:h-9 px-3 inline-flex items-center justify-center gap-1.5 border border-editorial-border hover:border-[#FF0000]/70 bg-[#0D0D0D] hover:bg-red-950/20 text-zinc-200 hover:text-white transition-colors rounded-none shrink-0 font-bold uppercase tracking-wider group"
+                title="YouTube — @tomekdot"
+              >
+                <Youtube size={13} className="text-[#FF0000] shrink-0" />
+                <span>YouTube</span>
+              </a>
+
+              <a
+                href="https://paypal.me/tomekdot"
+                target="_blank"
+                rel="noreferrer"
+                className="h-8 sm:h-9 px-3 inline-flex items-center justify-center gap-1.5 border border-editorial-border hover:border-sky-500/70 bg-[#0D0D0D] hover:bg-sky-950/20 text-zinc-200 hover:text-white transition-colors rounded-none shrink-0 font-bold uppercase tracking-wider group"
+                title={appLang === 'en' ? 'Support via PayPal' : 'Wesprzyj przez PayPal'}
+              >
+                <Heart size={13} className="text-sky-400 shrink-0" />
+                <span>{appLang === 'en' ? 'PayPal' : 'Wesprzyj'}</span>
+              </a>
+            </div>
         </div>
       </div>
     </header>
@@ -1653,30 +1671,27 @@ export default function App() {
                 {/* Filters sub-row */}
                 <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
                   <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-center sm:gap-2 w-full sm:w-auto gap-1.5">
-                    {/* Amber Admin-style Hide/Show Private toggle button */}
+                    {/* Private Visibility Toggle Button (clean editorial style, no loud Admin badge) */}
                     <button
                       type="button"
                       id="toggle_hide_private_btn"
                       onClick={() => setHidePrivate(!hidePrivate)}
-                      className={`flex items-center justify-center gap-1 sm:gap-2 px-1.5 sm:px-3 py-1.5 border transition-all cursor-pointer text-[10.5px] sm:text-xs uppercase tracking-wider rounded-none shrink-0 group ${
+                      className={`flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 border transition-all cursor-pointer text-[10.5px] sm:text-xs uppercase tracking-wider rounded-none shrink-0 group ${
                         !hidePrivate 
-                          ? 'border-amber-500/80 bg-amber-950/40 text-amber-300 font-bold shadow-sm shadow-amber-950/40' 
-                          : 'border-amber-900/60 hover:border-amber-500 bg-[#0D0D0D] hover:bg-amber-950/20 text-amber-400/90 hover:text-amber-300'
+                          ? 'border-editorial-accent/70 bg-editorial-accent/10 text-editorial-accent font-bold' 
+                          : 'border-editorial-border hover:border-editorial-accent/50 bg-[#0D0D0D] text-editorial-muted hover:text-white'
                       }`}
                       title={appLang === 'en' ? 'Toggle visibility of private repositories' : 'Przełącz widoczność prywatnych repozytoriów'}
                     >
                       {!hidePrivate ? (
-                        <Eye size={12} className="text-amber-400 shrink-0" />
+                        <Eye size={12} className="text-editorial-accent shrink-0" />
                       ) : (
-                        <Lock size={11} className="text-amber-500 shrink-0 group-hover:scale-110 transition-transform" />
+                        <EyeOff size={12} className="text-editorial-muted group-hover:text-white shrink-0" />
                       )}
                       <span className="truncate">
                         {!hidePrivate 
-                          ? (appLang === 'en' ? 'SHOWN' : 'JAWNE') 
-                          : (appLang === 'en' ? 'HIDDEN' : 'UKRYTE')}
-                      </span>
-                      <span className="text-[8.5px] sm:text-[9px] uppercase px-1 py-0.5 bg-amber-500/20 border border-amber-500/40 text-amber-300 font-bold shrink-0 hidden min-[400px]:inline">
-                        ADMIN
+                          ? (appLang === 'en' ? 'PRIVATE: SHOWN' : 'PRYWATNE: JAWNE') 
+                          : (appLang === 'en' ? 'PRIVATE: HIDDEN' : 'PRYWATNE: UKRYTE')}
                       </span>
                     </button>
 
@@ -1771,6 +1786,28 @@ export default function App() {
                     totalFilteredCount={filteredAndSortedRepos.length}
                     lang={appLang}
                   />
+                )}
+
+                {/* Contextual GitHub API Token notice when Private repositories are revealed without an active PAT */}
+                {!hidePrivate && !hasGithubToken && (
+                  <div className="p-2 sm:p-2.5 bg-[#0D0D0D] border border-editorial-border flex flex-wrap items-center justify-between gap-2 font-mono text-[11px] text-editorial-muted">
+                    <div className="flex items-center gap-2 min-w-0 flex-1">
+                      <Key size={12} className="text-amber-400 shrink-0" />
+                      <span className="leading-snug">
+                        {appLang === 'en'
+                          ? 'Viewing cached private repository snapshots. Add a GitHub API token (PAT) for live private sync.'
+                          : 'Wyświetlasz zapisane migawki prywatnych repozytoriów. Dodaj klucz API GitHub (PAT), aby zsynchronizować na żywo.'}
+                      </span>
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => setIsTokenModalOpen(true)}
+                      className="px-2.5 py-1 bg-neutral-900 hover:bg-amber-950/40 border border-amber-700/60 hover:border-amber-500 text-amber-300 font-bold uppercase tracking-wider text-[10px] transition-colors cursor-pointer shrink-0 flex items-center gap-1"
+                    >
+                      <Key size={10} />
+                      <span>{appLang === 'en' ? 'Add GitHub Key' : 'Dodaj klucz GitHub'}</span>
+                    </button>
+                  </div>
                 )}
               </div>
 

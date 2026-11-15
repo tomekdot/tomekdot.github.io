@@ -22,6 +22,8 @@ interface TerminalConsoleProps {
   repos?: Repository[];
   isModalOpen?: boolean;
   onOpenRepo?: (repo: Repository) => void;
+  isOpen?: boolean;
+  onToggle?: (open?: boolean) => void;
 }
 
 export default function TerminalConsole({ 
@@ -29,9 +31,22 @@ export default function TerminalConsole({
   lang, 
   repos = REPOS, 
   isModalOpen,
-  onOpenRepo 
+  onOpenRepo,
+  isOpen: propIsOpen,
+  onToggle
 }: TerminalConsoleProps) {
-  const [isOpen, setIsOpen] = useState(false);
+  const [internalIsOpen, setInternalIsOpen] = useState(false);
+  const isOpen = propIsOpen !== undefined ? propIsOpen : internalIsOpen;
+  const setIsOpen = useCallback((next: boolean | ((prev: boolean) => boolean)) => {
+    if (typeof next === 'function') {
+      const resolved = next(isOpen);
+      if (onToggle) onToggle(resolved);
+      else setInternalIsOpen(resolved);
+    } else {
+      if (onToggle) onToggle(next);
+      else setInternalIsOpen(next);
+    }
+  }, [isOpen, onToggle]);
   const [history, setHistory] = useState<CommandOutput[]>([
     { 
       text: TERMINAL_I18N[lang].welcome, 

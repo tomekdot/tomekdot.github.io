@@ -676,6 +676,11 @@ export default function RepoModal({
 
   // Sync descriptions and AI chat welcome when repo changes
   useEffect(() => {
+    if (chatAbortControllerRef.current) {
+      chatAbortControllerRef.current.abort();
+      chatAbortControllerRef.current = null;
+      setIsChatLoading(false);
+    }
     if (repo) {
       setIsShortTitleExpanded(false);
       setCustomDescPl(repo.longDescPl || repo.descPl || repo.desc || '');
@@ -690,8 +695,8 @@ export default function RepoModal({
         {
           role: 'system',
           text: lang === 'en'
-            ? `⚡ **TOMEKDOT REPO TERMINAL AI** // Context: \`${repo.name}\` (${repo.lang || 'Code'})\n\nGoogle Gemini & Local PC Assistant ready (Google AI Studio / Ollama / LM Studio). Click any quick prompt below or ask about how this plugin works, installation, commands, or architecture!`
-            : `⚡ **TERMINAL ASYSTENTA AI TOMEKDOT** // Kontekst: \`${repo.name}\` (${repo.lang || 'Kod'})\n\nAsystent Google Gemini i Silników Lokalnych gotowy (Google AI Studio / Ollama / LM Studio). Wybierz szybkie pytanie poniżej lub zapytaj o działanie pluginu, instalację, konfigurację i architekturę!`,
+            ? `⚡ **TOMEKDOT REPO TERMINAL AI** // Context: \`${repo.name}\` (${repo.lang || 'Code'})\n\nGoogle Gemini & Local PC Assistant ready (Google AI Studio / Ollama / LM Studio). Click any quick prompt below or ask about how this project works, installation, usage, or architecture!`
+            : `⚡ **TERMINAL ASYSTENTA AI TOMEKDOT** // Kontekst: \`${repo.name}\` (${repo.lang || 'Kod'})\n\nAsystent Google Gemini i Silników Lokalnych gotowy (Google AI Studio / Ollama / LM Studio). Wybierz szybkie pytanie poniżej lub zapytaj o działanie projektu, instalację, użycie i architekturę!`,
           time: timeStr,
         }
       ]);
@@ -1019,10 +1024,11 @@ export default function RepoModal({
       try {
         const fallback = await handleClientSideAiFallback({
           query: textToSend,
+          repo,
           repoName: repo.name,
           repoDesc: repo.desc || repo.descPl,
           repoLang: repo.lang,
-          readme: sanitizedReadme,
+          readme: sanitizedReadme || repo.readme || '',
           category: repo.cat?.join(', '),
           lang,
           signal: controller.signal
@@ -2994,38 +3000,64 @@ Instructions:
                   )}
                 </div>
 
-                {/* Quick Action Prompt Chips */}
+                {/* Quick Action Prompt Chips (domain-aware per repository) */}
                 <div className="space-y-1.5">
                   <div className="text-[10px] text-editorial-muted uppercase tracking-wider font-bold">
                     {lang === 'en' ? '⚡ Quick Inquiries & AI Actions:' : '⚡ Szybkie zapytania i akcje AI:'}
                   </div>
                   <div className="flex flex-wrap gap-1.5">
-                    {[
-                      {
-                        label: lang === 'en' ? '✨ Generate Full Archival Summary' : '✨ Wygeneruj pełny opis archiwalny',
-                        handler: () => handleGenerateArchivalSummaryInChat(),
-                      },
-                      {
-                        label: lang === 'en' ? '⚡ What exactly does this plugin do?' : '⚡ Co dokładnie robi ten plugin / projekt?',
-                        handler: () => handleSendChatMessage(lang === 'en' ? 'What exactly does this plugin do?' : 'Co dokładnie robi ten plugin / projekt?'),
-                      },
-                      {
-                        label: lang === 'en' ? '📦 Installation & Setup guide' : '📦 Jak zainstalować i skonfigurować?',
-                        handler: () => handleSendChatMessage(lang === 'en' ? 'How do I install and configure this plugin in the server?' : 'Jak zainstalować i skonfigurować ten plugin na serwerze gry?'),
-                      },
-                      {
-                        label: lang === 'en' ? '⚙️ Architecture & Code logic' : '⚙️ Jaka jest architektura kodu i technologie?',
-                        handler: () => handleSendChatMessage(lang === 'en' ? 'Explain the code architecture and core design patterns of this repository.' : 'Wyjaśnij architekturę kodu i kluczowe wzorce projektowe tego repozytorium.'),
-                      },
-                      {
-                        label: lang === 'en' ? '🎮 Game & Command integration' : '🎮 Jakie są komendy i integracja z grą?',
-                        handler: () => handleSendChatMessage(lang === 'en' ? 'What in-game commands and event hooks are registered by this plugin?' : 'Jakie komendy w grze i hooki eventowe rejestruje ten plugin?'),
-                      },
-                      {
-                        label: lang === 'en' ? '🔑 API Key Guide' : '🔑 Instrukcja klucza API',
-                        handler: () => handleShowApiKeyGuideInChat(),
-                      },
-                    ].map((item, idx) => (
+                    {(() => {
+                      const isGamePlugin = Boolean(
+                        repo.cat?.some(c => c === 'pyplanet' || c === 'openplanet' || c === 'trackmania') ||
+                        /^(pyplanet|openplanet)-/i.test(repo.name)
+                      );
+                      return [
+                        {
+                          label: lang === 'en' ? '✨ Generate Full Archival Summary' : '✨ Wygeneruj pełny opis archiwalny',
+                          handler: () => handleGenerateArchivalSummaryInChat(),
+                        },
+                        {
+                          label: lang === 'en'
+                            ? (isGamePlugin ? '⚡ What does this plugin do?' : '⚡ What does this project do?')
+                            : (isGamePlugin ? '⚡ Co dokładnie robi ten plugin?' : '⚡ Co dokładnie robi ten projekt?'),
+                          handler: () => handleSendChatMessage(
+                            lang === 'en'
+                              ? (isGamePlugin ? `What exactly does the ${repo.name} plugin do?` : `What exactly does ${repo.name} do?`)
+                              : (isGamePlugin ? `Co dokładnie robi plugin ${repo.name}?` : `Co dokładnie robi projekt ${repo.name}?`)
+                          ),
+                        },
+                        {
+                          label: lang === 'en' ? '📦 Installation & Setup guide' : '📦 Jak zainstalować i skonfigurować?',
+                          handler: () => handleSendChatMessage(
+                            lang === 'en'
+                              ? (isGamePlugin ? `How do I install and configure ${repo.name} on the server?` : `How do I install and set up ${repo.name}?`)
+                              : (isGamePlugin ? `Jak zainstalować i skonfigurować ${repo.name} na serwerze gry?` : `Jak zainstalować i skonfigurować ${repo.name}?`)
+                          ),
+                        },
+                        {
+                          label: lang === 'en' ? '⚙️ Architecture & Code logic' : '⚙️ Struktura i architektura kodu?',
+                          handler: () => handleSendChatMessage(
+                            lang === 'en'
+                              ? `Explain the repository structure, tech stack, and architecture of ${repo.name}.`
+                              : `Wyjaśnij strukturę, technologie i architekturę repozytorium ${repo.name}.`
+                          ),
+                        },
+                        {
+                          label: lang === 'en'
+                            ? (isGamePlugin ? '🎮 Game & Command integration' : '⌘ Commands & Usage examples')
+                            : (isGamePlugin ? '🎮 Jakie są komendy i integracja z grą?' : '⌘ Komendy, użycie i przykłady?'),
+                          handler: () => handleSendChatMessage(
+                            lang === 'en'
+                              ? (isGamePlugin ? `What in-game commands and event hooks are registered by ${repo.name}?` : `What CLI commands, scripts, or usage examples are included in ${repo.name}?`)
+                              : (isGamePlugin ? `Jakie komendy w grze i hooki eventowe rejestruje ${repo.name}?` : `Jakie komendy, wywołania lub przykłady użycia zawiera ${repo.name}?`)
+                          ),
+                        },
+                        {
+                          label: lang === 'en' ? '🔑 API Key Guide' : '🔑 Instrukcja klucza API',
+                          handler: () => handleShowApiKeyGuideInChat(),
+                        },
+                      ];
+                    })().map((item, idx) => (
                       <button
                         key={idx}
                         type="button"

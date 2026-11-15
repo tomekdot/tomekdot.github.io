@@ -36,6 +36,7 @@ export interface TokenUsage {
 
 export interface ClientAiQueryOptions {
   query: string;
+  repo?: Repository;
   repoName?: string;
   repoDesc?: string;
   repoLang?: string;
@@ -309,13 +310,439 @@ function normalizeOpenAIEndpoint(baseUrl: string): string {
   return `${url}/v1/chat/completions`;
 }
 
+interface ParsedReadmeSection {
+  heading: string;
+  level: number;
+  paragraphs: string[];
+  bullets: string[];
+  codeBlocks: Array<{ lang: string; code: string }>;
+  rawText: string;
+}
+
+interface ParsedReadmeKnowledge {
+  title: string;
+  leadSummary: string;
+  sections: ParsedReadmeSection[];
+  extractedFeatures: string[];
+  installSection: ParsedReadmeSection | null;
+  commandsSection: ParsedReadmeSection | null;
+  architectureSection: ParsedReadmeSection | null;
+  detectedStack: string[];
+  hasSubstantialContent: boolean;
+}
+
+function normalizeSearchText(text: string): string {
+  return (text || '')
+    .toLowerCase()
+    .replace(/ą/g, 'a')
+    .replace(/ć/g, 'c')
+    .replace(/ę/g, 'e')
+    .replace(/ł/g, 'l')
+    .replace(/ń/g, 'n')
+    .replace(/ó/g, 'o')
+    .replace(/ś/g, 's')
+    .replace(/[źż]/g, 'z');
+}
+
+function stripReadmeNoiseLine(line: string): string {
+  let cleaned = line
+    // Remove linked badges [![alt](img)](url)
+    .replace(/\[!\[[^\]]*\]\([^)]*\)\]\([^)]*\)/g, '')
+    // Remove standalone markdown images ![alt](url)
+    .replace(/!\[[^\]]*\]\([^)]*\)/g, '')
+    // Remove raw HTML tags (img, br, p, div, span, details, summary, etc.)
+    .replace(/<\/?(?:p|div|span|br|hr|img|center|picture|source|details|summary|table|thead|tbody|tr|td|th|sub|sup|strong|em|b|i|h[1-6])[^>]*>/gi, ' ')
+    // Unwrap HTML anchors <a href="url">text</a> -> [text](url)
+    .replace(/<a\s+[^>]*href=["']([^"']+)["'][^>]*>([\s\S]*?)<\/a>/gi, '[$2]($1)')
+    .replace(/<\/?a[^>]*>/gi, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return cleaned;
+}
+
+function parseReadmeKnowledge(readme?: string | null): ParsedReadmeKnowledge {
+  const empty: ParsedReadmeKnowledge = {
+    title: '',
+    leadSummary: '',
+    sections: [],
+    extractedFeatures: [],
+    installSection: null,
+    commandsSection: null,
+    architectureSection: null,
+    detectedStack: [],
+    hasSubstantialContent: false,
+  };
+
+  if (!readme || readme.trim().length < 20) return empty;
+
+  const normalized = readme
+    .replace(/<!--[\s\S]*?-->/g, '')
+    .replace(/\r\n/g, '\n');
+
+  const lines = normalized.split('\n');
+  const sections: ParsedReadmeSection[] = [];
+  let title = '';
+  let current: ParsedReadmeSection = {
+    heading: 'Overview',
+    level: 1,
+    paragraphs: [],
+    bullets: [],
+    codeBlocks: [],
+    rawText: '',
+  };
+
+  let inFence = false;
+  let fenceLang = '';
+  let fenceLines: string[] = [];
+  let paraBuffer: string[] = [];
+  let rawLines: string[] = [];
+
+  const flushParagraph = () => {
+    if (paraBuffer.length > 0) {
+      const joined = paraBuffer.join(' ').replace(/\s+/g, ' ').trim();
+      if (joined.length >= 12 && !/^[-=_*#`~\s|]+$/.test(joined)) {
+        current.paragraphs.push(joined);
+      }
+      paraBuffer = [];
+    }
+  };
+
+  const pushCurrentSection = () => {
+    flushParagraph();
+    current.rawText = rawLines.join('\n').trim();
+    if (
+      current.paragraphs.length > 0 ||
+      current.bullets.length > 0 ||
+      current.codeBlocks.length > 0
+    ) {
+      sections.push(current);
+    }
+    rawLines = [];
+  };
+
+  for (let i = 0; i < lines.length; i++) {
+    const rawLine = lines[i];
+    const trimmed = rawLine.trim();
+
+    if (trimmed.startsWith('```')) {
+      if (!inFence) {
+        flushParagraph();
+        inFence = true;
+        fenceLang = trimmed.slice(3).trim().split(/\s+/)[0] || '';
+        fenceLines = [];
+      } else {
+        inFence = false;
+        const code = fenceLines.join('\n').trim();
+        if (code) {
+          current.codeBlocks.push({ lang: fenceLang, code });
+          rawLines.push(code);
+        }
+        fenceLines = [];
+        fenceLang = '';
+      }
+      continue;
+    }
+
+    if (inFence) {
+      fenceLines.push(rawLine);
+      continue;
+    }
+
+    const headingMatch = trimmed.match(/^(#{1,4})\s+(.+)$/);
+    if (headingMatch) {
+      const level = headingMatch[1].length;
+      const headingText = stripReadmeNoiseLine(headingMatch[2]).replace(/#+\s*$/, '').trim();
+      if (!title && level === 1 && headingText) {
+        title = headingText;
+      }
+      if (
+        sections.length > 0 ||
+        current.paragraphs.length > 0 ||
+        current.bullets.length > 0 ||
+        current.codeBlocks.length > 0
+      ) {
+        pushCurrentSection();
+      } else {
+        flushParagraph();
+        rawLines = [];
+      }
+      current = {
+        heading: headingText || 'Overview',
+        level,
+        paragraphs: [],
+        bullets: [],
+        codeBlocks: [],
+        rawText: '',
+      };
+      continue;
+    }
+
+    if (!trimmed || /^[-=_*]{3,}$/.test(trimmed)) {
+      flushParagraph();
+      continue;
+    }
+
+    // Markdown blockquote or normal text/bullet
+    const cleanLine = stripReadmeNoiseLine(trimmed.replace(/^>\s*/, ''));
+    if (!cleanLine) continue;
+
+    // Skip TOC-only or pure divider lines
+    if (/^\|[\s:-]+\|$/.test(cleanLine)) continue;
+
+    rawLines.push(cleanLine);
+
+    const bulletMatch = cleanLine.match(/^(?:[-*+]|(?:\d+\.))\s+(?:\[[ xX]\]\s*)?(.+)$/);
+    if (bulletMatch) {
+      flushParagraph();
+      const bulletText = bulletMatch[1].trim();
+      if (bulletText.length >= 4) {
+        current.bullets.push(bulletText);
+      }
+    } else if (/^\|.+\|$/.test(cleanLine)) {
+      // Markdown table row: convert cleanly into a bullet summary if meaningful
+      const cells = cleanLine
+        .split('|')
+        .map((c) => c.trim())
+        .filter((c) => c && !/^[-:]+$/.test(c));
+      if (cells.length >= 2 && !/^(command|name|skill|opis|description|feature)$/i.test(cells[0])) {
+        flushParagraph();
+        current.bullets.push(`**${cells[0]}** — ${cells.slice(1).join(' • ')}`);
+      }
+    } else {
+      paraBuffer.push(cleanLine);
+    }
+  }
+
+  if (inFence && fenceLines.length > 0) {
+    const code = fenceLines.join('\n').trim();
+    if (code) current.codeBlocks.push({ lang: fenceLang, code });
+  }
+  pushCurrentSection();
+
+  const nonLicenseSections = sections.filter(
+    (s) => !/^(license|licencja|acknowledg|credits|contributors|changelog)$/i.test(s.heading)
+  );
+
+  // Lead summary: best descriptive intro paragraph from first non-install/license section
+  let leadSummary = '';
+  for (const sec of nonLicenseSections) {
+    if (
+      !/^(install|setup|license|toc|table of contents|instalac)/i.test(sec.heading) &&
+      sec.paragraphs.length > 0
+    ) {
+      leadSummary = sec.paragraphs.slice(0, 2).join('\n\n');
+      break;
+    }
+  }
+  if (!leadSummary && nonLicenseSections.length > 0 && nonLicenseSections[0].paragraphs.length > 0) {
+    leadSummary = nonLicenseSections[0].paragraphs[0];
+  }
+
+  // Extract features / skills / capabilities bullets from relevant sections
+  const featureSec = nonLicenseSections.find((s) =>
+    /(feature|capabilit|highlight|skill|agent|module|component|what.?s inside|funkcj|mozliw|zalet|umiejetn|zawiera)/i.test(
+      normalizeSearchText(s.heading)
+    )
+  );
+  const extractedFeatures = (
+    featureSec?.bullets.length
+      ? featureSec.bullets
+      : nonLicenseSections.flatMap((s) =>
+          /license|changelog/i.test(s.heading) ? [] : s.bullets
+        )
+  ).slice(0, 8);
+
+  const installSection =
+    nonLicenseSections.find((s) =>
+      /(install|setup|getting started|quick start|prerequisite|requirement|deploy|build|instalac|konfigur|uruchom|wymagan)/i.test(
+        normalizeSearchText(s.heading)
+      )
+    ) || null;
+
+  const commandsSection =
+    nonLicenseSections.find((s) =>
+      /(command|usage|how to use|cli|api|endpoint|script|shortcut|keybind|trigger|invoke|skill|workflow|komend|uzyci|wywolan|skladni)/i.test(
+        normalizeSearchText(s.heading)
+      )
+    ) || null;
+
+  const architectureSection =
+    nonLicenseSections.find((s) =>
+      /(architect|structure|directory|folder|how it works|design|flow|pipeline|stack|tech|internal|architektur|struktur|jak to dziala|moduly|katalog)/i.test(
+        normalizeSearchText(s.heading)
+      )
+    ) || null;
+
+  // Detect genuinely mentioned technologies from README content only
+  const fullNormalized = normalizeSearchText(normalized);
+  const stackCandidates: Array<[RegExp, string]> = [
+    [/\bpython\b/, 'Python'],
+    [/\btypescript\b/, 'TypeScript'],
+    [/\bjavascript\b|\bnode\.?js\b/, 'Node.js / JavaScript'],
+    [/\breact\b/, 'React'],
+    [/\bangelscript\b/, 'AngelScript'],
+    [/\bpyplanet\b/, 'PyPlanet'],
+    [/\bopenplanet\b/, 'Openplanet'],
+    [/\basyncio\b/, 'asyncio'],
+    [/\bsqlite\b/, 'SQLite'],
+    [/\bdocker\b/, 'Docker'],
+    [/\bgemini\b/, 'Google Gemini'],
+    [/\bollama\b/, 'Ollama'],
+    [/\bmcp\b|model context protocol/, 'MCP'],
+    [/\bskill\.md\b|\bagent skills\b/, 'SKILL.md / Agent Skills'],
+    [/\bclaude\b/, 'Claude Code'],
+    [/\bcursor\b/, 'Cursor'],
+    [/\bcodex\b/, 'Codex CLI'],
+    [/\bhermes\b/, 'Hermes Agent'],
+    [/\bdiscord(\.py)?\b/, 'Discord'],
+    [/\bfastapi\b/, 'FastAPI'],
+    [/\bexpress\b/, 'Express'],
+  ];
+  const detectedStack: string[] = [];
+  for (const [rx, label] of stackCandidates) {
+    if (rx.test(fullNormalized) && !detectedStack.includes(label)) {
+      detectedStack.push(label);
+    }
+  }
+
+  return {
+    title,
+    leadSummary,
+    sections: nonLicenseSections,
+    extractedFeatures,
+    installSection,
+    commandsSection,
+    architectureSection,
+    detectedStack,
+    hasSubstantialContent: Boolean(
+      leadSummary || extractedFeatures.length > 0 || nonLicenseSections.some((s) => s.codeBlocks.length > 0 || s.paragraphs.length > 0)
+    ),
+  };
+}
+
+function formatReadmeSectionSnippet(sec: ParsedReadmeSection, maxBullets = 6, maxCodeBlocks = 1): string {
+  const parts: string[] = [];
+  if (sec.paragraphs.length > 0) {
+    parts.push(sec.paragraphs.slice(0, 2).join('\n\n'));
+  }
+  if (sec.bullets.length > 0) {
+    parts.push(sec.bullets.slice(0, maxBullets).map((b) => `• ${b}`).join('\n'));
+  }
+  if (sec.codeBlocks.length > 0) {
+    for (const cb of sec.codeBlocks.slice(0, maxCodeBlocks)) {
+      const snippet = cb.code.split('\n').slice(0, 16).join('\n');
+      parts.push(`\`\`\`${cb.lang || 'bash'}\n${snippet}\n\`\`\``);
+    }
+  }
+  return parts.join('\n\n').trim();
+}
+
+const QUERY_SYNONYM_MAP: Record<string, string[]> = {
+  skill: ['skills', 'skill.md', 'umiejetn', 'agent', 'narzedz', 'tool'],
+  skills: ['skill', 'skill.md', 'agent', 'claude', 'codex', 'cursor', 'hermes'],
+  agent: ['agents', 'ai', 'skill', 'skills', 'bot', 'assistant', 'asystent', 'autonomous'],
+  instal: ['install', 'setup', 'clone', 'pip', 'npm', 'uv', 'konfigur', 'wymagan'],
+  komend: ['command', 'commands', 'cli', 'script', 'usage', 'run', 'flag', 'wywol'],
+  architekt: ['architecture', 'structure', 'folder', 'directory', 'tree', 'module', 'design'],
+  wymag: ['require', 'requirement', 'prerequisite', 'dependenc', 'version', 'python', 'node'],
+  baza: ['database', 'sqlite', 'postgres', 'sql', 'storage', 'json', 'cache'],
+  plugin: ['wtyczk', 'extension', 'addon', 'mod', 'app'],
+};
+
+function expandQueryTokens(qNorm: string): string[] {
+  const stopWords = new Set([
+    'ten', 'tego', 'tym', 'tej', 'jest', 'jak', 'co', 'czy', 'dla', 'nie', 'ale', 'to', 'sie',
+    'lub', 'oraz', 'przy', 'bez', 'nad', 'pod', 'przed', 'przez', 'ktory', 'ktora', 'ktore',
+    'the', 'this', 'that', 'with', 'from', 'for', 'and', 'are', 'does', 'what', 'how', 'can',
+    'you', 'use', 'used', 'using', 'into', 'about', 'more', 'tuaj', 'tutaj', 'mozesz',
+  ]);
+  const rawTokens = qNorm
+    .replace(/[^a-z0-9_.\-/]+/g, ' ')
+    .split(/\s+/)
+    .filter((t) => t.length >= 3 && !stopWords.has(t));
+
+  const expanded = new Set<string>(rawTokens);
+  for (const tok of rawTokens) {
+    if (tok.length >= 5) expanded.add(tok.slice(0, 5));
+    for (const [key, syns] of Object.entries(QUERY_SYNONYM_MAP)) {
+      if (tok.includes(key) || key.includes(tok)) {
+        syns.forEach((s) => expanded.add(s));
+      }
+    }
+  }
+  return Array.from(expanded);
+}
+
+/**
+ * Resolves the authoritative repository for offline answers.
+ * NEVER falls back to repos[0] or substring-matching arbitrary words when a repo context is specified.
+ */
+function resolveTargetRepository(params: {
+  explicitRepo?: Repository;
+  repoName?: string;
+  repoDesc?: string;
+  repoLang?: string;
+  category?: string;
+  query: string;
+  repos: Repository[];
+}): Repository | null {
+  const { explicitRepo, repoName = '', repoDesc = '', repoLang = '', category = '', query, repos } = params;
+  const trimmedName = (explicitRepo?.name || repoName || '').trim();
+
+  if (trimmedName) {
+    const lowerTarget = trimmedName.toLowerCase();
+    const matchedStatic = repos.find((r) => {
+      if (r.name.toLowerCase() === lowerTarget) return true;
+      const slug = r.url?.split('/').filter(Boolean).pop()?.toLowerCase();
+      return slug === lowerTarget;
+    });
+
+    if (explicitRepo) {
+      return matchedStatic ? { ...matchedStatic, ...explicitRepo } : explicitRepo;
+    }
+    if (matchedStatic) {
+      return matchedStatic;
+    }
+
+    // Dynamic / live-synced GitHub repository not present in static REPOS: build strictly from passed metadata!
+    const parsedCats = (category || '')
+      .split(',')
+      .map((c) => c.trim().toLowerCase())
+      .filter(Boolean) as Repository['cat'];
+
+    return {
+      name: trimmedName,
+      desc: repoDesc || '',
+      descPl: repoDesc || '',
+      lang: repoLang || 'Code',
+      cat: parsedCats.length > 0 ? parsedCats : ['other'],
+      url: `https://github.com/tomekdot/${trimmedName}`,
+      stars: 0,
+      forks: 0,
+    };
+  }
+
+  // Only when NO repo context was passed (global CLI prompt): check if query explicitly mentions a known repo name
+  const qNorm = normalizeSearchText(query);
+  const sortedByLen = [...repos].sort((a, b) => b.name.length - a.name.length);
+  const explicitMention = sortedByLen.find((r) => {
+    const rLow = r.name.toLowerCase();
+    if (rLow.length < 4) return false;
+    const escaped = rLow.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    return new RegExp(`(^|[^a-z0-9_-])${escaped}([^a-z0-9_-]|$)`, 'i').test(qNorm);
+  });
+
+  return explicitMention || null;
+}
+
 /**
  * Intelligent offline repository knowledge assistant.
- * Analyzes the user's query intent (greeting, what does it do, installation, commands, architecture, AI setup)
- * and synthesizes structured, repository-specific answers without needing an external API key.
+ * Strictly grounded in the active repository's verified metadata and README.md.
+ * Zero cross-repo hijacking and zero invented boilerplate features.
  */
 export function generateIntelligentOfflineReply(params: {
   query: string;
+  repo?: Repository;
   repoName: string;
   repoDesc?: string;
   repoLang?: string;
@@ -324,99 +751,261 @@ export function generateIntelligentOfflineReply(params: {
   repos?: Repository[];
   lang?: 'en' | 'pl';
 }): ClientAiResponse {
-  const { 
-    query, 
-    repoName = '', 
-    repoDesc = '', 
-    repoLang = '', 
-    readme = '', 
-    category = '', 
-    repos = REPOS, 
-    lang = 'en' 
+  const {
+    query,
+    repo: explicitRepo,
+    repoName = '',
+    repoDesc = '',
+    repoLang = '',
+    readme = '',
+    category = '',
+    repos = REPOS,
+    lang = 'en',
   } = params;
 
-  const qLower = (query || '').trim().toLowerCase();
-  const hasExplicitPolishCharsOrWords = /[ąćęłńóśźż]|\b(czesc|cześć|zesc|hej|witaj|siema|siemanko|dzien dobry|co robi|jak|gdzie|dlaczego|kiedy|komendy|instalac|opis|funkcj|wtyczk|kod|architektur)\b/i.test(query || '');
+  // Strip accidentally pasted terminal system banners if the user copied them into input
+  const cleanedRawQuery = (query || '')
+    .replace(/⚡\s*(TOMEKDOT REPO TERMINAL AI|TERMINAL ASYSTENTA AI TOMEKDOT)[^\n]*/gi, '')
+    .replace(/^(YOU|SYSTEM|AI ASSISTANT)[^\n]*\n?/gim, '')
+    .trim();
+  const effectiveQuery = cleanedRawQuery || (query || '').trim();
+  const qLower = effectiveQuery.toLowerCase();
+  const qNorm = normalizeSearchText(effectiveQuery);
+
+  const hasExplicitPolishCharsOrWords =
+    /[ąćęłńóśźż]/i.test(effectiveQuery) ||
+    /\b(czesc|hej|witaj|siema|siemanko|dzien dobry|co robi|jak|gdzie|dlaczego|kiedy|komend|instal|insal|opis|funkcj|wtyczk|projekt|porejkt|proejkt|kod|architektur|inny|nie ten|skad|czego|uzyw|skille|umiejetn)\b/i.test(
+      qNorm
+    );
   const isPolish = lang === 'pl' || hasExplicitPolishCharsOrWords;
 
-  // Find targeted repository in indexed database
-  const targetRepo = repos.find(r => r.name.toLowerCase() === repoName.toLowerCase())
-    || repos.find(r => r.name.toLowerCase().includes(qLower) || qLower.includes(r.name.toLowerCase()))
-    || (repos.length > 0 ? repos[0] : null);
+  const targetRepo = resolveTargetRepository({
+    explicitRepo,
+    repoName,
+    repoDesc,
+    repoLang,
+    category,
+    query: effectiveQuery,
+    repos,
+  });
 
-  const activeName = targetRepo ? targetRepo.name : (repoName || 'tomekdot repository');
-  const activeLang = targetRepo?.lang || repoLang || 'TypeScript/Python';
-  const activeCat = targetRepo?.cat?.join(', ') || category || 'Software';
-  const activeDesc = targetRepo ? (isPolish ? (targetRepo.descPl || targetRepo.desc) : targetRepo.desc) : repoDesc;
-  const activeLongDesc = targetRepo ? (isPolish ? (targetRepo.longDescPl || targetRepo.descPl || targetRepo.desc) : (targetRepo.longDescEn || targetRepo.desc)) : repoDesc;
-  const activeFeatures = targetRepo ? ((isPolish ? targetRepo.featuresPl : targetRepo.featuresEn) || targetRepo.featuresEn || targetRepo.featuresPl || []) : [];
-  const activeCapabilities = targetRepo?.capabilities || [];
-  const starsLabel = targetRepo?.isPrivate ? (isPolish ? 'Projekt prywatny' : 'Private repository') : `${targetRepo?.stars ?? 0} ★`;
+  // Global portfolio query (no repo selected and none named in prompt)
+  if (!targetRepo) {
+    const reply = isPolish
+      ? `### 📂 **Asystent Portfolio @tomekdot (Tryb Offline)**\n\nNie wybrano konkretnego repozytorium. Otwórz wybrany projekt z listy lub podaj jego dokładną nazwę w pytaniu, aby przeanalizować jego opis, funkcje i dokumentację \`README.md\`.`
+      : `### 📂 **@tomekdot Portfolio Assistant (Offline Mode)**\n\nNo active repository is selected. Open any project card or mention a repository name in your query to inspect its verified metadata and \`README.md\`.`;
+    return {
+      reply,
+      provider: 'AUTONOMOUS KNOWLEDGE (OFFLINE)',
+      sourcesUsed: ['@tomekdot Portfolio Index'],
+    };
+  }
 
+  const effectiveReadme = (readme && readme.trim().length > 0 ? readme : targetRepo.readme) || '';
+  const readmeKnowledge = parseReadmeKnowledge(effectiveReadme);
+
+  const activeName = targetRepo.name;
+  const activeLang = targetRepo.lang || repoLang || (readmeKnowledge.detectedStack[0] || 'Code');
+  const rawCats = targetRepo.cat?.filter((c) => c && c !== 'other') || [];
+  const activeCat =
+    rawCats.length > 0
+      ? rawCats.join(', ')
+      : category && category.toLowerCase() !== 'other'
+        ? category
+        : activeLang;
+
+  const activeDesc = isPolish
+    ? targetRepo.descPl || targetRepo.desc || repoDesc
+    : targetRepo.desc || repoDesc;
+  const activeLongDesc = isPolish
+    ? targetRepo.longDescPl || targetRepo.descPl || targetRepo.desc || repoDesc
+    : targetRepo.longDescEn || targetRepo.desc || repoDesc;
+
+  const curatedFeatures =
+    (isPolish ? targetRepo.featuresPl : targetRepo.featuresEn) ||
+    targetRepo.featuresEn ||
+    targetRepo.featuresPl ||
+    [];
+  const groundedFeatures =
+    curatedFeatures.length > 0 ? curatedFeatures : readmeKnowledge.extractedFeatures;
+
+  const activeCapabilities =
+    targetRepo.capabilities && targetRepo.capabilities.length > 0
+      ? targetRepo.capabilities
+      : readmeKnowledge.detectedStack;
+
+  const isPyPlanet =
+    targetRepo.cat?.includes('pyplanet') || activeName.toLowerCase().startsWith('pyplanet-');
+  const isOpenplanet =
+    targetRepo.cat?.includes('openplanet') ||
+    activeName.toLowerCase().includes('openplanet') ||
+    activeLang.toLowerCase() === 'angelscript';
+  const isNodeWeb =
+    ['typescript', 'javascript', 'html', 'css'].includes(activeLang.toLowerCase()) ||
+    readmeKnowledge.detectedStack.some((s) => /node\.js|react|express/i.test(s));
+  const isPython = activeLang.toLowerCase() === 'python';
+
+  const starsLabel = targetRepo.isPrivate
+    ? isPolish
+      ? 'Projekt prywatny'
+      : 'Private repository'
+    : `${targetRepo.stars ?? 0} ★`;
+
+  const hasSyncedReadme = readmeKnowledge.hasSubstantialContent;
   const sourcesUsed: string[] = [
     activeName,
-    isPolish ? `⚙️ Metadane repozytorium (${activeLang}, ${activeCat})` : `⚙️ Repository metadata (${activeLang}, ${activeCat})`,
+    isPolish
+      ? `⚙️ Metadane projektu (${activeLang} • ${activeCat})`
+      : `⚙️ Repository metadata (${activeLang} • ${activeCat})`,
   ];
-  if (readme && readme.trim().length > 30) {
-    sourcesUsed.push(isPolish ? '📄 Plik README.md (Zsynchronizowany)' : '📄 Synced README.md');
+  if (hasSyncedReadme) {
+    sourcesUsed.push(isPolish ? '📄 Plik README.md (Zsynchronizowany)' : '📄 README.md (Synced)');
+  } else {
+    sourcesUsed.push(isPolish ? 'ℹ️ Tylko metadane (brak README.md)' : 'ℹ️ Metadata only (no README.md)');
   }
-  sourcesUsed.push(isPolish ? '📚 Autonomiczny Silnik Bazy Wiedzy' : '📚 Autonomous Knowledge Engine');
+  sourcesUsed.push(isPolish ? '📚 Silnik Bazy Wiedzy (Offline)' : '📚 Offline Knowledge Engine');
 
-  // 1. INTENT: Greetings & Introduction ("czesc", "hej", "witaj", "hello", "hi")
-  const isGreeting = /^(cze[sś][cć]?|ze[sś][cć]?|czesc|zesc|czes|zes|hej|witaj|siema|siemanko|elo|dzie[nń]\s*dobry|dobry\s*wiecz[oó]r|yo|hello|hi|hey|greetings|howdy)\b/i.test(qLower) 
-    || /^(czym\s*jeste[sś]|kim\s*jeste[sś]|who\s*are\s*you|co\s*potrafisz|what\s*can\s*you\s*do)\b/i.test(qLower);
+  const bestOverview =
+    activeLongDesc && activeLongDesc.length >= (readmeKnowledge.leadSummary?.length || 0)
+      ? activeLongDesc
+      : readmeKnowledge.leadSummary || activeLongDesc || activeDesc;
 
-  if (isGreeting) {
-    const greetingText = isPolish
-      ? `Cześć! 👋 Jestem asystentem AI dla repozytorium **\`${activeName}\`** (${activeLang} • ${activeCat}).\n\nW czym mogę Ci dzisiaj pomóc? Możesz zapytać o przeznaczenie projektu, funkcje, instalację, komendy czy architekturę kodu.`
-      : `Hello! 👋 I am the AI companion for repository **\`${activeName}\`** (${activeLang} • ${activeCat}).\n\nHow can I help you today? Feel free to ask about project features, installation, commands, or code architecture.`;
+  // Build domain-accurate suggested questions for this exact repository
+  const suggestedQuestionsPl = isPyPlanet || isOpenplanet
+    ? [
+        `• *"Co dokładnie robi ten projekt?"*`,
+        `• *"Jak zainstalować i skonfigurować go w ${isPyPlanet ? 'PyPlanet' : 'Openplanet'}?"*`,
+        `• *"Jakie komendy lub widżety udostępnia?"*`,
+        `• *"Jaka jest architektura kodu?"*`,
+      ]
+    : [
+        `• *"Co dokładnie robi \`${activeName}\`?"*`,
+        `• *"Jak zainstalować i używać tego projektu?"*`,
+        `• *"Jakie funkcje, komendy lub moduły zawiera?"*`,
+        `• *"Jaka jest struktura i architektura repozytorium?"*`,
+      ];
+
+  const suggestedQuestionsEn = isPyPlanet || isOpenplanet
+    ? [
+        `• *"What exactly does \`${activeName}\` do?"*`,
+        `• *"How do I install and configure it for ${isPyPlanet ? 'PyPlanet' : 'Openplanet'}?"*`,
+        `• *"What commands or UI controls does it provide?"*`,
+        `• *"How is the code architecture structured?"*`,
+      ]
+    : [
+        `• *"What exactly does \`${activeName}\` do?"*`,
+        `• *"How do I install and run it?"*`,
+        `• *"What features, scripts, or CLI commands are included?"*`,
+        `• *"What is the repository structure and architecture?"*`,
+      ];
+
+  // 1. INTENT: Context mismatch / correction ("ale nie ten", "to inny projekt", "wrong repo")
+  const isWrongRepoComplaint =
+    /\b(nie ten|to inny|inny projekt|zle repo|złe repo|wrong repo|not this|different repo)\b/i.test(qNorm);
+
+  if (isWrongRepoComplaint) {
+    const sectionsHint =
+      readmeKnowledge.sections.length > 0
+        ? `\n\n**${isPolish ? 'Sekcje w README.md:' : 'Documented README sections:'}** ${readmeKnowledge.sections
+            .slice(0, 6)
+            .map((s) => `\`${s.heading}\``)
+            .join(' • ')}`
+        : '';
+
+    const reply = isPolish
+      ? `### 🎯 **Kontekst zablokowany na: \`${activeName}\`**\n\n` +
+        `Przepraszam za wcześniejsze pomieszanie kontekstu — odpowiadam teraz **wyłącznie** dla repozytorium **\`${activeName}\`** (${activeLang} • ${starsLabel}).\n\n` +
+        (bestOverview
+          ? `**Opis z projektu:**\n${bestOverview}\n`
+          : `*Brak rozszerzonego opisu w metadanych.*`) +
+        sectionsHint +
+        `\n\nZadaj proszę pytanie dotyczące **\`${activeName}\`**, np. o jego funkcje, instalację lub konkretny fragment z README.`
+      : `### 🎯 **Context Locked to: \`${activeName}\`**\n\n` +
+        `Responding strictly for repository **\`${activeName}\`** (${activeLang} • ${starsLabel}).\n\n` +
+        (bestOverview
+          ? `**Verified Project Description:**\n${bestOverview}\n`
+          : `*No extended description in repository metadata.*`) +
+        sectionsHint +
+        `\n\nAsk anything about **\`${activeName}\`**, such as its features, installation, usage, or structure.`;
 
     return {
-      reply: greetingText,
+      reply,
       provider: 'AUTONOMOUS KNOWLEDGE (OFFLINE)',
       sourcesUsed,
     };
   }
 
-  // 2. INTENT: Purpose, Features & What does it do ("co robi", "what does this do", "opis", "funkcje", "features")
-  const isPurposeOrFeatures = qLower.includes('co robi') 
-    || qLower.includes('what does this do') 
-    || qLower.includes('what does it do')
-    || qLower.includes('what is this')
-    || qLower.includes('czym jest') 
-    || qLower.includes('do czego') 
-    || qLower.includes('zastosowani') 
-    || qLower.includes('funkcj') 
-    || qLower.includes('features') 
-    || qLower.includes('opis') 
-    || qLower.includes('describe') 
-    || qLower.includes('cel') 
-    || qLower.includes('purpose')
-    || qLower.includes('summary') 
-    || qLower.includes('podsumuj');
+  // 2. INTENT: Greetings & Introduction
+  const isGreeting =
+    /^(cze[sś][cć]?|ze[sś][cć]?|czesc|zesc|czes|zes|hej|witaj|siema|siemanko|elo|dzie[nń]\s*dobry|dobry\s*wiecz[oó]r|yo|hello|hi|hey|greetings|howdy)\b/i.test(
+      qLower
+    ) ||
+    /^(czym\s*jeste[sś]|kim\s*jeste[sś]|who\s*are\s*you|co\s*potrafisz|what\s*can\s*you\s*do)\b/i.test(
+      qNorm
+    );
+
+  if (isGreeting) {
+    const shortLead = bestOverview ? `\n\n> ${bestOverview.split('\n')[0].slice(0, 260)}` : '';
+    const reply = isPolish
+      ? `Cześć! 👋 Jestem asystentem offline dla repozytorium **\`${activeName}\`** (${activeLang} • ${activeCat}).${shortLead}\n\nW czym mogę pomóc? Możesz zapytać:\n${suggestedQuestionsPl.join('\n')}`
+      : `Hello! 👋 I am the offline assistant for **\`${activeName}\`** (${activeLang} • ${activeCat}).${shortLead}\n\nHow can I help? Try asking:\n${suggestedQuestionsEn.join('\n')}`;
+
+    return {
+      reply,
+      provider: 'AUTONOMOUS KNOWLEDGE (OFFLINE)',
+      sourcesUsed,
+    };
+  }
+
+  // 3. INTENT: Purpose, Features & What does it do (supports typos like "porejkt", "proejkt", "co robi")
+  const isPurposeOrFeatures =
+    /\b(co\s+to\s+robi|co\s+robi|do\s+czego|czym\s+jest|czego\s+dotycz|what\s+does|what\s+is\s+this|purpose|summary|overview|podsumuj)\b/i.test(
+      qNorm
+    ) ||
+    /(funkcj|featur|mozliw|opis|describe|zastosowan|skill|umiejetn)/i.test(qNorm) &&
+      !/(instal|insal|setup|konfigur|komend|command|architekt|struktur)/i.test(qNorm);
 
   if (isPurposeOrFeatures) {
-    const featuresList = activeFeatures.length > 0 
-      ? activeFeatures.map(f => `• ${f}`).join('\n')
-      : (isPolish 
-          ? `• Modułowa architektura zoptymalizowana pod kątem wydajności\n• Pełna integracja ze środowiskiem uruchomieniowym (${activeCat})\n• Asynchroniczna obsługa zdarzeń i telemetrycznych wywołań zwrotnych`
-          : `• Modular architecture optimized for runtime efficiency\n• Deep integration with ${activeCat} ecosystem\n• Asynchronous event handling and telemetry callbacks`);
+    const overviewBlock = bestOverview
+      ? bestOverview
+      : isPolish
+        ? `Repozytorium \`${activeName}\` napisane w języku \`${activeLang}\` (brak szczegółowego opisu tekstowego w metadanych oraz pliku README.md).`
+        : `Repository \`${activeName}\` built with \`${activeLang}\` (no detailed text description present in metadata or README.md).`;
 
-    const capabilitiesList = activeCapabilities.length > 0
-      ? `\n\n**${isPolish ? 'Kluczowe możliwości & technologie:' : 'Core Capabilities & Stack:'}**\n` + activeCapabilities.map(c => `\`${c}\``).join(' • ')
-      : '';
+    const featuresBlock =
+      groundedFeatures.length > 0
+        ? `#### **${isPolish ? 'Udokumentowane funkcje & elementy:' : 'Documented Features & Components:'}**\n` +
+          groundedFeatures.map((f) => `• ${f}`).join('\n')
+        : readmeKnowledge.sections.length > 1
+          ? `#### **${isPolish ? 'Główne sekcje w dokumentacji README.md:' : 'Documented Sections in README.md:'}**\n` +
+            readmeKnowledge.sections
+              .slice(0, 6)
+              .map((s) => `• **${s.heading}**${s.paragraphs[0] ? ` — ${s.paragraphs[0].slice(0, 140)}` : ''}`)
+              .join('\n')
+          : isPolish
+            ? `*Brak zsynchronizowanej listy funkcji w README.md — powyżej znajduje się jedyny zweryfikowany opis z metadanych repozytorium.*`
+            : `*No synced feature list found in README.md — showing verified repository metadata only.*`;
+
+    const capabilitiesBlock =
+      activeCapabilities.length > 0
+        ? `\n\n**${isPolish ? 'Wykryte technologie i kontekst:' : 'Detected Stack & Context:'}**\n` +
+          activeCapabilities.map((c) => `\`${c}\``).join(' • ')
+        : '';
+
+    const repoUrlLine =
+      !targetRepo.isPrivate && targetRepo.url
+        ? `\n\n🔗 **${isPolish ? 'Repozytorium GitHub:' : 'GitHub Repository:'}** [${targetRepo.url}](${targetRepo.url})`
+        : '';
 
     const reply = isPolish
       ? `### 📦 **Przegląd Techniczny: \`${activeName}\`**\n\n` +
         `**Status:** ${starsLabel} • **Język:** \`${activeLang}\` • **Kategoria:** \`${activeCat}\`\n\n` +
-        `#### **Opis funkcjonalny:**\n${activeLongDesc || activeDesc}\n\n` +
-        `#### **Kluczowe funkcje & możliwości:**\n${featuresList}${capabilitiesList}\n\n` +
-        (targetRepo?.url ? `🔗 **Kod źródłowy na GitHubie:** [${targetRepo.url}](${targetRepo.url})` : '')
+        `#### **Opis projektu:**\n${overviewBlock}\n\n` +
+        `${featuresBlock}${capabilitiesBlock}${repoUrlLine}`
       : `### 📦 **Technical Overview: \`${activeName}\`**\n\n` +
         `**Status:** ${starsLabel} • **Language:** \`${activeLang}\` • **Category:** \`${activeCat}\`\n\n` +
-        `#### **Functional Description:**\n${activeLongDesc || activeDesc}\n\n` +
-        `#### **Key Features & Highlights:**\n${featuresList}${capabilitiesList}\n\n` +
-        (targetRepo?.url ? `🔗 **Source Code on GitHub:** [${targetRepo.url}](${targetRepo.url})` : '');
+        `#### **Project Overview:**\n${overviewBlock}\n\n` +
+        `${featuresBlock}${capabilitiesBlock}${repoUrlLine}`;
 
     return {
       reply,
@@ -425,61 +1014,54 @@ export function generateIntelligentOfflineReply(params: {
     };
   }
 
-  // 3. INTENT: Installation & Setup Guide ("jak zainstalować", "how to install", "setup", "uruchom", "wymagania")
-  const isInstall = qLower.includes('install') 
-    || qLower.includes('instal') 
-    || qLower.includes('setup') 
-    || qLower.includes('konfigur') 
-    || qLower.includes('uruchom') 
-    || qLower.includes('odpal') 
-    || qLower.includes('require') 
-    || qLower.includes('wymagan') 
-    || qLower.includes('jak uzywac')
-    || qLower.includes('jak używać');
+  // 4. INTENT: Installation & Setup Guide
+  const isInstall =
+    /(instal|insal|setup|konfigur|uruchom|odpal|require|wymagan|jak\s+uzyw|how\s+to\s+(use|run|install)|getting\s+started)/i.test(
+      qNorm
+    );
 
   if (isInstall) {
-    const isPyPlanet = activeCat.toLowerCase().includes('pyplanet') || activeName.toLowerCase().includes('pyplanet');
-    const isOpenplanet = activeCat.toLowerCase().includes('openplanet') || activeName.toLowerCase().includes('openplanet') || activeLang.toLowerCase().includes('angelscript');
-    const isNodeOrWeb = activeLang.toLowerCase().includes('typescript') || activeLang.toLowerCase().includes('javascript') || activeCat.toLowerCase().includes('utilities');
+    let installBody = '';
 
-    let installInstructions = '';
-    if (isPyPlanet) {
-      installInstructions = isPolish
-        ? `#### **Krok 1: Klonowanie wtyczki**\nPrzejdź do katalogu aplikacji PyPlanet i sklonuj repozytorium:\n\`\`\`bash\ncd /path/to/pyplanet/apps/\ngit clone https://github.com/tomekdot/${activeName}.git ${activeName}\n\`\`\`\n\n` +
-          `#### **Krok 2: Rejestracja w konfiguracji**\nW pliku \`settings/apps.py\` dodaj wpis do listy \`APPS\`:\n\`\`\`python\nAPPS = [\n    # ...\n    'apps.${activeName}',\n]\n\`\`\`\n\n` +
-          `#### **Krok 3: Restart serwera**\n\`\`\`bash\n./manage.py restart\n\`\`\`\nSprawdź plik \`logs/pyplanet.log\`, aby upewnić się, że sygnały i komendy zostały zarejestrowane pomyślnie.`
-        : `#### **Step 1: Clone plugin directory**\nNavigate to your PyPlanet \`apps/\` directory and clone:\n\`\`\`bash\ncd /path/to/pyplanet/apps/\ngit clone https://github.com/tomekdot/${activeName}.git ${activeName}\n\`\`\`\n\n` +
-          `#### **Step 2: Register in apps.py**\nAppend the module to \`APPS\` inside \`settings/apps.py\`:\n\`\`\`python\nAPPS = [\n    # ...\n    'apps.${activeName}',\n]\n\`\`\`\n\n` +
-          `#### **Step 3: Restart controller**\n\`\`\`bash\n./manage.py restart\n\`\`\`\nVerify registration in \`logs/pyplanet.log\`.`;
+    if (readmeKnowledge.installSection) {
+      const secText = formatReadmeSectionSnippet(readmeKnowledge.installSection, 8, 2);
+      installBody =
+        `#### **${readmeKnowledge.installSection.heading} (z README.md)**\n\n` +
+        (secText || (isPolish ? 'Brak dodatkowych kroków w tej sekcji.' : 'No further details in section.'));
+    } else if (readmeKnowledge.sections.some((s) => s.codeBlocks.length > 0)) {
+      const firstCodeSec = readmeKnowledge.sections.find((s) => s.codeBlocks.length > 0)!;
+      installBody =
+        `#### **${isPolish ? 'Wykryte polecenia w dokumentacji' : 'Commands extracted from README.md'} (${firstCodeSec.heading})**\n\n` +
+        formatReadmeSectionSnippet(firstCodeSec, 5, 2);
+    } else if (isPyPlanet) {
+      installBody = isPolish
+        ? `#### **Standardowa instalacja wtyczki PyPlanet**\n1. Sklonuj do katalogu \`apps/\` serwera PyPlanet:\n\`\`\`bash\ngit clone https://github.com/tomekdot/${activeName}.git\n\`\`\`\n2. Dodaj \`'apps.${activeName}'\` do listy \`APPS\` w \`settings/apps.py\` i zrestartuj kontroler (\`./manage.py restart\`).`
+        : `#### **Standard PyPlanet Plugin Setup**\n1. Clone into your PyPlanet \`apps/\` folder:\n\`\`\`bash\ngit clone https://github.com/tomekdot/${activeName}.git\n\`\`\`\n2. Register \`'apps.${activeName}'\` inside \`settings/apps.py\` and run \`./manage.py restart\`.`;
     } else if (isOpenplanet) {
-      installInstructions = isPolish
-        ? `#### **Krok 1: Kopiowanie do katalogu Plugins**\nSkopiuj skompilowany plik \`.op\` lub folder ze skryptem do katalogu wtyczek Openplanet:\n\`\`\`text\nC:\\Users\\<TwojaNazwaUzytkownika>\\OpenplanetNext\\Plugins\\\n\`\`\`\n\n` +
-          `#### **Krok 2: Aktywacja w grze**\n1. Włącz Trackmania (TM2020).\n2. Naciśnij klawisz \`F3\`, aby otworzyć nakładkę Openplanet.\n3. Przejdź do menu *Developer -> Reload Plugins*.\n4. Nowe widżety HUD i menu pojawią się na ekranie.`
-        : `#### **Step 1: Copy to Plugins Directory**\nCopy the plugin folder or \`.op\` package to:\n\`\`\`text\nC:\\Users\\<YourUsername>\\OpenplanetNext\\Plugins\\\n\`\`\`\n\n` +
-          `#### **Step 2: Enable in Trackmania**\n1. Launch Trackmania (TM2020).\n2. Press \`F3\` to toggle the Openplanet overlay.\n3. Click *Developer -> Reload Plugins* to initialize widgets.`;
-    } else if (isNodeOrWeb) {
-      installInstructions = isPolish
-        ? `#### **Krok 1: Klonowanie i instalacja zależności**\n\`\`\`bash\ngit clone https://github.com/tomekdot/${activeName}.git\ncd ${activeName}\nnpm install\n\`\`\`\n\n` +
-          `#### **Krok 2: Uruchomienie lokalnego serwera deweloperskiego**\n\`\`\`bash\nnpm run dev\n\`\`\`\nAplikacja wystartuje pod adresem \`http://localhost:3000\`.\n\n` +
-          `#### **Krok 3: Budowanie wersji produkcyjnej**\n\`\`\`bash\nnpm run build\n\`\`\``
-        : `#### **Step 1: Clone and install packages**\n\`\`\`bash\ngit clone https://github.com/tomekdot/${activeName}.git\ncd ${activeName}\nnpm install\n\`\`\`\n\n` +
-          `#### **Step 2: Start local development server**\n\`\`\`bash\nnpm run dev\n\`\`\`\nThe dev server runs on \`http://localhost:3000\`.\n\n` +
-          `#### **Step 3: Production bundle build**\n\`\`\`bash\nnpm run build\n\`\`\``;
+      installBody = isPolish
+        ? `#### **Standardowa instalacja wtyczki Openplanet**\nSkopiuj folder wtyczki lub paczkę \`.op\` do katalogu:\n\`\`\`text\n%USERPROFILE%\\OpenplanetNext\\Plugins\\\n\`\`\`\nNastępnie uruchom grę Trackmania, otwórz nakładkę klawiszem \`F3\` i wybierz *Developer -> Reload Plugins*.`
+        : `#### **Standard Openplanet Plugin Setup**\nCopy the plugin folder or \`.op\` bundle into:\n\`\`\`text\n%USERPROFILE%\\OpenplanetNext\\Plugins\\\n\`\`\`\nThen press \`F3\` inside Trackmania and select *Developer -> Reload Plugins*.`;
+    } else if (isNodeWeb) {
+      installBody = isPolish
+        ? `#### **Konfiguracja środowiska (${activeLang})**\n\`\`\`bash\ngit clone https://github.com/tomekdot/${activeName}.git\ncd ${activeName}\nnpm install\n\`\`\`\n*(Uwaga: brak szczegółowej sekcji instalacyjnej w README.md — zweryfikuj dostępne skrypty w \`package.json\`.)*`
+        : `#### **Environment Setup (${activeLang})**\n\`\`\`bash\ngit clone https://github.com/tomekdot/${activeName}.git\ncd ${activeName}\nnpm install\n\`\`\`\n*(Note: no dedicated install section found in README.md — check \`package.json\` scripts after cloning.)*`;
+    } else if (isPython) {
+      installBody = isPolish
+        ? `#### **Pobranie i konfiguracja Python (${activeName})**\n\`\`\`bash\ngit clone https://github.com/tomekdot/${activeName}.git\ncd ${activeName}\n\`\`\`\n*(Brak wyodrębnionej sekcji instalacyjnej w README.md — sprawdź pliki konfiguracyjne w repozytorium, takie jak \`requirements.txt\`, \`pyproject.toml\` lub główny skrypt \`.py\`.)*`
+        : `#### **Clone & Python Setup (${activeName})**\n\`\`\`bash\ngit clone https://github.com/tomekdot/${activeName}.git\ncd ${activeName}\n\`\`\`\n*(No dedicated install section found in README.md — check \`requirements.txt\`, \`pyproject.toml\`, or entrypoint scripts inside the repository.)*`;
     } else {
-      installInstructions = isPolish
-        ? `#### **Krok 1: Klonowanie repozytorium**\n\`\`\`bash\ngit clone https://github.com/tomekdot/${activeName}.git\ncd ${activeName}\n\`\`\`\n\n` +
-          `#### **Krok 2: Konfiguracja środowiska (${activeLang})**\nUpewnij się, że masz zainstalowany interpreter/kompilator dla \`${activeLang}\` i uruchom główny punkt wejściowy projektu.`
-        : `#### **Step 1: Clone repository**\n\`\`\`bash\ngit clone https://github.com/tomekdot/${activeName}.git\ncd ${activeName}\n\`\`\`\n\n` +
-          `#### **Step 2: Environment setup (${activeLang})**\nEnsure your runtime environment supports \`${activeLang}\` and execute the application entry point.`;
+      installBody = isPolish
+        ? `\`\`\`bash\ngit clone https://github.com/tomekdot/${activeName}.git\ncd ${activeName}\n\`\`\`\n*Brak dedykowanej sekcji instalacyjnej w README.md — otwórz repozytorium w GitHubie, aby sprawdzić pliki startowe dla \`${activeLang}\`.*`
+        : `\`\`\`bash\ngit clone https://github.com/tomekdot/${activeName}.git\ncd ${activeName}\n\`\`\`\n*No dedicated install section found in README.md — check repository root files for \`${activeLang}\`.*`;
     }
 
     const reply = isPolish
-      ? `### 🛠️ **Instrukcja Instalacji & Konfiguracji: \`${activeName}\`**\n\n` +
-        `Środowisko docelowe: **\`${activeCat}\`** (Język: **\`${activeLang}\`**)\n\n` +
-        installInstructions
-      : `### 🛠️ **Installation & Configuration Guide: \`${activeName}\`**\n\n` +
-        `Target Environment: **\`${activeCat}\`** (Language: **\`${activeLang}\`**)\n\n` +
-        installInstructions;
+      ? `### 🛠️ **Instalacja & Konfiguracja: \`${activeName}\`**\n\n` +
+        `**Język:** \`${activeLang}\` • **Kategoria:** \`${activeCat}\`\n\n` +
+        installBody
+      : `### 🛠️ **Installation & Configuration: \`${activeName}\`**\n\n` +
+        `**Language:** \`${activeLang}\` • **Category:** \`${activeCat}\`\n\n` +
+        installBody;
 
     return {
       reply,
@@ -488,57 +1070,42 @@ export function generateIntelligentOfflineReply(params: {
     };
   }
 
-  // 4. INTENT: Commands, HUD & In-Game Controls ("komendy", "commands", "gra", "trackmania", "czat")
-  const isCommands = qLower.includes('komend') 
-    || qLower.includes('command') 
-    || qLower.includes('hud') 
-    || qLower.includes('nakładk') 
-    || qLower.includes('nakladk') 
-    || qLower.includes('overlay') 
-    || qLower.includes('czat') 
-    || qLower.includes('chat') 
-    || qLower.includes('klawisz') 
-    || qLower.includes('skrót') 
-    || qLower.includes('skrot');
+  // 5. INTENT: Commands, CLI, Usage & Controls
+  const isCommands =
+    /(komend|command|cli|hud|nakladk|overlay|klawisz|skrot|wywol|trigger|shortcut|flag|parametr|endpoint|usage)/i.test(
+      qNorm
+    );
 
   if (isCommands) {
-    const isPyPlanet = activeCat.toLowerCase().includes('pyplanet') || activeName.toLowerCase().includes('pyplanet');
-    const isOpenplanet = activeCat.toLowerCase().includes('openplanet') || activeName.toLowerCase().includes('openplanet');
-
-    let cmdSection = '';
-    if (isPyPlanet) {
-      cmdSection = isPolish
-        ? `• **Komendy w czacie gry:** Wpisz \`//help\` lub \`//${activeName.replace(/^pyplanet-/, '')}\` w oknie czatu gry Trackmania, aby wyświetlić listę dostępnych podkomend.\n` +
-          `• **Poziomy uprawnień:** Standardowi gracze mają dostęp do statystyk i widoków informacyjnych; komendy konfiguracyjne wymagają uprawnień \`admin\` lub \`operator\` w PyPlanet.\n` +
-          `• **Zdarzenia serwera:** Plugin automatycznie reaguje na sygnały rozpoczęcia mapy, zakończenia rundy i czasów przejazdu graczy.`
-        : `• **In-Game Chat Commands:** Type \`//help\` or \`//${activeName.replace(/^pyplanet-/, '')}\` in the Trackmania chat to list registered commands.\n` +
-          `• **Permissions:** Standard players can query stats/info; administrative commands require \`admin\` or \`operator\` roles in PyPlanet.\n` +
-          `• **Server Events:** Signals fire synchronously with map changes, player checkpoints, and finish times.`;
+    let cmdBody = '';
+    if (readmeKnowledge.commandsSection) {
+      cmdBody =
+        `#### **${readmeKnowledge.commandsSection.heading} (z README.md)**\n\n` +
+        formatReadmeSectionSnippet(readmeKnowledge.commandsSection, 8, 2);
+    } else if (isPyPlanet) {
+      const cmdGuess = activeName.replace(/^pyplanet-/, '');
+      cmdBody = isPolish
+        ? `• **Komendy PyPlanet:** Zarejestrowane komendy pluginu sprawdzisz na czacie gry przez \`//help\` (zwykle w przestrzeni \`//${cmdGuess}\`).\n• *Szczegółowa tabela komend nie została wyodrębniona z README.md.*`
+        : `• **PyPlanet Commands:** Query \`//help\` inside Trackmania chat to inspect registered \`//${cmdGuess}\` subcommands.\n• *No explicit command table was found in README.md.*`;
     } else if (isOpenplanet) {
-      cmdSection = isPolish
-        ? `• **Klawisz aktywacji (\`F3\`):** Otwiera i zamyka nakładkę interfejsu Openplanet bezpośrednio w oknie gry Trackmania.\n` +
-          `• **Elementy HUD:** Widżet graficzny renderuje się bezpośrednio na warstwie gry przez AngelScript.\n` +
-          `• **Menu konfiguracyjne:** W menu Openplanet przejdź do zakładki *Settings -> ${activeName}*, aby dostosować pozycję, przezroczystość i skróty.`
-        : `• **Toggle Key (\`F3\`):** Toggles the Openplanet overlay UI directly inside Trackmania.\n` +
-          `• **HUD Widgets:** Real-time visual overlay rendered via AngelScript frame hooks.\n` +
-          `• **Configuration Menu:** Open *Settings -> ${activeName}* inside the Openplanet menu to customize HUD position and toggles.`;
+      cmdBody = isPolish
+        ? `• **Nakładka w grze (\`F3\`):** Otwiera menu Openplanet, w którym wtyczka \`${activeName}\` udostępnia własne ustawienia i widżety HUD.\n• *Szczegółowa lista skrótów nie została znaleziona w README.md.*`
+        : `• **In-Game Overlay (\`F3\`):** Open the Openplanet menu to configure \`${activeName}\` widgets and settings.\n• *No explicit shortcut list was found in README.md.*`;
     } else {
-      cmdSection = isPolish
-        ? `• **Interfejs / CLI:** Projekt udostępnia zdefiniowane komendy w pliku konfiguracyjnym lub interfejsie graficznym.\n` +
-          `• **Skrypty npm / CLI:** Sprawdź sekcję \`scripts\` w \`package.json\` (np. \`npm run dev\`, \`npm run build\`).`
-        : `• **Interface / CLI:** Commands and script shortcuts are registered in package/module configuration.\n` +
-          `• **NPM / CLI Scripts:** Available build and execution scripts include \`npm run dev\` and \`npm run build\`.`;
+      cmdBody = isPolish
+        ? `W dokumentacji \`README.md\` dla **\`${activeName}\`** nie znaleziono osobnej sekcji z listą komend CLI / wywołań.` +
+          (groundedFeatures.length > 0
+            ? `\n\n**Dostępne udokumentowane elementy:**\n${groundedFeatures.slice(0, 5).map((f) => `• ${f}`).join('\n')}`
+            : '')
+        : `No dedicated CLI commands or usage table was found in \`README.md\` for **\`${activeName}\`**.` +
+          (groundedFeatures.length > 0
+            ? `\n\n**Documented items:**\n${groundedFeatures.slice(0, 5).map((f) => `• ${f}`).join('\n')}`
+            : '');
     }
 
     const reply = isPolish
-      ? `### 🎮 **Komendy, Sterowanie & Integracja: \`${activeName}\`**\n\n` +
-        `Komponent integruje się z systemem gry i interfejsem użytkownika:\n\n` +
-        cmdSection + `\n\n` +
-        `💡 *Wskazówka: Wszelkie niestandardowe aliasy można zdefiniować w pliku konfiguracyjnym wtyczki.*`
-      : `### 🎮 **Commands, Controls & Integration: \`${activeName}\`**\n\n` +
-        `Integration points with game runtime and user interface:\n\n` +
-        cmdSection + `\n\n` +
-        `💡 *Tip: Custom aliases can be customized directly in the plugin configuration file.*`;
+      ? `### ⌘ **Użycie, Komendy & Integracja: \`${activeName}\`**\n\n${cmdBody}`
+      : `### ⌘ **Commands, Usage & Integration: \`${activeName}\`**\n\n${cmdBody}`;
 
     return {
       reply,
@@ -547,35 +1114,54 @@ export function generateIntelligentOfflineReply(params: {
     };
   }
 
-  // 5. INTENT: Architecture, Concurrency & Code Logic ("architektura", "kod", "logika", "async", "sqlite")
-  const isArchitecture = qLower.includes('architektur') 
-    || qLower.includes('kod') 
-    || qLower.includes('code') 
-    || qLower.includes('logik') 
-    || qLower.includes('async') 
-    || qLower.includes('asynchroniczn') 
-    || qLower.includes('sqlite') 
-    || qLower.includes('baza') 
-    || qLower.includes('database') 
-    || qLower.includes('wielow[aą]tk') 
-    || qLower.includes('struktur');
+  // 6. INTENT: Architecture, Structure & Tech Stack
+  const isArchitecture =
+    /(architektur|architect|struktur|structure|katalog|director|folder|jak\s+dziala|how\s+it\s+works|logik|kod|code|stack|technolog|bibliotek|dependenc|modul|baza|sqlite|database)/i.test(
+      qNorm
+    );
 
   if (isArchitecture) {
+    const archParts: string[] = [];
+    archParts.push(
+      isPolish
+        ? `• **Język główny:** \`${activeLang}\` (${activeCat})`
+        : `• **Primary Language:** \`${activeLang}\` (${activeCat})`
+    );
+    if (activeCapabilities.length > 0) {
+      archParts.push(
+        isPolish
+          ? `• **Zweryfikowany stos / technologie:** ${activeCapabilities.map((c) => `\`${c}\``).join(' • ')}`
+          : `• **Verified Stack & Mentions:** ${activeCapabilities.map((c) => `\`${c}\``).join(' • ')}`
+      );
+    }
+
+    let extraArchBlock = '';
+    if (readmeKnowledge.architectureSection) {
+      extraArchBlock =
+        `\n\n#### **${readmeKnowledge.architectureSection.heading} (z README.md)**\n\n` +
+        formatReadmeSectionSnippet(readmeKnowledge.architectureSection, 8, 1);
+    } else {
+      // Look for directory tree code block anywhere in README
+      const treeSection = readmeKnowledge.sections.find((s) =>
+        s.codeBlocks.some((cb) => /[├└│]──|\/$/.test(cb.code))
+      );
+      if (treeSection) {
+        const treeBlock = treeSection.codeBlocks.find((cb) => /[├└│]──|\/$/.test(cb.code))!;
+        extraArchBlock =
+          `\n\n#### **${isPolish ? 'Struktura plików z README.md:' : 'Repository Structure from README.md:'}**\n` +
+          `\`\`\`text\n${treeBlock.code.split('\n').slice(0, 18).join('\n')}\n\`\`\``;
+      } else if (groundedFeatures.length > 0) {
+        extraArchBlock =
+          `\n\n#### **${isPolish ? 'Kluczowe komponenty projektu:' : 'Key Documented Components:'}**\n` +
+          groundedFeatures.slice(0, 6).map((f) => `• ${f}`).join('\n');
+      } else if (bestOverview) {
+        extraArchBlock = `\n\n${bestOverview}`;
+      }
+    }
+
     const reply = isPolish
-      ? `### ⚙️ **Architektura Kodu & Logika Wykonania: \`${activeName}\`**\n\n` +
-        `• **Język & Środowisko:** \`${activeLang}\` w ekosystemie \`${activeCat}\`.\n` +
-        `• **Model współbieżności:** Asynchroniczna pętla zdarzeń zapobiegająca blokowaniu wątku głównego (np. brak lagów serwera w Trackmanii).\n` +
-        `• **Zarządzanie stanem & Dane:** Bezpieczna komunikacja z magazynem danych (SQLite / cache w pamięci RAM / JSON) z transakcyjnością operacji.\n` +
-        `• **Obsługa błędów:** Izolacja wyjątków na poziomie pojedynczych zdarzeń – ewentualny błąd gracza lub sieci nie powoduje awarii całego serwera ani klienta.\n\n` +
-        `#### **Kluczowe właściwości implementacji:**\n` +
-        (activeCapabilities.length > 0 ? activeCapabilities.map(c => `• **${c}:** Zoptymalizowany moduł wykonawczy\n`).join('') : `• Modułowa separacja logiki biznesowej od warstwy prezentacji HUD/Czat\n`)
-      : `### ⚙️ **Architecture & Concurrency Model: \`${activeName}\`**\n\n` +
-        `• **Language & Ecosystem:** \`${activeLang}\` running in \`${activeCat}\`.\n` +
-        `• **Concurrency Model:** Non-blocking asynchronous event loop designed to eliminate frame drops or server lag spikes.\n` +
-        `• **State & Persistence:** Thread-safe state storage (SQLite / memory caching / JSON) with atomic transaction guarantees.\n` +
-        `• **Fault Tolerance:** Granular exception isolation – isolated errors do not crash the host controller or game instance.\n\n` +
-        `#### **Architectural Capabilities:**\n` +
-        (activeCapabilities.length > 0 ? activeCapabilities.map(c => `• **${c}:** High-throughput specialized module\n`).join('') : `• Decoupled business logic separate from HUD/Chat presentation layers\n`);
+      ? `### ⚙️ **Architektura & Struktura: \`${activeName}\`**\n\n${archParts.join('\n')}${extraArchBlock}`
+      : `### ⚙️ **Architecture & Structure: \`${activeName}\`**\n\n${archParts.join('\n')}${extraArchBlock}`;
 
     return {
       reply,
@@ -584,40 +1170,22 @@ export function generateIntelligentOfflineReply(params: {
     };
   }
 
-  // 6. INTENT: AI Setup, Generative Models, API Keys ("ai", "klucz", "api key", "gemini", "ollama", "lm studio")
-  const isAiQuery = qLower.includes('api key') 
-    || qLower.includes('klucz') 
-    || qLower.includes('gemini') 
-    || qLower.includes('ollama') 
-    || qLower.includes('lm studio') 
-    || qLower.includes('deepseek') 
-    || qLower.includes('llama') 
-    || qLower.includes('qwen') 
-    || qLower.includes('czy to ai') 
-    || qLower.includes('jak dziala ai') 
-    || qLower.includes('jak działa ai')
-    || qLower.includes('generatywn');
+  // 7. INTENT: Portfolio AI Setup / Keys (ONLY when explicitly asking about portfolio AI engine, Gemini keys, Ollama, LM Studio)
+  const isPortfolioAiConfigQuery =
+    /(api\s*key|klucz\s*api|gemini|ollama|lm\s*studio|deepseek|llama|qwen|czy\s+to\s+ai|jak\s+dziala\s+(?:ten\s+)?(?:asystent|czat|ai\s+w\s+portfolio)|tryb\s+offline)/i.test(
+      qNorm
+    );
 
-  if (isAiQuery) {
+  if (isPortfolioAiConfigQuery) {
     const reply = isPolish
-      ? `### 🧠 **Architektura AI w Portfolio tomekdot**\n\n` +
-        `Asystent posiada dwie niezależne warstwy działania:\n\n` +
-        `#### **1. Autonomiczna Baza Wiedzy (Offline - Aktywna teraz):**\n` +
-        `• Działa w 100% lokalnie w Twojej przeglądarce ($0, bez rejestracji, bez limitów zapytań).\n` +
-        `• Przetwarza autentyczną dokumentację 70+ projektów tomekdot (Trackmania, PyPlanet, Openplanet, AI Agents).\n\n` +
-        `#### **2. Generatywne Modele Neuronowe (Google Gemini & Local PC):**\n` +
-        `• **Google Gemini (Chmura):** Domyślnie używa \`gemini-3.1-flash-lite\` (Domyślny), a także \`gemini-3.5-flash-lite\`, \`gemini-3.8-flash\`, \`gemini-4-hydrogen\`, \`gemini-4-argon\` i \`gemini-4-carbon\`. Pobierz darmowy klucz na [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) i wklej w panelu konfiguracji (🔑).\n` +
-        `• **Ollama / LM Studio (Twój Komputer PC):** Uruchom własny model (Llama 3.2, DeepSeek R1, Qwen 2.5 Coder) pod \`http://localhost:11434\` lub \`http://localhost:1234\` bez wychodzenia do chmury.\n\n` +
-        `💡 *Aby przełączyć model lub wpisać klucz, kliknij ikonę klucza (🔑) u góry.*`
-      : `### 🧠 **AI Architecture in tomekdot Portfolio**\n\n` +
-        `The portfolio integrates two complementary intelligence layers:\n\n` +
-        `#### **1. Autonomous Knowledge Engine (Offline - Currently Active):**\n` +
-        `• Runs directly in your browser ($0, zero latency, zero server logging).\n` +
-        `• Pre-indexed over 70+ tomekdot repositories (Trackmania, PyPlanet, Openplanet, AI agents).\n\n` +
-        `#### **2. Generative Neural LLMs (Google Gemini & Local PC):**\n` +
-        `• **Google Gemini (Cloud API):** Uses \`gemini-3.1-flash-lite\` (Default), plus \`gemini-3.5-flash-lite\`, \`gemini-3.8-flash\`, \`gemini-4-hydrogen\`, \`gemini-4-argon\`, and \`gemini-4-carbon\`. Get your free key at [aistudio.google.com/app/apikey](https://aistudio.google.com/app/apikey) and paste it into the setup panel (🔑).\n` +
-        `• **Ollama / LM Studio (Local PC):** Run offline models (Llama 3.2, DeepSeek R1, Qwen 2.5 Coder) on \`http://localhost:11434\` or \`http://localhost:1234\`.\n\n` +
-        `💡 *Click the key icon (🔑) above to switch engine or save an API key.*`;
+      ? `### 🧠 **Silnik AI w Portfolio (Kontekst: \`${activeName}\`)**\n\n` +
+        `Ten terminal może działać w dwóch trybach:\n` +
+        `• **Tryb Offline (aktywny teraz):** Odpowiada deterministycznie na podstawie metadanych repozytorium **\`${activeName}\`** oraz jego zsynchronizowanego pliku \`README.md\` ($0 kosztów).\n` +
+        `• **Tryb Generatywny (Google Gemini / Ollama / LM Studio):** Kliknij ikonę klucza (🔑) u góry, aby podpiąć klucz Google AI Studio (\`gemini-3.1-flash-lite\`) lub lokalny serwer Ollama / LM Studio.`
+      : `### 🧠 **Portfolio AI Engine (Context: \`${activeName}\`)**\n\n` +
+        `This terminal supports two modes:\n` +
+        `• **Offline Knowledge Mode (active now):** Answers deterministically using **\`${activeName}\`** metadata and its synced \`README.md\` ($0 cost).\n` +
+        `• **Generative LLM Mode (Google Gemini / Ollama / LM Studio):** Click the key button (🔑) above to connect Google AI Studio (\`gemini-3.1-flash-lite\`) or a local Ollama / LM Studio instance.`;
 
     return {
       reply,
@@ -626,31 +1194,20 @@ export function generateIntelligentOfflineReply(params: {
     };
   }
 
-  // 7. INTENT: Author, Creator & Background ("autor", "author", "tomekdot", "tomasz kaczak")
-  const isAuthor = qLower.includes('autor') 
-    || qLower.includes('author') 
-    || qLower.includes('twórc') 
-    || qLower.includes('tworc') 
-    || qLower.includes('kto') 
-    || qLower.includes('tomasz kaczak') 
-    || qLower.includes('tomekdot');
+  // 8. INTENT: Explicit Author Inquiry (strictly about Tomasz Kaczak / author, NOT just any mention of "tomekdot")
+  const isExplicitAuthor =
+    /\b(autor|author|tworc|kto\s+(?:to\s+)?(?:napisal|stworzyl|zrobil)|tomasz\s+kaczak|o\s+autorze)\b/i.test(
+      qNorm
+    );
 
-  if (isAuthor) {
+  if (isExplicitAuthor) {
     const reply = isPolish
-      ? `### 👨‍💻 **O Autorze: Tomasz Kaczak (@tomekdot)**\n\n` +
-        `Tomasz Kaczak to inżynier oprogramowania i twórca ponad 70 projektów open-source, specjalizujący się w:\n` +
-        `• **Ekosystemie Trackmania & ManiaPlanet:** Kontrolery serwerów PyPlanet (Python / asyncio), wtyczki Openplanet (AngelScript), telemetria i automatyzacja rankingów.\n` +
-        `• **Autonomicznych agentach AI & DevOps:** Frameworki umiejętności agentowych (Hermes Agent), deterministyczne blueprinty i automatyzacja workflow.\n` +
-        `• **Aplikacjach akademickich & badawczych:** Projekty algorytmiczne i inżynieria systemów na Katolickim Uniwersytecie Lubelskim (KUL).\n\n` +
-        `🔗 Profil GitHub: [https://github.com/tomekdot](https://github.com/tomekdot)\n` +
-        `🌐 Strona główna: [https://tomekdot.github.io](https://tomekdot.github.io)`
-      : `### 👨‍💻 **About the Author: Tomasz Kaczak (@tomekdot)**\n\n` +
-        `Tomasz Kaczak is a software engineer and author of 70+ open-source repositories specializing in:\n` +
-        `• **Trackmania & ManiaPlanet Ecosystem:** PyPlanet server controllers (Python / asyncio), Openplanet plugins (AngelScript), live telemetry, and scoring hooks.\n` +
-        `• **Autonomous AI Agents & DevOps:** Agent skill frameworks (Hermes Agent), deterministic blueprints, and workflow automation CLI tooling.\n` +
-        `• **Academic & Systems Research:** Algorithmic systems and computer science coursework at John Paul II Catholic University of Lublin (KUL).\n\n` +
-        `🔗 GitHub: [https://github.com/tomekdot](https://github.com/tomekdot)\n` +
-        `🌐 Portfolio: [https://tomekdot.github.io](https://tomekdot.github.io)`;
+      ? `### 👨‍💻 **Autor Projektu \`${activeName}\`: Tomasz Kaczak (@tomekdot)**\n\n` +
+        `Projekt **\`${activeName}\`** należy do portfolio open-source Tomasza Kaczaka (@tomekdot) — inżyniera oprogramowania rozwijającego m.in. wtyczki Trackmania (PyPlanet / Openplanet), narzędzia AI i projekty badawcze (KUL).\n\n` +
+        `🔗 GitHub: [https://github.com/tomekdot](https://github.com/tomekdot)`
+      : `### 👨‍💻 **Author of \`${activeName}\`: Tomasz Kaczak (@tomekdot)**\n\n` +
+        `**\`${activeName}\`** is developed by Tomasz Kaczak (@tomekdot), software engineer building Trackmania ecosystem plugins (PyPlanet / Openplanet), AI agent tooling, and academic systems.\n\n` +
+        `🔗 GitHub: [https://github.com/tomekdot](https://github.com/tomekdot)`;
 
     return {
       reply,
@@ -659,28 +1216,35 @@ export function generateIntelligentOfflineReply(params: {
     };
   }
 
-  // 8. FALLBACK: Smart Content Search in README / Metadata
-  // Search for matching paragraphs in README
-  if (readme && readme.length > 50) {
-    const paragraphs = readme.split(/\n\s*\n/).map(p => p.trim()).filter(p => p.length > 20);
-    const words = qLower.split(/\s+/).filter(w => w.length > 3);
-    const matchingPara = paragraphs.find(para => {
-      const pLow = para.toLowerCase();
-      return words.filter(w => pLow.includes(w)).length >= Math.min(words.length, 2);
-    });
+  // 9. SEMANTIC README & METADATA MATCHER (for specific/freeform questions)
+  const queryTokens = expandQueryTokens(qNorm);
+  if (hasSyncedReadme && queryTokens.length > 0) {
+    const scoredSections = readmeKnowledge.sections
+      .map((sec) => {
+        const hay = normalizeSearchText(`${sec.heading}\n${sec.rawText}`);
+        let score = 0;
+        const headingNorm = normalizeSearchText(sec.heading);
+        for (const tok of queryTokens) {
+          if (headingNorm.includes(tok)) score += 4;
+          else if (hay.includes(tok)) score += 2;
+        }
+        return { sec, score };
+      })
+      .filter((item) => item.score > 0)
+      .sort((a, b) => b.score - a.score);
 
-    if (matchingPara) {
+    if (scoredSections.length > 0) {
+      const topMatches = scoredSections.slice(0, 2);
+      const renderedMatches = topMatches
+        .map(
+          ({ sec }) =>
+            `#### **${sec.heading}**\n${formatReadmeSectionSnippet(sec, 6, 1)}`
+        )
+        .join('\n\n');
+
       const reply = isPolish
-        ? `### 🔍 **Wycinek Dokumentacji dla: \`${activeName}\`**\n\n` +
-          `Odpowiedź znaleziona bezpośrednio w dokumentacji projektu na podstawie Twojego pytania:\n\n` +
-          `> ${matchingPara.replace(/\n+/g, '\n> ')}\n\n` +
-          `---\n` +
-          `💡 *Potrzebujesz więcej szczegółów? Zapytaj o instalację, komendy lub architekturę tego repozytorium.*`
-        : `### 🔍 **Documentation Excerpt for: \`${activeName}\`**\n\n` +
-          `Relevant context extracted from project documentation matching your inquiry:\n\n` +
-          `> ${matchingPara.replace(/\n+/g, '\n> ')}\n\n` +
-          `---\n` +
-          `💡 *Need more details? Ask about installation, commands, or architecture.*`;
+        ? `### 🔍 **Dopasowane informacje z dokumentacji \`${activeName}\`**\n\n${renderedMatches}\n\n---\n💡 *Szukasz pełnego obrazu? Zapytaj o opis ogólny, instalację lub strukturę projektu \`${activeName}\`.*`
+        : `### 🔍 **Matched Documentation from \`${activeName}\`**\n\n${renderedMatches}\n\n---\n💡 *Need more context? Ask for an overview, setup guide, or architecture of \`${activeName}\`.*`;
 
       return {
         reply,
@@ -690,28 +1254,37 @@ export function generateIntelligentOfflineReply(params: {
     }
   }
 
-  // 9. GENERAL CONTEXTUAL SUMMARY (when question is open-ended)
+  // 10. GENERAL CONTEXTUAL SUMMARY (strictly grounded in activeName)
+  const missingReadmeNote = !hasSyncedReadme
+    ? isPolish
+      ? `\n\n> ℹ️ *Uwaga: W trybie offline bazuję tutaj wyłącznie na krótkich metadanych, ponieważ plik \`README.md\` nie jest zsynchronizowany lub repozytorium go nie zawiera.*`
+      : `\n\n> ℹ️ *Note: Answering from verified repository metadata only because no \`README.md\` content is synced for this repository.*`
+    : readmeKnowledge.sections.length > 0
+      ? `\n\n**${isPolish ? 'Sekcje w README.md:' : 'Sections in README.md:'}** ${readmeKnowledge.sections
+          .slice(0, 6)
+          .map((s) => `\`${s.heading}\``)
+          .join(' • ')}`
+      : '';
+
   const defaultReply = isPolish
     ? `### 💡 **Asystent Projektu: \`${activeName}\`**\n\n` +
-      `Odpowiadam na Twoje zapytanie w kontekście repozytorium **\`${activeName}\`** (${activeLang} • ${activeCat}):\n\n` +
-      `**Podsumowanie:** ${activeLongDesc || activeDesc}\n\n` +
-      `**Sugerowane pytania techniczne:**\n` +
-      `• *"Co dokładnie robi ten plugin?"*\n` +
-      `• *"Jak zainstalować i uruchomić ten komponent?"*\n` +
-      `• *"Jakie komendy w grze są dostępne?"*\n` +
-      `• *"Jak zbudowana jest asynchroniczna architektura kodu?"*\n\n` +
-      `---\n` +
-      `💡 *Tryb Bazy Wiedzy: Odpowiedź wygenerowana offline. Aby podłączyć generatywny model LLM (Google Gemini / Ollama / LM Studio), kliknij ikonę klucza (🔑) u góry.*`
+      `Odpowiadam w trybie offline w kontekście **\`${activeName}\`** (${activeLang} • ${activeCat}):\n\n` +
+      (bestOverview
+        ? `**Podsumowanie:**\n${bestOverview}`
+        : `**Podsumowanie:** Brak szczegółowego opisu w metadanych dla \`${activeName}\`.`) +
+      missingReadmeNote +
+      `\n\n**Przykładowe pytania o \`${activeName}\`:**\n` +
+      suggestedQuestionsPl.join('\n') +
+      `\n\n💡 *Aby użyć pełnego modelu konwersacyjnego (Google Gemini / Ollama / LM Studio), kliknij przycisk klucza (🔑) u góry.*`
     : `### 💡 **Project Assistant: \`${activeName}\`**\n\n` +
-      `Answering in the context of repository **\`${activeName}\`** (${activeLang} • ${activeCat}):\n\n` +
-      `**Summary:** ${activeLongDesc || activeDesc}\n\n` +
-      `**Suggested Technical Questions:**\n` +
-      `• *"What exactly does this plugin do?"*\n` +
-      `• *"How do I install and configure it?"*\n` +
-      `• *"What in-game commands are available?"*\n` +
-      `• *"How does the async concurrency model work?"*\n\n` +
-      `---\n` +
-      `💡 *Knowledge Base Mode: Offline reply. To query a live generative LLM (Google Gemini / Ollama / LM Studio), click the key icon (🔑) above.*`;
+      `Answering offline in the context of **\`${activeName}\`** (${activeLang} • ${activeCat}):\n\n` +
+      (bestOverview
+        ? `**Summary:**\n${bestOverview}`
+        : `**Summary:** No detailed description available in metadata for \`${activeName}\`.`) +
+      missingReadmeNote +
+      `\n\n**Suggested Questions for \`${activeName}\`:**\n` +
+      suggestedQuestionsEn.join('\n') +
+      `\n\n💡 *To query a live generative LLM (Google Gemini / Ollama / LM Studio), click the key button (🔑) above.*`;
 
   return {
     reply: defaultReply,
@@ -904,7 +1477,7 @@ export async function validateAiKeyLive(params?: {
  * - Enforces user token budget and ONLY activates Offline Mode when tokens/quota run out (or no key exists).
  */
 export async function handleClientSideAiFallback(options: ClientAiQueryOptions): Promise<ClientAiResponse> {
-  const { query, repoName = '', repoDesc = '', repoLang = '', readme = '', category = '', repos = REPOS, lang = 'en', signal } = options;
+  const { query, repo, repoName = '', repoDesc = '', repoLang = '', readme = '', category = '', repos = REPOS, lang = 'en', signal } = options;
   const customApiKey = getLocalAIKey();
   const customProvider = getLocalAIProvider();
   const customBaseUrl = getLocalAIBaseUrl();
@@ -915,7 +1488,7 @@ export async function handleClientSideAiFallback(options: ClientAiQueryOptions):
   if (isSessionQuotaExhausted()) {
     const limit = getSessionTokenLimit();
     const used = getSessionTokensUsed();
-    const offline = generateIntelligentOfflineReply({ query, repoName, repoDesc, repoLang, readme, category, repos, lang });
+    const offline = generateIntelligentOfflineReply({ query, repo, repoName, repoDesc, repoLang, readme, category, repos, lang });
     const notice = lang === 'en'
       ? `> ⚠️ **Token Quota Limit Reached (${used.toLocaleString()} / ${limit?.toLocaleString()} tokens)** — Automatically switched to **Offline Mode**.\n\n`
       : `> ⚠️ **Osiągnięto limit tokenów sesji (${used.toLocaleString()} / ${limit?.toLocaleString()} tok)** — Automatycznie włączono **Tryb Offline**.\n\n`;
@@ -941,12 +1514,12 @@ export async function handleClientSideAiFallback(options: ClientAiQueryOptions):
           ...(rawModel ? { 'x-ai-model': rawModel } : {}),
         },
         body: JSON.stringify({
-          repoName,
-          description: repoDesc,
-          lang: repoLang,
+          repoName: repo?.name || repoName,
+          description: repoDesc || repo?.desc || repo?.descPl,
+          lang: repoLang || repo?.lang,
           readme,
           userMessage: query,
-          category,
+          category: category || repo?.cat?.join(', '),
           customApiKey,
           customModel: rawModel,
           customBaseUrl,
@@ -966,7 +1539,7 @@ export async function handleClientSideAiFallback(options: ClientAiQueryOptions):
         return {
           reply: data.reply,
           provider: data.provider || 'Google Gemini (Server)',
-          sourcesUsed: data.sourcesUsed || [repoName || 'Repository', 'Server AI Proxy'],
+          sourcesUsed: data.sourcesUsed || [repo?.name || repoName || 'Repository', 'Server AI Proxy'],
           usage: data.usage,
         };
       }
@@ -980,7 +1553,7 @@ export async function handleClientSideAiFallback(options: ClientAiQueryOptions):
           hint: data.hint,
           checkedAt: new Date().toISOString(),
         });
-        const offline = generateIntelligentOfflineReply({ query, repoName, repoDesc, repoLang, readme, category, repos, lang });
+        const offline = generateIntelligentOfflineReply({ query, repo, repoName, repoDesc, repoLang, readme, category, repos, lang });
         const notice = lang === 'en'
           ? `> ⚠️ **API Quota / Tokens Exhausted (429)** — Automatically switched to **Offline Mode**.\n\n`
           : `> ⚠️ **Wyczerpano limit tokenów / quota API (429)** — Automatycznie włączono **Tryb Offline**.\n\n`;
@@ -996,6 +1569,7 @@ export async function handleClientSideAiFallback(options: ClientAiQueryOptions):
       if (data.missingKey) {
         return generateIntelligentOfflineReply({
           query,
+          repo,
           repoName,
           repoDesc,
           repoLang,
@@ -1095,7 +1669,7 @@ export async function handleClientSideAiFallback(options: ClientAiQueryOptions):
           };
         }
       } else if (res.status === 429) {
-        const offline = generateIntelligentOfflineReply({ query, repoName, repoDesc, repoLang, readme, category, repos, lang });
+        const offline = generateIntelligentOfflineReply({ query, repo, repoName, repoDesc, repoLang, readme, category, repos, lang });
         return {
           ...offline,
           reply: (lang === 'en' ? '> ⚠️ **API Quota Exhausted (429)** — Switched to Offline Mode.\n\n' : '> ⚠️ **Wyczerpano limit tokenów (429)** — Przełączono na Tryb Offline.\n\n') + offline.reply,
@@ -1196,6 +1770,7 @@ Response Language: ${lang === 'en' ? 'English' : 'Polish'}.`;
   // 4. Autonomous Knowledge Engine Fallback (Only when no API key is available or static offline hosting)
   return generateIntelligentOfflineReply({
     query,
+    repo,
     repoName,
     repoDesc,
     repoLang,
@@ -1287,11 +1862,23 @@ export async function generateClientSideSummary(params: {
     }
   }
 
-  // Fallback to local structured data (only when offline/quota exhausted)
-  const summary = lang === 'en' ? (repo.longDescEn || repo.desc) : (repo.longDescPl || repo.descPl || repo.desc);
-  const keyFeatures = (lang === 'en' ? repo.featuresEn : repo.featuresPl) || repo.featuresPl || repo.featuresEn || [];
-  const technicalHighlights = repo.capabilities && repo.capabilities.length > 0
-    ? `${lang === 'en' ? 'Core Capabilities & Stack:' : 'Kluczowe technologie i biblioteki:'} ${repo.capabilities.join(' • ')}`
+  // Fallback to local structured data & README extraction (only when offline/quota exhausted)
+  const parsedReadme = parseReadmeKnowledge(readme || repo.readme || '');
+  const curatedSummary = lang === 'en'
+    ? (repo.longDescEn || repo.desc)
+    : (repo.longDescPl || repo.descPl || repo.desc);
+  const summary = curatedSummary && curatedSummary.length >= (parsedReadme.leadSummary?.length || 0)
+    ? curatedSummary
+    : (parsedReadme.leadSummary || curatedSummary || '');
+
+  const curatedFeatures = (lang === 'en' ? repo.featuresEn : repo.featuresPl) || repo.featuresPl || repo.featuresEn || [];
+  const keyFeatures = curatedFeatures.length > 0 ? curatedFeatures : parsedReadme.extractedFeatures;
+
+  const stackList = (repo.capabilities && repo.capabilities.length > 0)
+    ? repo.capabilities
+    : parsedReadme.detectedStack;
+  const technicalHighlights = stackList.length > 0
+    ? `${lang === 'en' ? 'Core Capabilities & Stack:' : 'Kluczowe technologie i biblioteki:'} ${stackList.join(' • ')}`
     : '';
 
   return {
@@ -1315,27 +1902,33 @@ export async function handleClientSideBlogAiFallback(options: ClientBlogAiQueryO
   const maxOutputTokens = getMaxOutputTokens();
 
   const buildOfflineBlogReply = (prefixNotice = ''): ClientAiResponse => {
-    const post = BLOG_POSTS.find(p =>
+    const matchedPost = BLOG_POSTS.find(p =>
       (options.postId && p.id === options.postId) ||
       p.titleEn.toLowerCase() === postTitle.toLowerCase() ||
       p.titlePl.toLowerCase() === postTitle.toLowerCase()
-    ) || BLOG_POSTS[0];
+    );
 
     const isEn = lang === 'en';
-    const title = isEn ? post.titleEn : post.titlePl;
-    const excerpt = isEn ? post.excerptEn : post.excerptPl;
-    const draft = isEn ? (post.draftVersionContentEn || post.draftVersionContent || '') : (post.draftVersionContentPl || post.draftVersionContent || '');
-    const full = isEn ? post.contentEn : post.contentPl;
-    const note = isEn ? (post.aiVersionNoteEn || post.aiVersionNote || '') : (post.aiVersionNotePl || post.aiVersionNote || '');
+    const title = matchedPost ? (isEn ? matchedPost.titleEn : matchedPost.titlePl) : postTitle;
+    const excerpt = matchedPost ? (isEn ? matchedPost.excerptEn : matchedPost.excerptPl) : postExcerpt;
+    const draft = matchedPost
+      ? (isEn ? (matchedPost.draftVersionContentEn || matchedPost.draftVersionContent || '') : (matchedPost.draftVersionContentPl || matchedPost.draftVersionContent || ''))
+      : draftContent;
+    const full = matchedPost ? (isEn ? matchedPost.contentEn : matchedPost.contentPl) : postContent;
+    const note = matchedPost
+      ? (isEn ? (matchedPost.aiVersionNoteEn || matchedPost.aiVersionNote || '') : (matchedPost.aiVersionNotePl || matchedPost.aiVersionNote || ''))
+      : aiRevisionNote;
+    const tags = matchedPost?.tags || options.tags || [];
 
-    const qLower = query.toLowerCase();
-    const isCompareOrAdded = /(v1|v2|raw|diff|porówn|dopis|dodan|szkic|zmian)/i.test(qLower);
-    const isDebateOrCritique = /(zgadz|polemi|disagree|agree|popraw|critiq|ryzyk|błąd|uwag|wątpliw|dysku)/i.test(qLower);
+    const qNorm = normalizeSearchText(query);
+    const isCompareOrAdded = /(v1|v2|raw|diff|porown|dopis|dodan|szkic|zmian)/i.test(qNorm);
+    const isDebateOrCritique = /(zgadz|polemi|disagree|agree|popraw|critiq|ryzyk|blad|uwag|watpliw|dysku)/i.test(qNorm);
+    const parsedArticle = parseReadmeKnowledge(full);
 
     let body = '';
     if (isCompareOrAdded) {
       const draftLines = draft.split('\n').map(l => l.trim()).filter(l => l && !l.startsWith('//'));
-      const headings = full.split('\n').filter(l => l.trim().startsWith('###')).map(h => h.replace(/^#+\s*/, '').trim());
+      const headings = parsedArticle.sections.map(s => s.heading).filter(h => h !== 'Overview');
       body = isEn
         ? `⚖️ **Raw \`v1.0\` vs \`v2.0\` Comparison — ${title}**\n\n` +
           `**From Raw \`v1.0\` Draft (${draftLines.length} lines):**\n${draftLines.map(l => `• ${l.replace(/^-\s*/, '')}`).join('\n') || `• ${excerpt}`}\n\n` +
@@ -1350,15 +1943,41 @@ export async function handleClientSideBlogAiFallback(options: ClientBlogAiQueryO
         ? `⚖️ **Offline Critical Summary — ${title}**\n\n${excerpt}\n\n• **Core thesis:** ${note || 'Architectural optimization and modular structure.'}\n• **Check carefully:** Compare quantitative claims and illustrative snippets in \`v2.0\` against the concise \`v1.0\` raw notes to spot extrapolations or missing error handling.`
         : `⚖️ **Offline Podsumowanie Krytyczne — ${title}**\n\n${excerpt}\n\n• **Główna teza:** ${note || 'Optymalizacja architektury i modułowa struktura.'}\n• **Na co zwrócić uwagę:** Zweryfikuj konkretne liczby, przykładowe fragmenty kodu i obsługę błędów w \`v2.0\` względem zwięzłych notatek z \`v1.0 Raw\`.`;
     } else {
-      body = isEn
-        ? `📝 **${title}**\n\n${excerpt}\n\n• **Tags:** ${post.tags.map(t => `#${t}`).join(', ')}\n• **Synthesis notes:** ${note || 'Archival dev journal synthesis.'}`
-        : `📝 **${title}**\n\n${excerpt}\n\n• **Tagi:** ${post.tags.map(t => `#${t}`).join(', ')}\n• **Notatki syntezy:** ${note || 'Syntetyczny dziennik deweloperski.'}`;
+      const qTokens = expandQueryTokens(qNorm);
+      const matchedSections = qTokens.length > 0
+        ? parsedArticle.sections
+            .map(sec => {
+              const hay = normalizeSearchText(`${sec.heading}\n${sec.rawText}`);
+              let score = 0;
+              for (const tok of qTokens) {
+                if (normalizeSearchText(sec.heading).includes(tok)) score += 3;
+                else if (hay.includes(tok)) score += 1;
+              }
+              return { sec, score };
+            })
+            .filter(item => item.score > 0)
+            .sort((a, b) => b.score - a.score)
+        : [];
+
+      if (matchedSections.length > 0) {
+        const top = matchedSections.slice(0, 2);
+        const excerptBlock = top
+          .map(({ sec }) => `#### **${sec.heading}**\n${formatReadmeSectionSnippet(sec, 5, 1)}`)
+          .join('\n\n');
+        body = isEn
+          ? `### 🔍 **Matched Article Sections — ${title}**\n\n${excerptBlock}`
+          : `### 🔍 **Dopasowane fragmenty artykułu — ${title}**\n\n${excerptBlock}`;
+      } else {
+        body = isEn
+          ? `📝 **${title}**\n\n${excerpt}\n\n• **Tags:** ${tags.map(t => `#${t}`).join(', ')}\n• **Synthesis notes:** ${note || 'Archival dev journal synthesis.'}`
+          : `📝 **${title}**\n\n${excerpt}\n\n• **Tagi:** ${tags.map(t => `#${t}`).join(', ')}\n• **Notatki syntezy:** ${note || 'Syntetyczny dziennik deweloperski.'}`;
+      }
     }
 
     return {
       reply: prefixNotice + body,
       provider: prefixNotice ? 'AUTONOMOUS KNOWLEDGE (OFFLINE • QUOTA/LIMIT)' : 'AUTONOMOUS KNOWLEDGE (OFFLINE)',
-      sourcesUsed: [post.titleEn, 'data.ts (v1.0 + v2.0)'],
+      sourcesUsed: [title, 'v1.0 + v2.0 Article Data'],
       quotaExhausted: Boolean(prefixNotice),
     };
   };

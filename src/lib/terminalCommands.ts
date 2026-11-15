@@ -739,6 +739,7 @@ export async function executeTerminalCommand(rawInput: string, ctx: TerminalCont
         try {
           const fallbackResult = await handleClientSideAiFallback({
             query: effectiveUserMessage,
+            repo: targetRepo || undefined,
             repoName: repoName || undefined,
             repoDesc,
             repoLang,
