@@ -5,7 +5,7 @@
 ## Overview
 - Developer: Tomasz Kaczak (@tomekdot)
 - Website: https://tomekdot.github.io
-- Repository Index: 17 indexed open-source repositories (PyPlanet, Openplanet, AngelScript, Python, TypeScript)
+- Repository Index: Full indexed open-source repository directory (70+ PyPlanet, Openplanet, AngelScript, Python, TypeScript, Java, C++ projects)
 - Technical Journal: Research articles exploring server automation, reactive telemetry, and AI systems
 
 ## AI Catalog & Agentic Resource Discovery
@@ -15,11 +15,13 @@
 
 ## Key Repositories
 - [hermes-my-github-plugin](https://github.com/tomekdot/hermes-my-github-plugin): PyPlanet automation plugin providing server stats, telemetry hooks, and administrative tools.
-- [trackmania-galaxy](https://github.com/tomekdot/trackmania-galaxy): Interactive Trackmania galaxy encyclopedia and map dataset explorer.
+- [trackmania-galaxy](https://github.com/tomekdot/trackmania-galaxy): Interactive Trackmania galaxy encyclopedia, map dataset explorer, and telemetry wiki.
 - [pursuit-maps](https://github.com/tomekdot/pursuit-maps): ManiaPlanet Feedback S1 E1 pursuit maps collection with UIDs, thumbnails, and telemetry metadata.
-- [vscode-github-repository-search](https://github.com/tomekdot/vscode-github-repository-search): VS Code extension for fast repository discovery and local clone automation.
+- [event-calendar-dev](https://github.com/tomekdot/event-calendar-dev): OpenPlanet in-game Event Calendar plugin for tracking Trackmania tournaments and broadcasts.
+- [opencode-github-repos-panel](https://github.com/tomekdot/opencode-github-repos-panel): OpenCode desktop extension providing interactive GitHub repository search and management.
 
 ## Technical Journal Articles
-- [Systemy Agentowe i Autonomia](https://tomekdot.github.io/#journal-agentic): Architecture of autonomous agents, deterministic tools, and memory management.
-- [Optymalizacja Wydajności i Silniki Sieciowe](https://tomekdot.github.io/#journal-perf): Async event loops in Python/PyPlanet and zero-overhead AngelScript telemetry in Trackmania.
-- [Bazy Danych i Grafy Wiedzy](https://tomekdot.github.io/#journal-graphs): Graph visualization, orbital constellation maps, and relational modeling.
+- [Hermes Skills: Modular Extensibility in Modern Autonomous AI](https://tomekdot.github.io/): Architectural analysis of modular agent skills, DevOps automation, and plugin ecosystems under unified standards.
+- [PyPlanet ClanSpirits: Architectural Deep Dive into Competitive Server Scoring](https://tomekdot.github.io/): Asynchronous SQLite queries, active team allegiance tracking, and scoring systems on high-traffic Trackmania servers.
+- [Pomodoro Timer in Trackmania: Maintain Peak Racing Performance](https://tomekdot.github.io/): Productivity overlay integrated directly into Trackmania with customizable alerts, music controls, and task checklists.
+- [A New Plugin for OpenPlanet: Event Calendar](https://tomekdot.github.io/): OpenPlanet and ManiaPlanet add-on for tracking key tournament dates, broadcasts, and community events.
