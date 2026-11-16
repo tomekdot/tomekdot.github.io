@@ -23,6 +23,7 @@ import {
   LayoutGrid,
   Wrench,
   Archive,
+  ArrowUp,
   ArrowUpDown,
   Eye,
   EyeOff,
@@ -993,7 +994,7 @@ export default function App() {
   }, [isTokenModalOpen]);
 
   return (
-    <div className="min-h-screen bg-editorial-bg text-editorial-text font-sans flex flex-col justify-between selection:bg-editorial-accent selection:text-editorial-bg border-2 sm:border-4 md:border-8 border-[#1A1A1A]">
+    <div className="min-h-screen min-h-[100dvh] bg-editorial-bg text-editorial-text font-sans flex flex-col justify-between selection:bg-editorial-accent selection:text-editorial-bg border-2 sm:border-4 md:border-8 border-[#1A1A1A]">
       
       {/* 1. Header Toolbar navigation */}
       <nav id="top_app_navbar" className="sticky top-0 z-40 bg-editorial-bg/95 border-b border-editorial-border px-3 sm:px-6 py-2.5 sm:py-3 flex items-center justify-between backdrop-blur-sm">
@@ -1073,6 +1074,7 @@ export default function App() {
               height="96"
               loading="eager"
               decoding="async"
+              fetchPriority="high"
             />
           </div>
 
@@ -1132,12 +1134,12 @@ export default function App() {
                       }}
                       disabled={isSyncing}
                       title={appLang === 'en' ? 'Force Sync & Clear Cache' : 'Wymuś synchronizację i wyczyść cache'}
-                      className={`hover:text-white transition-all focus:outline-none p-0.5 border border-transparent rounded bg-transparent ${isSyncing ? 'animate-spin [animation-duration:2.2s]' : 'group-hover/status:border-editorial-border group-hover/status:bg-neutral-900'} cursor-pointer`}
+                      className={`hover:text-white transition-colors focus:outline-none p-0.5 border border-transparent rounded bg-transparent will-change-transform ${isSyncing ? 'animate-spin [animation-duration:2.2s]' : 'group-hover/status:border-editorial-border group-hover/status:bg-neutral-900'} cursor-pointer`}
                     >
                       <RefreshCw size={10} className={isSyncing ? 'text-editorial-accent' : ''} />
                     </button>
                   </span>
-                  <span className={`text-xs sm:text-sm font-bold transition-all duration-500 inline-block ${
+                  <span className={`text-xs sm:text-sm font-bold transition-opacity duration-500 inline-block will-change-[opacity] ${
                     isSyncing 
                       ? 'text-editorial-accent animate-pulse [animation-duration:2.5s]' 
                       : syncFailed 
@@ -1198,7 +1200,7 @@ export default function App() {
       {/* 3. Core Workspace Section */}
       <main className="flex-grow grid grid-cols-1 md:grid-cols-[310px_1fr] lg:grid-cols-[340px_1fr] md:divide-x divide-editorial-border border-b border-editorial-border bg-editorial-bg min-h-0">
         {/* Left Sidebar block */}
-        <aside className="p-3.5 sm:p-4 md:p-5 lg:p-6 pb-4 sm:pb-5 md:pb-28 lg:pb-32 flex flex-col justify-start gap-3.5 sm:gap-4 md:gap-6 lg:gap-7 bg-editorial-sidebar-bg md:sticky md:top-12 md:self-start md:max-h-[calc(100svh-3rem)] md:overflow-y-auto scrollbar-thin scrollbar-thumb-neutral-800">
+        <aside className="p-3.5 sm:p-4 md:p-5 lg:p-6 pb-4 sm:pb-5 md:pb-28 lg:pb-32 flex flex-col justify-start gap-3.5 sm:gap-4 md:gap-6 lg:gap-7 bg-editorial-sidebar-bg md:sticky md:top-[61px] md:self-start md:max-h-[calc(100dvh-61px)] md:overflow-y-auto sidebar-scroll-safe scrollbar-thin scrollbar-thumb-neutral-800">
           <div className="space-y-4 md:space-y-6">
             {/* Main Tabs Navigation */}
             <div className="flex h-[38px] border border-editorial-border p-1 bg-neutral-950 font-mono text-[11px] rounded-none mb-2 sm:mb-3 box-border">
@@ -1593,13 +1595,13 @@ export default function App() {
             </div>
           )}
 
-            {/* Dedicated bottom clearance buffer to prevent floating dock from overlapping sidebar buttons on desktop */}
-            <div className="hidden md:block md:h-20 lg:h-24 w-full shrink-0 pointer-events-none" aria-hidden="true" />
+            {/* Dedicated bottom clearance buffer to prevent floating dock or mobile browser chrome from overlapping sticky sidebar bottom items */}
+            <div className="hidden md:block md:h-24 lg:h-28 w-full shrink-0 pointer-events-none" aria-hidden="true" />
           </div>
         </aside>
 
         {/* Right workspace section block */}
-        <section className="p-3.5 sm:p-4 md:p-5 lg:p-6 pb-40 sm:pb-44 md:pb-52 bg-editorial-bg min-w-0 w-full">
+        <section className="p-3.5 sm:p-4 md:p-5 lg:p-6 pb-10 sm:pb-12 md:pb-16 bg-editorial-bg min-w-0 w-full">
           {activeWorkspaceTab === 'projects' ? (
             <div className="main-content flex flex-col gap-4 sm:gap-5">
               {/* Header controls, year filter, language spectrum, and active filters container */}
@@ -1998,9 +2000,6 @@ export default function App() {
                   </div>
                 )}
               </div>
-
-              {/* Dedicated bottom clearance buffer to prevent any floating elements from overlapping content */}
-              <div className="h-28 sm:h-24 w-full shrink-0 pointer-events-none" aria-hidden="true" />
             </div>
           ) : (
             <>
@@ -2244,13 +2243,72 @@ export default function App() {
                   </div>
                 )}
 
-                {/* Dedicated bottom clearance buffer to prevent any floating elements from overlapping content */}
-                <div className="h-28 sm:h-24 w-full shrink-0 pointer-events-none" aria-hidden="true" />
               </div>
             </>
           )}
         </section>
       </main>
+
+      {/* 5. Editorial Footer with Firefox Android / Dock Safe Clearance */}
+      <footer
+        id="app_main_footer"
+        className="bg-editorial-sidebar-bg px-4 sm:px-6 md:px-8 pt-6 sm:pt-7 app-footer-safe font-mono text-xs text-editorial-muted"
+      >
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
+          <div className="space-y-1 min-w-0">
+            <div className="flex flex-wrap items-center gap-2 text-white font-bold tracking-wider uppercase text-xs">
+              <span translate="no" className="notranslate">tomekdot</span>
+              <span className="text-editorial-border">//</span>
+              <span className="text-editorial-accent">VOL. 2026</span>
+            </div>
+            <p className="text-[11px] text-editorial-muted font-sans leading-relaxed">
+              {appLang === 'en'
+                ? 'Open-source Trackmania plugins, AI agents & developer archival index.'
+                : 'Otwarte wtyczki Trackmania, agenci AI oraz archiwum projektów.'}
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2 shrink-0">
+            <a
+              href="https://github.com/tomekdot"
+              target="_blank"
+              rel="noreferrer"
+              className="h-8 px-2.5 inline-flex items-center gap-1.5 bg-[#0A0A0A] border border-editorial-border hover:border-white text-editorial-muted hover:text-white transition-colors uppercase text-[10.5px] font-bold tracking-wider"
+            >
+              <Github size={12} />
+              <span>GitHub</span>
+            </a>
+            <a
+              href="https://youtube.com/@tomekdot"
+              target="_blank"
+              rel="noreferrer"
+              className="h-8 px-2.5 inline-flex items-center gap-1.5 bg-[#0A0A0A] border border-editorial-border hover:border-[#FF0000]/70 text-editorial-muted hover:text-white transition-colors uppercase text-[10.5px] font-bold tracking-wider"
+            >
+              <Youtube size={12} className="text-[#FF0000]" />
+              <span>YouTube</span>
+            </a>
+            <a
+              href="https://paypal.me/tomekdot"
+              target="_blank"
+              rel="noreferrer"
+              className="h-8 px-2.5 inline-flex items-center gap-1.5 bg-[#0A0A0A] border border-editorial-border hover:border-sky-500/70 text-editorial-muted hover:text-white transition-colors uppercase text-[10.5px] font-bold tracking-wider"
+            >
+              <Heart size={12} className="text-sky-400" />
+              <span>{appLang === 'en' ? 'PayPal' : 'Wesprzyj'}</span>
+            </a>
+            <button
+              type="button"
+              id="footer_back_to_top_btn"
+              onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+              className="h-8 px-2.5 inline-flex items-center gap-1.5 bg-[#121212] border border-editorial-border hover:border-editorial-accent text-editorial-accent hover:text-white transition-colors uppercase text-[10.5px] font-bold tracking-wider cursor-pointer"
+              title={appLang === 'en' ? 'Scroll back to top' : 'Wróć na górę strony'}
+            >
+              <ArrowUp size={12} />
+              <span>{appLang === 'en' ? 'Top' : 'Góra'}</span>
+            </button>
+          </div>
+        </div>
+      </footer>
 
       {/* 6 & 7 & 8. Bottom Control Bar: Dock Slot + Terminal Console */}
       <div className="fixed inset-x-0 bottom-0 z-40 pointer-events-none bottom-dock-container">
@@ -2405,25 +2463,25 @@ export default function App() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               id="token_modal_window"
-              className="bg-[#0A0A0A] border-2 border-amber-800/60 max-w-sm w-[92%] sm:w-full max-h-[76svh] sm:max-h-[85vh] overflow-y-auto p-3.5 sm:p-5 relative shadow-[0_0_30px_rgba(0,0,0,0.8)] flex flex-col scrollbar-thin scrollbar-thumb-neutral-800 overscroll-contain my-auto"
+              className="bg-[#0A0A0A] border-2 border-amber-800/60 max-w-md w-[92%] sm:w-full max-h-[82svh] sm:max-h-[85vh] overflow-y-auto p-3.5 sm:p-5 relative shadow-[0_0_30px_rgba(0,0,0,0.8)] flex flex-col scrollbar-thin scrollbar-thumb-neutral-800 overscroll-contain my-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}
-              <div className="flex justify-between items-center mb-3 border-b border-editorial-border pb-2.5">
-                <div className="flex items-center gap-2">
-                  <div className="p-1 bg-amber-950/60 border border-amber-700/60 text-amber-400">
+              <div className="flex items-start justify-between gap-2.5 mb-3 border-b border-editorial-border pb-2.5">
+                <div className="flex items-start gap-2.5 min-w-0 flex-1">
+                  <div className="p-1.5 bg-amber-950/60 border border-amber-700/60 text-amber-400 shrink-0 mt-0.5">
                     <Lock size={13} />
                   </div>
-                  <div>
-                    <div className="flex items-center gap-1.5">
-                      <h3 className="text-xs font-bold font-mono text-white tracking-widest uppercase">
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-1.5">
+                      <h3 className="text-xs sm:text-[13px] font-bold font-mono text-white tracking-wider uppercase leading-snug">
                         {appLang === 'en' ? 'ADMIN ACCESS CONSOLE' : 'KONSOLA ADMINISTRATORA'}
                       </h3>
-                      <span className="text-[8px] uppercase px-1 py-0.5 bg-amber-500/20 border border-amber-500/50 text-amber-300 font-bold font-mono">
+                      <span className="text-[8.5px] uppercase px-1.5 py-0.5 bg-amber-500/20 border border-amber-500/50 text-amber-300 font-bold font-mono whitespace-nowrap shrink-0 leading-none">
                         {appLang === 'en' ? 'ADMIN ONLY' : 'DLA ADMINA'}
                       </span>
                     </div>
-                    <p className="text-[9px] font-mono text-amber-500/80 uppercase tracking-tight">
+                    <p className="text-[9.5px] font-mono text-amber-500/80 uppercase tracking-tight mt-0.5 leading-snug">
                       {appLang === 'en' ? 'Private Repositories Synchronization' : 'Synchronizacja Prywatnych Repozytoriów'}
                     </p>
                   </div>
@@ -2432,7 +2490,7 @@ export default function App() {
                   type="button"
                   id="close_token_modal_btn"
                   onClick={() => setIsTokenModalOpen(false)}
-                  className="text-editorial-muted hover:text-white transition-colors cursor-pointer font-mono text-[10px] uppercase ml-2"
+                  className="text-editorial-muted hover:text-white transition-colors cursor-pointer font-mono text-[10px] uppercase shrink-0 whitespace-nowrap pt-0.5"
                 >
                   [{appLang === 'en' ? 'Close' : 'Zamknij'}]
                 </button>
@@ -2477,12 +2535,12 @@ export default function App() {
               )}
 
               {apiUser && !tokenError && (
-                <div className="mb-3 p-2 bg-emerald-950/30 border border-emerald-800/85 text-emerald-300 font-mono text-[10px] leading-relaxed flex items-center justify-between">
-                  <div>
+                <div className="mb-3 p-2 bg-emerald-950/30 border border-emerald-800/85 text-emerald-300 font-mono text-[10px] leading-relaxed flex flex-wrap items-center justify-between gap-1.5">
+                  <div className="min-w-0">
                     <strong className="text-emerald-400 uppercase tracking-wider text-[9px]">{appLang === 'en' ? '👑 ADMIN CONNECTED:' : '👑 ADMIN ZALOGOWANY:'}</strong>
-                    <span className="ml-1.5 text-white font-bold">{apiUser}</span>
+                    <span className="ml-1.5 text-white font-bold break-all">{apiUser}</span>
                   </div>
-                  <span className="text-[8px] bg-emerald-950 text-emerald-300 px-1 py-0.5 border border-emerald-800/50 rounded-none uppercase font-bold tracking-widest">AUTHORIZED</span>
+                  <span className="text-[8px] bg-emerald-950 text-emerald-300 px-1.5 py-0.5 border border-emerald-800/50 rounded-none uppercase font-bold tracking-widest whitespace-nowrap shrink-0">AUTHORIZED</span>
                 </div>
               )}
 
@@ -2568,11 +2626,11 @@ export default function App() {
               {/* Input */}
               <div className="space-y-3 font-mono">
                 <div>
-                  <div className="flex justify-between items-center mb-1">
+                  <div className="flex flex-wrap justify-between items-center gap-1 mb-1">
                     <label htmlFor="token_input" className="block text-[9px] uppercase tracking-wider text-amber-400 font-bold">
                       {appLang === 'en' ? 'Admin Personal Access Token' : 'Osobisty Token Dostępu Admina (PAT)'}
                     </label>
-                    <span className="text-[8px] text-editorial-muted font-mono">
+                    <span className="text-[8px] text-editorial-muted font-mono whitespace-nowrap">
                       {appLang === 'en' ? 'Local storage only' : 'Tylko pamięć lokalna'}
                     </span>
                   </div>
@@ -2636,7 +2694,6 @@ export default function App() {
         )}
       </AnimatePresence>
 
-      {/* Footer block removed at developer's request */}
     </div>
   );
 }

@@ -1374,40 +1374,30 @@ export default function GalaxyGraphModal({
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: 6 }}
                 transition={{ duration: 0.14 }}
-                className="absolute inset-x-0 bottom-0 sm:inset-auto sm:top-2 sm:bottom-2 sm:right-2 desk:bottom-auto desk:top-4 desk:right-4 z-30 w-full sm:w-72 desk:w-80 max-h-[64%] sm:max-h-none desk:max-h-[calc(100%-2rem)] bg-[#0B0F19] border-t-2 sm:border border-editorial-accent/60 sm:border-editorial-border rounded-t-2xl sm:rounded-none shadow-2xl font-mono text-xs flex flex-col overflow-hidden"
+                className="absolute inset-x-0 bottom-0 sm:inset-auto sm:top-2 sm:bottom-2 sm:right-2 desk:bottom-auto desk:top-4 desk:right-4 z-30 w-full sm:w-64 md:w-72 desk:w-80 max-h-[76%] sm:max-h-[calc(100%-1rem)] desk:max-h-[calc(100%-2rem)] bg-[#0B0F19] border-t-2 sm:border border-editorial-accent/60 sm:border-editorial-border rounded-t-2xl sm:rounded-none shadow-2xl font-mono text-xs flex flex-col overflow-hidden"
                 onClick={(e) => e.stopPropagation()}
                 onTouchStart={(e) => e.stopPropagation()}
                 onTouchMove={(e) => e.stopPropagation()}
                 onTouchEnd={(e) => e.stopPropagation()}
               >
-                {/* Fixed Sheet Top Header */}
-                <div className="shrink-0 px-4 pt-2.5 pb-2 sm:p-3 desk:p-3.5 border-b border-editorial-border bg-[#090D16]">
+                {/* Slim Pinned Sheet Top Strip */}
+                <div className="shrink-0 px-3.5 pt-2 pb-1.5 sm:px-3 sm:py-2 desk:px-3.5 desk:py-2.5 border-b border-editorial-border bg-[#090D16]">
                   {/* Mobile Portrait Grab Handle */}
-                  <div className="sm:hidden w-10 h-1 rounded-full bg-neutral-700 mx-auto mb-2" />
+                  <div className="sm:hidden w-10 h-1 rounded-full bg-neutral-700 mx-auto mb-1.5" />
 
-                  <div className="flex items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1 space-y-1">
-                      <div className="flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider">
-                        <span className={hudNode.type === 'tag' ? 'text-fuchsia-400 font-bold' : 'text-emerald-400 font-bold'}>
-                          {hudNode.type === 'tag' ? 'TAG' : (lang === 'en' ? 'POST' : 'WPIS')}
-                        </span>
-                        {hudNode.dateStr && (
-                          <span className="inline-flex land:hidden short:hidden desk:inline-flex items-center gap-2">
-                            <span className="text-neutral-600">·</span>
-                            <span className="text-editorial-muted flex items-center gap-1">
-                              <Calendar size={10} className="text-editorial-accent shrink-0" />
-                              {hudNode.dateStr}
-                            </span>
+                  <div className="flex items-center justify-between gap-2">
+                    <div className="min-w-0 flex items-center gap-2 text-[10px] font-mono uppercase tracking-wider truncate">
+                      <span className={hudNode.type === 'tag' ? 'text-fuchsia-400 font-bold shrink-0' : 'text-emerald-400 font-bold shrink-0'}>
+                        {hudNode.type === 'tag' ? 'TAG' : (lang === 'en' ? 'POST' : 'WPIS')}
+                      </span>
+                      {hudNode.dateStr && (
+                        <span className="inline-flex land:hidden short:hidden desk:inline-flex items-center gap-1.5 truncate">
+                          <span className="text-neutral-600">·</span>
+                          <span className="text-editorial-muted flex items-center gap-1 truncate">
+                            <Calendar size={10} className="text-editorial-accent shrink-0" />
+                            <span className="truncate">{hudNode.dateStr}</span>
                           </span>
-                        )}
-                      </div>
-                      <h3 className="font-bold text-white text-sm leading-snug break-words">
-                        {lang === 'en' ? hudNode.labelEn : hudNode.labelPl}
-                      </h3>
-                      {hudNode.excerpt && (
-                        <p className="text-zinc-400 text-xs sm:text-[11px] font-sans leading-relaxed line-clamp-2 short:hidden">
-                          {hudNode.excerpt}
-                        </p>
+                        </span>
                       )}
                     </div>
 
@@ -1418,43 +1408,56 @@ export default function GalaxyGraphModal({
                         setSelectedNodeId(null);
                         setHoveredNodeId(null);
                       }}
-                      className="w-9 h-9 desk:w-7 desk:h-7 flex items-center justify-center text-editorial-muted hover:text-white bg-neutral-900 hover:bg-neutral-800 transition-colors cursor-pointer border border-editorial-border shrink-0"
+                      className="w-8 h-8 desk:w-7 desk:h-7 flex items-center justify-center text-editorial-muted hover:text-white bg-neutral-900 hover:bg-neutral-800 transition-colors cursor-pointer border border-editorial-border shrink-0"
                       title={lang === 'en' ? 'Deselect' : 'Odznacz'}
                       aria-label={lang === 'en' ? 'Close node details' : 'Zamknij szczegóły węzła'}
                     >
-                      <X size={15} />
+                      <X size={14} />
                     </button>
                   </div>
                 </div>
 
-                {/* Scrollable Connected Nodes List */}
-                <div className="flex-1 min-h-0 overflow-y-auto px-4 py-2.5 sm:p-3 desk:p-3.5 space-y-1.5 overscroll-contain scrollbar-thin scrollbar-thumb-neutral-800">
-                  <span className="text-[10px] uppercase tracking-wider text-editorial-muted font-bold block">
-                    {lang === 'en'
-                      ? `Connected Nodes (${hudNode.connectedIds.length})`
-                      : `Połączone węzły (${hudNode.connectedIds.length})`}
-                  </span>
-                  <div className="flex flex-col gap-1.5">
-                    {hudNode.connectedIds.map(id => {
-                      const target = nodes.find(n => n.id === id);
-                      if (!target) return null;
-                      return (
-                        <button
-                          key={id}
-                          type="button"
-                          onClick={() => setSelectedNodeId(id)}
-                          className="w-full text-left min-h-[40px] desk:min-h-0 px-3 sm:px-2.5 py-2 sm:py-1.5 bg-neutral-900/90 border border-editorial-border hover:border-cyan-500/60 hover:bg-neutral-800 text-zinc-200 hover:text-white text-xs sm:text-[11px] desk:text-[10.5px] cursor-pointer transition-colors focus:outline-none select-none leading-snug flex items-center justify-between gap-2"
-                        >
-                          <span className="line-clamp-2">{lang === 'en' ? target.labelEn : target.labelPl}</span>
-                          <span className="text-[10px] text-cyan-400 shrink-0">→</span>
-                        </button>
-                      );
-                    })}
+                {/* Unified Scrollable Inspector Body (Title + Excerpt + Connected Nodes) so Connected Nodes never clips to 0px on tight screens */}
+                <div className="flex-1 min-h-0 overflow-y-auto px-3.5 py-2.5 sm:p-2.5 desk:p-3.5 space-y-2.5 overscroll-contain scrollbar-thin scrollbar-thumb-neutral-800">
+                  <div className="space-y-1 pb-2 border-b border-editorial-border/60">
+                    <h3 className="font-bold text-white text-[13px] sm:text-xs desk:text-sm leading-snug break-words">
+                      {lang === 'en' ? hudNode.labelEn : hudNode.labelPl}
+                    </h3>
+                    {hudNode.excerpt && (
+                      <p className="text-zinc-400 text-[11px] font-sans leading-relaxed line-clamp-2 land:line-clamp-1 short:hidden">
+                        {hudNode.excerpt}
+                      </p>
+                    )}
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <span className="text-[10px] uppercase tracking-wider text-editorial-muted font-bold block">
+                      {lang === 'en'
+                        ? `Connected Nodes (${hudNode.connectedIds.length})`
+                        : `Połączone węzły (${hudNode.connectedIds.length})`}
+                    </span>
+                    <div className="flex flex-col gap-1.5">
+                      {hudNode.connectedIds.map(id => {
+                        const target = nodes.find(n => n.id === id);
+                        if (!target) return null;
+                        return (
+                          <button
+                            key={id}
+                            type="button"
+                            onClick={() => setSelectedNodeId(id)}
+                            className="w-full text-left min-h-[38px] sm:min-h-[34px] desk:min-h-0 px-3 sm:px-2.5 py-1.5 bg-neutral-900/90 border border-editorial-border hover:border-cyan-500/60 hover:bg-neutral-800 text-zinc-200 hover:text-white text-xs sm:text-[11px] desk:text-[10.5px] cursor-pointer transition-colors focus:outline-none select-none leading-snug flex items-center justify-between gap-2"
+                          >
+                            <span className="line-clamp-2">{lang === 'en' ? target.labelEn : target.labelPl}</span>
+                            <span className="text-[10px] text-cyan-400 shrink-0">→</span>
+                          </button>
+                        );
+                      })}
+                    </div>
                   </div>
                 </div>
 
                 {/* Pinned Bottom Action Bar */}
-                <div className="shrink-0 px-4 py-2.5 sm:p-2.5 desk:p-3 border-t border-editorial-border bg-[#080B12] flex gap-2">
+                <div className="shrink-0 px-3.5 py-2 sm:p-2 desk:p-3 border-t border-editorial-border bg-[#080B12] flex gap-2">
                   {hudNode.type === 'post' && hudNode.rawPost && (
                     <>
                       <button
@@ -1466,7 +1469,7 @@ export default function GalaxyGraphModal({
                             onClose();
                           }
                         }}
-                        className="flex-1 h-10 desk:h-9 bg-emerald-950 hover:bg-emerald-900 border border-emerald-500 text-emerald-200 hover:text-white font-bold uppercase tracking-wider text-xs sm:text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition-colors touch-manipulation"
+                        className="flex-1 h-9 land:h-8 desk:h-9 bg-emerald-950 hover:bg-emerald-900 border border-emerald-500 text-emerald-200 hover:text-white font-bold uppercase tracking-wider text-xs sm:text-[11px] flex items-center justify-center gap-1.5 cursor-pointer transition-colors touch-manipulation"
                       >
                         <BookOpen size={14} />
                         <span>{lang === 'en' ? 'Read Article' : 'Czytaj Wpis'}</span>
@@ -1482,7 +1485,7 @@ export default function GalaxyGraphModal({
                               onClose();
                             }
                           }}
-                          className="h-10 w-11 desk:h-9 desk:w-auto desk:px-3 bg-fuchsia-950 hover:bg-fuchsia-900 border border-fuchsia-500 text-fuchsia-200 hover:text-white font-bold uppercase text-xs sm:text-[10.5px] flex items-center justify-center gap-1 cursor-pointer transition-colors touch-manipulation"
+                          className="h-9 land:h-8 w-10 desk:h-9 desk:w-auto desk:px-3 bg-fuchsia-950 hover:bg-fuchsia-900 border border-fuchsia-500 text-fuchsia-200 hover:text-white font-bold uppercase text-xs sm:text-[10.5px] flex items-center justify-center gap-1 cursor-pointer transition-colors touch-manipulation"
                           title={lang === 'en' ? 'Discuss with AI' : 'Dyskutuj z AI'}
                         >
                           <Bot size={15} />
@@ -1501,7 +1504,7 @@ export default function GalaxyGraphModal({
                           onClose();
                         }
                       }}
-                      className="w-full h-10 desk:h-9 bg-fuchsia-950 hover:bg-fuchsia-900 border border-fuchsia-500 text-fuchsia-200 hover:text-white font-bold uppercase tracking-wider text-xs sm:text-[11px] flex items-center justify-center gap-2 cursor-pointer transition-colors touch-manipulation"
+                      className="w-full h-9 land:h-8 desk:h-9 bg-fuchsia-950 hover:bg-fuchsia-900 border border-fuchsia-500 text-fuchsia-200 hover:text-white font-bold uppercase tracking-wider text-xs sm:text-[11px] flex items-center justify-center gap-2 cursor-pointer transition-colors touch-manipulation"
                     >
                       <TagIcon size={14} />
                       <span>{lang === 'en' ? 'Filter by this tag' : 'Filtruj wg tego tagu'}</span>

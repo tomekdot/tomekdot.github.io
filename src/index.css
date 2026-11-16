@@ -28,6 +28,7 @@ html, body {
   background-color: #050505;
   min-height: 100vh;
   min-height: 100svh;
+  min-height: 100dvh;
 }
 
 @keyframes border-blink {
@@ -190,11 +191,19 @@ input[type="range"].range-slider-thumb::-moz-range-thumb:active {
   touch-action: manipulation;
 }
 
+.app-footer-safe {
+  padding-bottom: max(5.25rem, calc(env(safe-area-inset-bottom, 0px) + 5rem));
+}
+
 @media (min-width: 640px) {
   .bottom-dock-container {
     padding-bottom: 1.5rem;
     padding-left: 1.5rem;
     padding-right: 1.5rem;
+  }
+
+  .app-footer-safe {
+    padding-bottom: max(6rem, calc(env(safe-area-inset-bottom, 0px) + 5.75rem));
   }
 }
 
@@ -204,18 +213,36 @@ input[type="range"].range-slider-thumb::-moz-range-thumb:active {
     padding-left: max(0.5rem, env(safe-area-inset-left, 0px));
     padding-right: max(0.5rem, env(safe-area-inset-right, 0px));
   }
+
+  .app-footer-safe {
+    padding-bottom: max(4.75rem, calc(env(safe-area-inset-bottom, 0px) + 4.5rem));
+  }
 }
 
 /* Firefox Mobile specific adaptation for dynamic sliding bottom toolbar */
 @supports (-moz-appearance: none) {
   .bottom-dock-container {
-    /* Extra clearance buffer so Firefox bottom toolbar never covers or conflicts with dock */
-    padding-bottom: max(0.65rem, calc(env(safe-area-inset-bottom, 0px) + 0.35rem));
+    padding-bottom: max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.45rem));
+  }
+
+  .app-footer-safe {
+    /* Generous buffer so Android Firefox sliding bottom toolbar never clips footer text or page end */
+    padding-bottom: max(7rem, calc(env(safe-area-inset-bottom, 0px) + 6.75rem));
+  }
+
+  @media (min-width: 768px) {
+    .sidebar-scroll-safe {
+      padding-bottom: max(7.5rem, calc(env(safe-area-inset-bottom, 0px) + 7rem));
+    }
   }
 
   @media (orientation: landscape) and (max-height: 520px) {
     .bottom-dock-container {
-      padding-bottom: max(0.35rem, calc(env(safe-area-inset-bottom, 0px) + 0.15rem));
+      padding-bottom: max(0.45rem, calc(env(safe-area-inset-bottom, 0px) + 0.2rem));
+    }
+
+    .app-footer-safe {
+      padding-bottom: max(6rem, calc(env(safe-area-inset-bottom, 0px) + 5.5rem));
     }
   }
 }

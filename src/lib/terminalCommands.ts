@@ -19,7 +19,9 @@ import {
   isSessionQuotaExhausted,
   PROVIDERS_CONFIG
 } from './apiKeyStorage';
-import { handleClientSideAiFallback, HAS_BACKEND } from './clientAi';
+
+const IS_STATIC_GITHUB_HOST = typeof window !== 'undefined'
+  && (window.location.hostname === 'tomekdot.github.io' || window.location.hostname.endsWith('github.io'));
 
 export type CommandType = 'input' | 'output' | 'error' | 'success' | 'comment';
 
@@ -737,6 +739,7 @@ export async function executeTerminalCommand(rawInput: string, ctx: TerminalCont
 
       const runFallback = async () => {
         try {
+          const { handleClientSideAiFallback } = await import('./clientAi');
           const fallbackResult = await handleClientSideAiFallback({
             query: effectiveUserMessage,
             repo: targetRepo || undefined,
@@ -770,7 +773,7 @@ export async function executeTerminalCommand(rawInput: string, ctx: TerminalCont
         }
       };
 
-      if (!HAS_BACKEND || isSessionQuotaExhausted()) {
+      if (IS_STATIC_GITHUB_HOST || isSessionQuotaExhausted()) {
         runFallback();
         break;
       }

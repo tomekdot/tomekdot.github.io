@@ -190,13 +190,13 @@ export default function BlogModal({
 
             {/* Header Block - draggable from blank areas */}
             <div 
-              className="shrink-0 border-b border-editorial-border bg-editorial-sidebar-bg px-3.5 sm:px-5 desk:px-6 py-2.5 sm:py-3.5 land:py-1.5 short:py-1.5 flex items-center sm:items-start justify-between gap-2 select-none cursor-grab active:cursor-grabbing touch-none"
+              className="shrink-0 border-b border-editorial-border bg-editorial-sidebar-bg px-3.5 sm:px-5 desk:px-6 py-2.5 sm:py-3 land:py-1.5 short:py-1.5 flex items-center justify-between gap-2.5 select-none cursor-grab active:cursor-grabbing touch-none"
               style={{ touchAction: 'none' }}
               onPointerDown={startDrag}
             >
-              <div className="min-w-0 flex-1 pr-1 flex flex-col items-start gap-1 sm:gap-1.5">
+              <div className="min-w-0 flex-1 pr-1 flex flex-col justify-center items-start gap-1 sm:gap-1.5 land:gap-0 short:gap-0">
                 {/* Metadata badge row: Date & Reading Time shown on portrait (< sm) & desk+, hidden in horizontal/short mobile */}
-                <div className="flex flex-wrap items-center gap-1.5 font-mono text-[9px] text-editorial-muted uppercase tracking-wider mb-0.5 sm:mb-1 land:hidden short:hidden desk:flex">
+                <div className="flex flex-wrap items-center gap-1.5 font-mono text-[9px] text-editorial-muted uppercase tracking-wider mb-0.5 desk:mb-0.5 land:hidden short:hidden desk:flex">
                   <span className="hidden desk:inline-flex items-center gap-1 px-1.5 py-0.5 bg-neutral-950 border border-editorial-border text-zinc-300 font-semibold whitespace-nowrap shrink-0">
                     <Calendar size={10} className="text-editorial-accent shrink-0" />
                     {post.date}
@@ -222,7 +222,7 @@ export default function BlogModal({
                     className="text-left w-full short:cursor-pointer cursor-text select-text"
                     title={lang === 'en' ? 'Article title' : 'Tytuł artykułu'}
                   >
-                    <h2 className={`font-bold font-mono text-white uppercase tracking-wider text-sm sm:text-xl land:text-xs desk:text-2xl break-words leading-snug ${
+                    <h2 className={`font-bold font-mono text-white uppercase tracking-wider text-sm sm:text-base md:text-lg land:text-xs desk:text-xl break-words leading-snug ${
                       !isShortTitleExpanded ? 'land:line-clamp-2 short:line-clamp-2 desk:line-clamp-none' : ''
                     }`}>
                       {title}
