@@ -116,28 +116,38 @@ export default function App() {
   useEffect(() => { if (selectedRepo) setRepoMounted(true); }, [selectedRepo]);
   useEffect(() => { if (selectedBlogPost) setBlogMounted(true); }, [selectedBlogPost]);
 
-  // Defer modal chunks prefetch until first user interaction or idle to keep initial load fast & clicks instant
+  // Defer modal chunks prefetch gently on browser idle with safe catches to avoid concurrent dev optimizeDeps races on first click
   useEffect(() => {
+    if (typeof window === 'undefined') return;
     const prefetch = () => {
-      import('./components/RepoModal');
-      import('./components/BlogModal');
-      import('./components/DeveloperStatsModal');
-      import('./components/BlogStatsModal');
-      import('./components/GalaxyGraphModal');
+      void import('./components/RepoModal').catch(() => {});
+      void import('./components/BlogModal').catch(() => {});
+      void import('./components/DeveloperStatsModal').catch(() => {});
+      void import('./components/BlogStatsModal').catch(() => {});
+      void import('./components/GalaxyGraphModal').catch(() => {});
     };
-    if (typeof window !== 'undefined') {
-      const trigger = () => {
-        prefetch();
-        window.removeEventListener('pointerdown', trigger);
-        window.removeEventListener('keydown', trigger);
-      };
-      window.addEventListener('pointerdown', trigger, { once: true, passive: true });
-      window.addEventListener('keydown', trigger, { once: true, passive: true });
-      return () => {
-        window.removeEventListener('pointerdown', trigger);
-        window.removeEventListener('keydown', trigger);
-      };
+
+    let idleId: number | undefined;
+    let timerId: number | undefined;
+    const win = window as Window & {
+      requestIdleCallback?: (cb: () => void, opts?: { timeout: number }) => number;
+      cancelIdleCallback?: (id: number) => void;
+    };
+
+    if (typeof win.requestIdleCallback === 'function') {
+      idleId = win.requestIdleCallback(prefetch, { timeout: 2500 });
+    } else {
+      timerId = window.setTimeout(prefetch, 1500);
     }
+
+    return () => {
+      if (idleId !== undefined && typeof win.cancelIdleCallback === 'function') {
+        win.cancelIdleCallback(idleId);
+      }
+      if (timerId !== undefined) {
+        window.clearTimeout(timerId);
+      }
+    };
   }, []);
 
   const handleSelectRepo = useCallback((repo: Repository) => {
@@ -970,13 +980,13 @@ export default function App() {
     isTokenModalOpen
   );
 
-  // Prevent background body scrolling when any full modal dialog is active
+  // Prevent background body scrolling when any full modal dialog is active (do NOT set html overflow so sticky sidebar never jumps)
   useEffect(() => {
     if (isAnyModalOpen) {
-      const originalOverflow = document.body.style.overflow;
+      const originalBodyOverflow = document.body.style.overflow;
       document.body.style.overflow = 'hidden';
       return () => {
-        document.body.style.overflow = originalOverflow || '';
+        document.body.style.overflow = originalBodyOverflow || '';
       };
     } else {
       document.body.style.overflow = '';
@@ -1198,10 +1208,10 @@ export default function App() {
     </header>
 
       {/* 3. Core Workspace Section */}
-      <main className="flex-grow grid grid-cols-1 md:grid-cols-[310px_1fr] lg:grid-cols-[340px_1fr] md:divide-x divide-editorial-border border-b border-editorial-border bg-editorial-bg min-h-0">
+      <main className="flex-grow grid grid-cols-1 md:grid-cols-[310px_1fr] lg:grid-cols-[340px_1fr] divide-y md:divide-y-0 md:divide-x divide-editorial-border border-b border-editorial-border bg-editorial-bg min-h-0">
         {/* Left Sidebar block */}
-        <aside className="p-3.5 sm:p-4 md:p-5 lg:p-6 pb-4 sm:pb-5 md:pb-28 lg:pb-32 flex flex-col justify-start gap-3.5 sm:gap-4 md:gap-6 lg:gap-7 bg-editorial-sidebar-bg md:sticky md:top-[61px] md:self-start md:max-h-[calc(100dvh-61px)] md:overflow-y-auto sidebar-scroll-safe scrollbar-thin scrollbar-thumb-neutral-800">
-          <div className="space-y-4 md:space-y-6">
+        <aside className="p-3.5 sm:p-4 md:p-5 lg:p-6 pb-3.5 sm:pb-4 md:pb-5 lg:pb-6 flex flex-col justify-start gap-3.5 sm:gap-4 md:gap-5 bg-editorial-sidebar-bg md:sticky md:top-[61px] md:self-start md:max-h-[calc(100dvh-61px)] md:overflow-y-auto sidebar-scroll-safe scrollbar-thin scrollbar-thumb-neutral-800">
+          <div className="space-y-4 md:space-y-5">
             {/* Main Tabs Navigation */}
             <div className="flex h-[38px] border border-editorial-border p-1 bg-neutral-950 font-mono text-[11px] rounded-none mb-2 sm:mb-3 box-border">
               <button
@@ -1321,7 +1331,7 @@ export default function App() {
           </div>
 
           {activeWorkspaceTab === 'projects' ? (
-            <div className="bg-editorial-sidebar-bg p-2.5 sm:p-3 md:p-3.5 border-2 border-editorial-border rounded-none space-y-2.5 sm:space-y-3 mb-1 sm:mb-2 md:mb-6 shadow-xl overflow-hidden box-border">
+            <div className="bg-editorial-sidebar-bg p-2.5 sm:p-3 md:p-3.5 border-2 border-editorial-border rounded-none space-y-2.5 sm:space-y-3 shadow-xl overflow-hidden box-border">
               {/* Header with Title and Volume Badge */}
               <div className="flex items-center justify-between border-b border-editorial-border pb-2 gap-1.5 min-w-0">
                 <div className="flex items-center gap-1.5 min-w-0">
@@ -1500,7 +1510,7 @@ export default function App() {
               </button>
             </div>
           ) : (
-            <div className="bg-editorial-sidebar-bg p-2.5 sm:p-3 md:p-3.5 border-2 border-editorial-border rounded-none space-y-2.5 sm:space-y-3 mb-1 sm:mb-2 md:mb-6 shadow-xl overflow-hidden box-border flex flex-col">
+            <div className="bg-editorial-sidebar-bg p-2.5 sm:p-3 md:p-3.5 border-2 border-editorial-border rounded-none space-y-2.5 sm:space-y-3 shadow-xl overflow-hidden box-border flex flex-col">
               <div className="flex items-center justify-between border-b border-editorial-border pb-2 gap-1.5 min-w-0">
                 <div className="flex items-center gap-1.5 min-w-0">
                   <div className="p-1 bg-[#1D170E] border border-editorial-accent/50 text-editorial-accent shrink-0">
@@ -1595,8 +1605,6 @@ export default function App() {
             </div>
           )}
 
-            {/* Dedicated bottom clearance buffer to prevent floating dock or mobile browser chrome from overlapping sticky sidebar bottom items */}
-            <div className="hidden md:block md:h-24 lg:h-28 w-full shrink-0 pointer-events-none" aria-hidden="true" />
           </div>
         </aside>
 
@@ -1670,111 +1678,113 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Filters sub-row */}
-                <div className="flex flex-wrap items-center justify-between gap-2 text-xs font-mono">
-                  <div className="grid grid-cols-2 sm:flex sm:flex-wrap sm:items-center sm:gap-2 w-full sm:w-auto gap-1.5">
-                    {/* Private Visibility Toggle Button (clean editorial style, no loud Admin badge) */}
-                    <button
-                      type="button"
-                      id="toggle_hide_private_btn"
-                      onClick={() => setHidePrivate(!hidePrivate)}
-                      className={`flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 border transition-all cursor-pointer text-[10.5px] sm:text-xs uppercase tracking-wider rounded-none shrink-0 group ${
-                        !hidePrivate 
-                          ? 'border-editorial-accent/70 bg-editorial-accent/10 text-editorial-accent font-bold' 
-                          : 'border-editorial-border hover:border-editorial-accent/50 bg-[#0D0D0D] text-editorial-muted hover:text-white'
-                      }`}
-                      title={appLang === 'en' ? 'Toggle visibility of private repositories' : 'Przełącz widoczność prywatnych repozytoriów'}
-                    >
-                      {!hidePrivate ? (
-                        <Eye size={12} className="text-editorial-accent shrink-0" />
-                      ) : (
-                        <EyeOff size={12} className="text-editorial-muted group-hover:text-white shrink-0" />
-                      )}
-                      <span className="truncate">
-                        {!hidePrivate 
-                          ? (appLang === 'en' ? 'PRIVATE: SHOWN' : 'PRYWATNE: JAWNE') 
-                          : (appLang === 'en' ? 'PRIVATE: HIDDEN' : 'PRYWATNE: UKRYTE')}
-                      </span>
-                    </button>
-
-                    {/* Year Range Filter Toggle Button */}
-                    <button
-                      type="button"
-                      id="toggle_year_filter_drawer_btn"
-                      onClick={() => setIsYearFilterOpen(!isYearFilterOpen)}
-                      className={`flex items-center justify-center gap-1 sm:gap-1.5 px-2 sm:px-3 py-1.5 border transition-colors cursor-pointer text-[10.5px] sm:text-xs uppercase tracking-wider rounded-none shrink-0 group ${
-                        !isFullYearRange
-                          ? 'border-sky-500 bg-sky-950/50 text-sky-300 font-bold'
-                          : isYearFilterOpen
-                            ? 'border-sky-500/60 bg-neutral-900 text-sky-300'
-                            : 'border-editorial-border bg-[#0D0D0D] hover:border-editorial-accent/50 text-editorial-muted hover:text-white'
-                      }`}
-                      title={appLang === 'en' ? (isYearFilterOpen ? 'Collapse creation year slider' : 'Open creation year range slider filter') : (isYearFilterOpen ? 'Zwiń suwak rocznika' : 'Otwórz filtr suwaka rocznika projektu')}
-                    >
-                      <Calendar size={12} className={!isFullYearRange ? 'text-sky-400' : 'text-editorial-muted group-hover:text-white'} />
-                      <span className="truncate">
-                        {appLang === 'en' ? 'YEAR' : 'ROK'}: {selectedYearRange[0] === selectedYearRange[1] ? selectedYearRange[0] : `${selectedYearRange[0]}–${selectedYearRange[1]}`}
-                      </span>
-                      {!isFullYearRange && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-sky-400 ml-0.5" />
-                      )}
-                      <ChevronDown size={11} className={`transition-transform duration-200 ml-0.5 ${isYearFilterOpen ? 'rotate-180 text-sky-300' : 'text-editorial-muted group-hover:text-white'}`} />
-                    </button>
-
-                    {/* Language Droplist */}
-                    <div className="relative flex items-center min-w-0">
-                      <label htmlFor="language_filter_select" className="sr-only">
-                        {appLang === 'en' ? 'Filter repositories by language' : 'Filtruj repozytoria według języka'}
-                      </label>
-                      <select
-                        id="language_filter_select"
-                        value={filterLang}
-                        onChange={(e) => setFilterLang(e.target.value)}
-                        aria-label={appLang === 'en' ? 'Filter repositories by programming language' : 'Filtruj repozytoria według języka programowania'}
-                        translate="no"
-                        className="w-full bg-editorial-sidebar-bg border border-editorial-border text-[10.5px] sm:text-xs text-white font-mono py-1.5 pl-2 sm:pl-3 pr-5 sm:pr-7 rounded-none focus:border-editorial-accent focus:outline-none transition-colors notranslate appearance-none cursor-pointer truncate"
+                {/* Filters sub-row: 1 single balanced line at >=512px container, 2x2 grid below (never 3+1 solo orphan) */}
+                <div className="@container">
+                  <div className="flex flex-col @2xl:flex-row @2xl:items-center @2xl:justify-between gap-1.5 @2xl:gap-2 text-xs font-mono">
+                    <div className="grid grid-cols-2 @lg:flex @lg:flex-nowrap @lg:items-center gap-1.5 w-full @2xl:w-auto min-w-0">
+                      {/* Private Visibility Toggle Button (clean editorial style, no loud Admin badge) */}
+                      <button
+                        type="button"
+                        id="toggle_hide_private_btn"
+                        onClick={() => setHidePrivate(!hidePrivate)}
+                        className={`flex items-center justify-center gap-1 px-2 @xl:px-2.5 py-1.5 border transition-all cursor-pointer text-[10.5px] @xl:text-[11px] desk:text-xs uppercase tracking-wider rounded-none shrink-0 min-w-0 group ${
+                          !hidePrivate 
+                            ? 'border-editorial-accent/70 bg-editorial-accent/10 text-editorial-accent font-bold' 
+                            : 'border-editorial-border hover:border-editorial-accent/50 bg-[#0D0D0D] text-editorial-muted hover:text-white'
+                        }`}
+                        title={appLang === 'en' ? 'Toggle visibility of private repositories' : 'Przełącz widoczność prywatnych repozytoriów'}
                       >
-                        <option value="all">{appLang === 'en' ? 'ALL LANGS' : 'WSZYSTKIE'}</option>
-                        {allLanguages.map(l => (
-                          <option key={l} value={l}>
-                            {l === 'Shell/Other' 
-                              ? (appLang === 'en' ? 'SHELL / OTHER' : 'SHELL / INNE') 
-                              : l.toUpperCase()}
-                          </option>
-                        ))}
-                      </select>
-                      <div className="absolute inset-y-0 right-0 flex items-center pr-1.5 sm:pr-2 pointer-events-none text-editorial-muted">
-                        <ChevronDown size={11} />
+                        {!hidePrivate ? (
+                          <Eye size={12} className="text-editorial-accent shrink-0" />
+                        ) : (
+                          <EyeOff size={12} className="text-editorial-muted group-hover:text-white shrink-0" />
+                        )}
+                        <span className="truncate">
+                          {!hidePrivate 
+                            ? (appLang === 'en' ? 'PRIVATE: SHOWN' : 'PRYWATNE: JAWNE') 
+                            : (appLang === 'en' ? 'PRIVATE: HIDDEN' : 'PRYWATNE: UKRYTE')}
+                        </span>
+                      </button>
+
+                      {/* Year Range Filter Toggle Button */}
+                      <button
+                        type="button"
+                        id="toggle_year_filter_drawer_btn"
+                        onClick={() => setIsYearFilterOpen(!isYearFilterOpen)}
+                        className={`flex items-center justify-center gap-1 px-2 @xl:px-2.5 py-1.5 border transition-colors cursor-pointer text-[10.5px] @xl:text-[11px] desk:text-xs uppercase tracking-wider rounded-none shrink-0 min-w-0 group ${
+                          !isFullYearRange
+                            ? 'border-sky-500 bg-sky-950/50 text-sky-300 font-bold'
+                            : isYearFilterOpen
+                              ? 'border-sky-500/60 bg-neutral-900 text-sky-300'
+                              : 'border-editorial-border bg-[#0D0D0D] hover:border-editorial-accent/50 text-editorial-muted hover:text-white'
+                        }`}
+                        title={appLang === 'en' ? (isYearFilterOpen ? 'Collapse creation year slider' : 'Open creation year range slider filter') : (isYearFilterOpen ? 'Zwiń suwak rocznika' : 'Otwórz filtr suwaka rocznika projektu')}
+                      >
+                        <Calendar size={12} className={!isFullYearRange ? 'text-sky-400 shrink-0' : 'text-editorial-muted group-hover:text-white shrink-0'} />
+                        <span className="truncate">
+                          {appLang === 'en' ? 'YEAR' : 'ROK'}: {selectedYearRange[0] === selectedYearRange[1] ? selectedYearRange[0] : `${selectedYearRange[0]}–${selectedYearRange[1]}`}
+                        </span>
+                        {!isFullYearRange && (
+                          <span className="w-1.5 h-1.5 rounded-full bg-sky-400 ml-0.5 shrink-0" />
+                        )}
+                        <ChevronDown size={11} className={`transition-transform duration-200 shrink-0 ${isYearFilterOpen ? 'rotate-180 text-sky-300' : 'text-editorial-muted group-hover:text-white'}`} />
+                      </button>
+
+                      {/* Language Droplist */}
+                      <div className="relative flex items-center min-w-0">
+                        <label htmlFor="language_filter_select" className="sr-only">
+                          {appLang === 'en' ? 'Filter repositories by language' : 'Filtruj repozytoria według języka'}
+                        </label>
+                        <select
+                          id="language_filter_select"
+                          value={filterLang}
+                          onChange={(e) => setFilterLang(e.target.value)}
+                          aria-label={appLang === 'en' ? 'Filter repositories by programming language' : 'Filtruj repozytoria według języka programowania'}
+                          translate="no"
+                          className="w-full @lg:w-auto bg-editorial-sidebar-bg border border-editorial-border text-[10.5px] @xl:text-[11px] desk:text-xs text-white font-mono py-1.5 pl-2 @xl:pl-2.5 pr-5 @xl:pr-6 rounded-none focus:border-editorial-accent focus:outline-none transition-colors notranslate appearance-none cursor-pointer truncate"
+                        >
+                          <option value="all">{appLang === 'en' ? 'ALL LANGS' : 'WSZYSTKIE'}</option>
+                          {allLanguages.map(l => (
+                            <option key={l} value={l}>
+                              {l === 'Shell/Other' 
+                                ? (appLang === 'en' ? 'SHELL / OTHER' : 'SHELL / INNE') 
+                                : l.toUpperCase()}
+                            </option>
+                          ))}
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-1.5 pointer-events-none text-editorial-muted">
+                          <ChevronDown size={11} />
+                        </div>
+                      </div>
+
+                      {/* Sorting selection dropdown */}
+                      <div className="relative flex items-center min-w-0">
+                        <label htmlFor="sort_filter_select" className="sr-only">
+                          {appLang === 'en' ? 'Sort repositories' : 'Sortuj repozytoria'}
+                        </label>
+                        <select
+                          id="sort_filter_select"
+                          value={sortBy}
+                          onChange={(e) => setSortBy(e.target.value as any)}
+                          aria-label={appLang === 'en' ? 'Sort repositories' : 'Sortuj repozytoria'}
+                          className="w-full @lg:w-auto bg-editorial-sidebar-bg border border-editorial-border text-[10.5px] @xl:text-[11px] desk:text-xs text-white font-mono py-1.5 pl-2 @xl:pl-2.5 pr-5 @xl:pr-6 rounded-none focus:border-editorial-accent focus:outline-none transition-colors appearance-none cursor-pointer truncate"
+                        >
+                          <option value="stars">{appLang === 'en' ? '★ STARS' : '★ GWIAZDKI'}</option>
+                          <option value="year">{appLang === 'en' ? '📅 NEWEST' : '📅 NOWSZE'}</option>
+                          <option value="year-asc">{appLang === 'en' ? '📅 OLDEST' : '📅 STARSZE'}</option>
+                          <option value="name">{appLang === 'en' ? 'A-Z NAME' : 'A-Z NAZWA'}</option>
+                          <option value="commits">{appLang === 'en' ? 'COMMITS' : 'COMMITY'}</option>
+                        </select>
+                        <div className="absolute inset-y-0 right-0 flex items-center pr-1.5 pointer-events-none text-editorial-muted">
+                          <ChevronDown size={11} />
+                        </div>
                       </div>
                     </div>
 
-                    {/* Sorting selection dropdown */}
-                    <div className="relative flex items-center min-w-0">
-                      <label htmlFor="sort_filter_select" className="sr-only">
-                        {appLang === 'en' ? 'Sort repositories' : 'Sortuj repozytoria'}
-                      </label>
-                      <select
-                        id="sort_filter_select"
-                        value={sortBy}
-                        onChange={(e) => setSortBy(e.target.value as any)}
-                        aria-label={appLang === 'en' ? 'Sort repositories' : 'Sortuj repozytoria'}
-                        className="w-full bg-editorial-sidebar-bg border border-editorial-border text-[10.5px] sm:text-xs text-white font-mono py-1.5 pl-2 sm:pl-3 pr-5 sm:pr-7 rounded-none focus:border-editorial-accent focus:outline-none transition-colors appearance-none cursor-pointer truncate"
-                      >
-                        <option value="stars">{appLang === 'en' ? '★ STARS' : '★ GWIAZDKI'}</option>
-                        <option value="year">{appLang === 'en' ? '📅 YEAR (NEWEST)' : '📅 ROK (NAJNOWSZE)'}</option>
-                        <option value="year-asc">{appLang === 'en' ? '📅 YEAR (OLDEST)' : '📅 ROK (NAJSTARSZE)'}</option>
-                        <option value="name">{appLang === 'en' ? 'A-Z NAME' : 'A-Z NAZWA'}</option>
-                        <option value="commits">{appLang === 'en' ? 'COMMITS' : 'COMMITY'}</option>
-                      </select>
-                      <div className="absolute inset-y-0 right-0 flex items-center pr-1.5 sm:pr-2 pointer-events-none text-editorial-muted">
-                        <ChevronDown size={11} />
-                      </div>
-                    </div>
+                    <span className="text-xs text-editorial-muted font-mono hidden sm:inline shrink-0 whitespace-nowrap">
+                      {filteredAndSortedRepos.length} {appLang === 'en' ? 'repos found' : 'znalezionych'}
+                    </span>
                   </div>
-
-                  <span className="text-xs text-editorial-muted font-mono hidden sm:inline">
-                    {filteredAndSortedRepos.length} {appLang === 'en' ? 'repos found' : 'znalezionych'}
-                  </span>
                 </div>
 
                 {/* Year Range Slider Filter Component */}
@@ -2315,7 +2325,7 @@ export default function App() {
         <div className="flex items-end justify-between gap-1.5 sm:gap-2 pointer-events-auto w-full">
           <div id="bottom_dock_slot" className="min-w-0 flex-1 max-w-[min(20rem,calc(100vw-5.25rem))] sm:max-w-[22rem] landscape:max-w-[calc(100vw-5.5rem)] flex flex-col landscape:flex-row gap-1 sm:gap-1.5">
             {repoMounted && (
-              <ErrorBoundary compact lang={appLang} onReset={() => { setSelectedRepo(null); setIsRepoMinimized(false); }}>
+              <ErrorBoundary compact lang={appLang} onReset={() => { setSelectedRepo(null); setIsRepoMinimized(false); setRepoMounted(false); }}>
                 <Suspense fallback={activeSelectedRepo && !isRepoMinimized ? <ModalLoadingFallback lang={appLang} /> : null}>
                   <RepoModal
                     repo={activeSelectedRepo}
@@ -2333,7 +2343,7 @@ export default function App() {
               </ErrorBoundary>
             )}
             {blogMounted && (
-              <ErrorBoundary compact lang={appLang} onReset={() => { setSelectedBlogPost(null); setIsBlogMinimized(false); }}>
+              <ErrorBoundary compact lang={appLang} onReset={() => { setSelectedBlogPost(null); setIsBlogMinimized(false); setBlogMounted(false); }}>
                 <Suspense fallback={selectedBlogPost && !isBlogMinimized ? <ModalLoadingFallback lang={appLang} /> : null}>
                   <BlogModal
                     post={selectedBlogPost}
@@ -2369,7 +2379,7 @@ export default function App() {
 
       {/* 9. Full Developer Statistics & Changelog Modal for Repos */}
       {statsMounted && (
-        <ErrorBoundary compact lang={appLang} onReset={() => setIsStatsModalOpen(false)}>
+        <ErrorBoundary compact lang={appLang} onReset={() => { setIsStatsModalOpen(false); setStatsMounted(false); }}>
           <Suspense fallback={isStatsModalOpen ? <ModalLoadingFallback lang={appLang} /> : null}>
             <DeveloperStatsModal
               isOpen={isStatsModalOpen}
@@ -2388,7 +2398,7 @@ export default function App() {
 
       {/* 9.5 Full Blog Stats & Interactive AI Synthesis Modal */}
       {blogStatsMounted && (
-        <ErrorBoundary compact lang={appLang} onReset={() => setIsBlogStatsModalOpen(false)}>
+        <ErrorBoundary compact lang={appLang} onReset={() => { setIsBlogStatsModalOpen(false); setBlogStatsMounted(false); }}>
           <Suspense fallback={isBlogStatsModalOpen ? <ModalLoadingFallback lang={appLang} /> : null}>
             <BlogStatsModal
               isOpen={isBlogStatsModalOpen}
@@ -2421,7 +2431,7 @@ export default function App() {
 
       {/* 9.6 Obsidian Galaxy Constellation Network Graph Modal */}
       {galaxyMounted && (
-        <ErrorBoundary compact lang={appLang} onReset={() => setIsGalaxyModalOpen(false)}>
+        <ErrorBoundary compact lang={appLang} onReset={() => { setIsGalaxyModalOpen(false); setGalaxyMounted(false); }}>
           <Suspense fallback={isGalaxyModalOpen ? <ModalLoadingFallback lang={appLang} /> : null}>
             <GalaxyGraphModal
               isOpen={isGalaxyModalOpen}
@@ -2455,7 +2465,7 @@ export default function App() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             id="token_modal_backdrop"
-            className="fixed inset-0 bg-neutral-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overscroll-contain"
+            className="modal-portal-viewport bg-neutral-950/85 backdrop-blur-sm z-50 flex items-center justify-center p-3 sm:p-4 overscroll-contain"
             onClick={() => setIsTokenModalOpen(false)}
           >
             <motion.div
@@ -2463,7 +2473,7 @@ export default function App() {
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.95, opacity: 0 }}
               id="token_modal_window"
-              className="bg-[#0A0A0A] border-2 border-amber-800/60 max-w-md w-[92%] sm:w-full max-h-[82svh] sm:max-h-[85vh] overflow-y-auto p-3.5 sm:p-5 relative shadow-[0_0_30px_rgba(0,0,0,0.8)] flex flex-col scrollbar-thin scrollbar-thumb-neutral-800 overscroll-contain my-auto"
+              className="bg-[#0A0A0A] border-2 border-amber-800/60 max-w-md w-[92%] sm:w-full max-h-[82dvh] sm:max-h-[85dvh] overflow-y-auto modal-scroll-safe p-3.5 sm:p-5 relative shadow-[0_0_30px_rgba(0,0,0,0.8)] flex flex-col scrollbar-thin scrollbar-thumb-neutral-800 my-auto"
               onClick={(e) => e.stopPropagation()}
             >
               {/* Header */}

@@ -1471,6 +1471,176 @@ export async function validateAiKeyLive(params?: {
   }
 }
 
+export interface DecisionRouteCandidate {
+  name: string;
+  lang?: string;
+  cat?: string[];
+  desc?: string;
+}
+
+export interface DecisionRouteResult {
+  model: string;
+  apiVersion: string;
+  usingServerKey: boolean;
+  inScope?: {
+    probability: number;
+    confidence: number;
+    allowed: boolean;
+  };
+  intent?: {
+    choice: string;
+    confidence: number;
+    probabilities: Record<string, number>;
+  };
+  complexity?: {
+    score: number;
+    normalized: number;
+    confidence: number;
+    topLevelIndex: number;
+    topLevelLabel: string;
+    probabilities: Record<string, number>;
+  };
+  bestRepo?: {
+    repoName: string | null;
+    confidence: number;
+    topMatches: Array<{ repoName: string; probability: number }>;
+  };
+  usage: {
+    inputTokens: number;
+    outputTokens: number;
+  };
+}
+
+export class DecisionRouteError extends Error {
+  code: number;
+  hint?: string;
+  missingKey?: boolean;
+  quotaExhausted?: boolean;
+  invalidKey?: boolean;
+  unsupportedProvider?: boolean;
+
+  constructor(params: {
+    message: string;
+    code?: number;
+    hint?: string;
+    missingKey?: boolean;
+    quotaExhausted?: boolean;
+    invalidKey?: boolean;
+    unsupportedProvider?: boolean;
+  }) {
+    super(params.message);
+    this.name = 'DecisionRouteError';
+    this.code = params.code ?? 500;
+    this.hint = params.hint;
+    this.missingKey = params.missingKey;
+    this.quotaExhausted = params.quotaExhausted;
+    this.invalidKey = params.invalidKey;
+    this.unsupportedProvider = params.unsupportedProvider;
+  }
+}
+
+/**
+ * Evaluates calibrated yes/no (`noul`), `choice`, and `score` questions using
+ * `gemini-decision-1` via the server Decisions API endpoint (`0` output tokens).
+ */
+export async function classifyWithDecisionModel(params: {
+  query: string;
+  repoName?: string;
+  repoDescription?: string;
+  repoLang?: string;
+  candidates?: DecisionRouteCandidate[];
+  siteLang?: 'en' | 'pl';
+  apiKey?: string;
+  provider?: string;
+  baseUrl?: string;
+  signal?: AbortSignal;
+  timeoutMs?: number;
+}): Promise<DecisionRouteResult> {
+  const {
+    query,
+    repoName,
+    repoDescription,
+    repoLang,
+    candidates,
+    siteLang = 'pl',
+    apiKey,
+    provider,
+    baseUrl,
+    signal,
+    timeoutMs = 20000,
+  } = params;
+
+  const isEn = siteLang === 'en';
+  if (!HAS_BACKEND) {
+    throw new DecisionRouteError({
+      code: 400,
+      message: isEn
+        ? 'Gemini Decision 1 requires the backend proxy server (unavailable on static GitHub Pages).'
+        : 'Model Gemini Decision 1 wymaga serwera backend proxy (niedostępny na statycznym GitHub Pages).',
+    });
+  }
+
+  const customApiKey = apiKey !== undefined ? apiKey : getLocalAIKey();
+  const customProvider = provider || getLocalAIProvider();
+  const customBaseUrl = baseUrl !== undefined ? baseUrl : getLocalAIBaseUrl();
+
+  const localController = new AbortController();
+  const onExternalAbort = () => localController.abort();
+  if (signal) {
+    if (signal.aborted) localController.abort();
+    else signal.addEventListener('abort', onExternalAbort, { once: true });
+  }
+  const timer = setTimeout(() => localController.abort(new Error('Decisions timeout')), timeoutMs);
+
+  try {
+    const res = await fetch('/api/ai/decision-route', {
+      method: 'POST',
+      signal: localController.signal,
+      headers: {
+        'Content-Type': 'application/json',
+        ...(customApiKey ? { 'x-ai-api-key': customApiKey, 'x-gemini-api-key': customApiKey } : {}),
+        ...(customProvider ? { 'x-ai-provider': customProvider } : {}),
+        ...(customBaseUrl ? { 'x-ai-base-url': customBaseUrl } : {}),
+      },
+      body: JSON.stringify({
+        query,
+        repoName,
+        repoDescription,
+        repoLang,
+        candidates,
+        customApiKey,
+        customProvider,
+        customBaseUrl,
+        siteLang,
+      }),
+    });
+
+    const contentType = res.headers.get('content-type') || '';
+    const data = contentType.includes('application/json') ? await res.json().catch(() => ({})) : {};
+
+    if (!res.ok) {
+      throw new DecisionRouteError({
+        code: res.status,
+        message: data.error || `HTTP ${res.status}`,
+        hint: data.hint,
+        missingKey: Boolean(data.missingKey),
+        quotaExhausted: res.status === 429 || Boolean(data.quotaExhausted),
+        invalidKey: Boolean(data.invalidKey),
+        unsupportedProvider: Boolean(data.unsupportedProvider),
+      });
+    }
+
+    if (data?.usage?.inputTokens > 0) {
+      addSessionTokensUsed(Number(data.usage.inputTokens));
+    }
+
+    return data as DecisionRouteResult;
+  } finally {
+    clearTimeout(timer);
+    if (signal) signal.removeEventListener('abort', onExternalAbort);
+  }
+}
+
 /**
  * Executes an AI query for repositories.
  * - Routes Gemini (including AQ. Vertex Express and AIza... AI Studio keys) through backend proxy.

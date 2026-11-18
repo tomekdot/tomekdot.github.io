@@ -332,12 +332,14 @@ export default function GalaxyGraphModal({
     return cores <= 2 && memory <= 2;
   }, []);
 
-  // Node selection handler with tap debouncing for touch & pointer devices
-  const lastNodeTapTimeRef = useRef(0);
-  const handleNodeSelect = useCallback((nodeId: string) => {
+  // Node selection handler: switches immediately between nodes while suppressing synthetic click after touchEnd
+  const lastNodeTapRef = useRef<{ id: string; time: number }>({ id: '', time: 0 });
+  const handleNodeSelect = useCallback((nodeId: string, viaTouch = false) => {
     const now = Date.now();
-    if (now - lastNodeTapTimeRef.current < 300) return;
-    lastNodeTapTimeRef.current = now;
+    if (!viaTouch && lastNodeTapRef.current.id === nodeId && now - lastNodeTapRef.current.time < 400) {
+      return;
+    }
+    lastNodeTapRef.current = { id: nodeId, time: now };
     setSelectedNodeId(prev => (prev === nodeId ? null : nodeId));
   }, []);
 
@@ -360,8 +362,7 @@ export default function GalaxyGraphModal({
   const [zoomLevel, setZoomLevel] = useState(1);
   const [panOffset, setPanOffset] = useState({ x: 0, y: 0 });
   const [isLegendOpenMobile, setIsLegendOpenMobile] = useState(false);
-  const [isMobileSearchOpen, setIsMobileSearchOpen] = useState(false);
-  const [isMobileTimelineOpen, setIsMobileTimelineOpen] = useState(false);
+  const [mobileBarMode, setMobileBarMode] = useState<'search' | 'timeline'>('search');
   const [isCanvasReady, setIsCanvasReady] = useState(false);
 
   // High-performance direct DOM transform tracking
@@ -386,15 +387,17 @@ export default function GalaxyGraphModal({
     }
     return { width: 900, height: 700 };
   });
+  const dimensionsRef = useRef(dimensions);
+  dimensionsRef.current = dimensions;
 
-  // Direct DOM transform without triggering React re-renders
-  const applyTransform = useCallback((w = dimensions.width, h = dimensions.height) => {
+  // Stable direct DOM transform helper (never changes identity on resize, preventing effect re-runs)
+  const applyTransform = useCallback((w = dimensionsRef.current.width, h = dimensionsRef.current.height) => {
     if (!groupRef.current) return;
     const { x, y, z } = transformRef.current;
     const cx = w / 2 + x;
     const cy = h / 2 + y;
     groupRef.current.setAttribute('transform', `translate(${cx}, ${cy}) scale(${z})`);
-  }, [dimensions.width, dimensions.height]);
+  }, []);
 
   const requestTransformUpdate = useCallback(() => {
     if (rafIdRef.current !== null) return;
@@ -404,7 +407,7 @@ export default function GalaxyGraphModal({
     });
   }, [applyTransform]);
 
-  // Synchronously initialize modal state & measure SVG canvas BEFORE first paint to prevent frame-1 jump/flicker
+  // Synchronously initialize modal state ONCE when modal opens (never re-runs on viewport resize)
   useLayoutEffect(() => {
     if (!isOpen) {
       setIsCanvasReady(false);
@@ -413,10 +416,10 @@ export default function GalaxyGraphModal({
     }
 
     setFilterType(initialFilterMode);
+    setSearchQuery('');
     setHoveredNodeId(null);
     setSelectedNodeId(null);
-    setIsMobileSearchOpen(false);
-    setIsMobileTimelineOpen(false);
+    setMobileBarMode('search');
     setIsLegendOpenMobile(false);
     setTimelineProgress(1);
     setIsPlayingTimeline(false);
@@ -428,6 +431,7 @@ export default function GalaxyGraphModal({
 
     hasAutoFitRef.current = true;
     lastMeasuredSizeRef.current = { width: nextW, height: nextH };
+    dimensionsRef.current = { width: nextW, height: nextH };
     transformRef.current = { x: 0, y: 0, z: fitZ };
     setDimensions({ width: nextW, height: nextH });
     setZoomLevel(fitZ);
@@ -481,7 +485,7 @@ export default function GalaxyGraphModal({
     };
   }, [isOpen, requestTransformUpdate]);
 
-  // ResizeObserver using clientWidth & clientHeight + auto-recenter when viewport rotates 90 degrees
+  // ResizeObserver using clientWidth & clientHeight + auto-recenter only on true device rotation (not soft keyboard open)
   useEffect(() => {
     const el = svgRef.current;
     if (!el || !isOpen) return;
@@ -492,12 +496,19 @@ export default function GalaxyGraphModal({
       if (!nextW || !nextH) return;
 
       const prev = lastMeasuredSizeRef.current;
+      if (Math.abs(nextW - prev.width) < 2 && Math.abs(nextH - prev.height) < 2) {
+        return;
+      }
+
+      const widthChangedSignificantly = Math.abs(nextW - prev.width) > 40;
       const flippedOrientation =
         prev.width > 0 &&
         prev.height > 0 &&
+        widthChangedSignificantly &&
         (prev.width < prev.height) !== (nextW < nextH);
 
       lastMeasuredSizeRef.current = { width: nextW, height: nextH };
+      dimensionsRef.current = { width: nextW, height: nextH };
       setDimensions({ width: nextW, height: nextH });
 
       if (!hasAutoFitRef.current || flippedOrientation) {
@@ -506,6 +517,8 @@ export default function GalaxyGraphModal({
         transformRef.current = { x: 0, y: 0, z: fitZ };
         setZoomLevel(fitZ);
         setPanOffset({ x: 0, y: 0 });
+        applyTransform(nextW, nextH);
+      } else {
         applyTransform(nextW, nextH);
       }
       setIsCanvasReady(true);
@@ -918,12 +931,12 @@ export default function GalaxyGraphModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.12 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-0 desk:p-4 md:desk:p-6 bg-black/90 select-none overscroll-contain"
+          className="modal-portal-viewport z-50 flex items-center justify-center p-0 desk:p-4 md:desk:p-6 bg-black/90 select-none overscroll-contain"
           onMouseMove={handleMouseMove}
           onMouseUp={handleMouseUp}
         >
           <div
-            className="relative w-full h-full max-h-full desk:h-[92vh] desk:max-h-[850px] desk:max-w-6xl bg-[#07090E] border-0 desk:border desk:border-editorial-border/80 flex flex-col overflow-hidden shadow-2xl rounded-none overscroll-contain"
+            className="relative w-full h-full max-h-[100dvh] desk:h-[92dvh] desk:max-h-[min(850px,calc(100dvh-2rem))] desk:max-w-6xl bg-[#07090E] border-0 desk:border desk:border-editorial-border/80 flex flex-col overflow-hidden shadow-2xl rounded-none overscroll-contain"
           >
           {/* TOP HEADER & TIMELINE SCRUBBER */}
           <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between px-3 sm:px-4 desk:px-5 py-2 land:py-1 desk:py-2.5 bg-[#090C12] border-b border-editorial-border z-20 shrink-0 gap-1.5 sm:gap-2 desk:lg:gap-3">
@@ -947,66 +960,32 @@ export default function GalaxyGraphModal({
                 </div>
               </div>
 
-              {/* Compact Portrait Mobile Actions (< sm) */}
-              <div className="flex sm:hidden items-center gap-1.5 shrink-0">
-                <button
-                  type="button"
-                  id="galaxy_mobile_timeline_toggle_btn"
-                  onClick={() => setIsMobileTimelineOpen(prev => !prev)}
-                  className={`w-9 h-9 flex items-center justify-center border transition-colors cursor-pointer touch-manipulation ${
-                    isMobileTimelineOpen || isPlayingTimeline || timelineProgress < 0.99
-                      ? 'bg-cyan-950/70 border-cyan-500 text-cyan-300'
-                      : 'bg-neutral-900 border-editorial-border text-editorial-muted hover:text-white'
-                  }`}
-                  title={lang === 'en' ? 'Toggle timeline scrubber' : 'Pokaż oś czasu'}
-                  aria-label={lang === 'en' ? 'Toggle timeline scrubber' : 'Pokaż oś czasu'}
-                >
-                  <Clock size={15} />
-                </button>
-                <button
-                  type="button"
-                  id="galaxy_mobile_search_toggle_btn"
-                  onClick={() => setIsMobileSearchOpen(prev => !prev)}
-                  className={`w-9 h-9 flex items-center justify-center border transition-colors cursor-pointer touch-manipulation relative ${
-                    isMobileSearchOpen || searchQuery.trim()
-                      ? 'bg-cyan-950/70 border-cyan-500 text-cyan-300'
-                      : 'bg-neutral-900 border-editorial-border text-editorial-muted hover:text-white'
-                  }`}
-                  title={lang === 'en' ? 'Search nodes' : 'Szukaj węzłów'}
-                  aria-label={lang === 'en' ? 'Search nodes' : 'Szukaj węzłów'}
-                >
-                  <Search size={15} />
-                  {searchQuery.trim() && (
-                    <span className="absolute top-1 right-1 w-1.5 h-1.5 rounded-full bg-cyan-400" />
-                  )}
-                </button>
-                <button
-                  type="button"
-                  id="galaxy_close_mobile_btn"
-                  onClick={onClose}
-                  className="w-9 h-9 flex items-center justify-center text-rose-400 hover:text-white bg-neutral-900 border border-rose-500/50 hover:bg-rose-950/40 transition-colors cursor-pointer touch-manipulation"
-                  title={lang === 'en' ? 'Close view (Esc)' : 'Zamknij widok (Esc)'}
-                  aria-label={lang === 'en' ? 'Close view' : 'Zamknij widok'}
-                >
-                  <X size={16} />
-                </button>
-              </div>
+              {/* Clean Portrait Mobile Close Button Only (no cramped 3-button cluster) */}
+              <button
+                type="button"
+                id="galaxy_close_mobile_btn"
+                onClick={onClose}
+                className="sm:hidden w-8 h-8 flex items-center justify-center text-rose-400 hover:text-white bg-neutral-900 border border-rose-500/40 hover:bg-rose-950/40 transition-colors cursor-pointer touch-manipulation shrink-0"
+                aria-label={lang === 'en' ? 'Close view' : 'Zamknij widok'}
+              >
+                <X size={16} />
+              </button>
             </div>
 
             {/* Top Center Timeline Bar Scrubber (Inline on sm+: landscape, tablet, desktop) */}
-            <div className={`${isMobileTimelineOpen ? 'flex' : 'hidden sm:flex'} items-center gap-2 bg-[#0E131F] border border-editorial-border px-2.5 sm:px-3 py-1.5 land:py-1 font-mono text-xs flex-1 w-full sm:max-w-sm desk:max-w-md mx-auto min-w-0`}>
+            <div className="hidden sm:flex items-center gap-2 bg-[#0E131F] border border-editorial-border px-3 py-1.5 land:py-1 font-mono text-xs flex-1 w-full sm:max-w-sm desk:max-w-md mx-auto min-w-0">
               <button
                 type="button"
                 onClick={() => setIsPlayingTimeline(prev => !prev)}
-                className="w-7 h-7 sm:w-auto sm:h-auto sm:p-1 flex items-center justify-center bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/60 text-cyan-300 hover:text-white transition-colors cursor-pointer shrink-0"
+                className="p-1 flex items-center justify-center bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/60 text-cyan-300 hover:text-white transition-colors cursor-pointer shrink-0"
                 title={isPlayingTimeline ? 'Pause timeline' : 'Play chronological timeline expansion'}
+                aria-label={isPlayingTimeline ? 'Pause timeline' : 'Play timeline'}
               >
                 {isPlayingTimeline ? <Pause size={12} /> : <Play size={12} />}
               </button>
 
               {/* Scrubber timeline bar with event dots */}
               <div className="relative flex-1 flex items-center h-5 land:h-4 cursor-pointer min-w-0">
-                {/* Background track */}
                 <div className="w-full h-1 bg-neutral-800 relative rounded-full overflow-hidden">
                   <div 
                     className="h-full bg-gradient-to-r from-emerald-500 via-cyan-400 to-fuchsia-500"
@@ -1014,7 +993,6 @@ export default function GalaxyGraphModal({
                   />
                 </div>
 
-                {/* Event points */}
                 <div className="absolute inset-0 flex items-center justify-between pointer-events-none px-1">
                   {sortedPosts.map((p) => {
                     const norm = (p.t - minTime) / (maxTime - minTime || 1);
@@ -1030,7 +1008,6 @@ export default function GalaxyGraphModal({
                   })}
                 </div>
 
-                {/* Invisible input slider for scrubbing */}
                 <input
                   type="range"
                   min="0"
@@ -1041,6 +1018,7 @@ export default function GalaxyGraphModal({
                     setTimelineProgress(parseFloat(e.target.value));
                     setIsPlayingTimeline(false);
                   }}
+                  aria-label="Timeline scrubber"
                   className="absolute inset-0 opacity-0 cursor-ew-resize w-full"
                 />
               </div>
@@ -1065,18 +1043,15 @@ export default function GalaxyGraphModal({
             </div>
           </div>
 
-          {/* SECONDARY TOOLBAR: FILTER PILLS, SEARCH, & ZOOM CONTROLS */}
-          <div className="relative flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 px-3 sm:px-4 desk:px-5 py-1.5 land:py-1 desk:py-2 bg-[#0A0D14] border-b border-editorial-border/60 z-20 shrink-0 font-mono text-xs">
+          {/* SECONDARY TOOLBAR: FILTER SEGMENTED BAR + ADAPTIVE MORPHING BAR (MOBILE) / INLINE SEARCH & ZOOM (DESKTOP) */}
+          <div className="relative flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-2 px-3 sm:px-4 desk:px-5 py-2 land:py-1 desk:py-2 bg-[#0A0D14] border-b border-editorial-border/60 z-20 shrink-0 font-mono text-xs">
             {/* Filter Mode Segmented Bar */}
             <div className="grid grid-cols-3 sm:flex items-center gap-1 bg-neutral-950 p-1 sm:p-0.5 border border-editorial-border w-full sm:w-auto shrink-0">
               <button
                 type="button"
                 id="galaxy_filter_all_btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setFilterType('all');
-                }}
-                className={`min-h-[36px] sm:min-h-0 px-1.5 sm:px-2.5 py-1 land:py-0.5 text-[10.5px] sm:text-[10px] desk:text-[10.5px] uppercase font-bold cursor-pointer select-none touch-manipulation whitespace-nowrap flex items-center justify-center truncate ${
+                onClick={() => setFilterType('all')}
+                className={`h-8 sm:h-auto px-1.5 sm:px-2.5 sm:py-1 land:py-0.5 text-[10.5px] sm:text-[10px] desk:text-[10.5px] uppercase font-bold cursor-pointer select-none touch-manipulation whitespace-nowrap flex items-center justify-center truncate transition-colors ${
                   filterType === 'all'
                     ? 'bg-cyan-950 text-cyan-300 border border-cyan-500/60'
                     : 'text-editorial-muted hover:text-white border border-transparent'
@@ -1088,11 +1063,8 @@ export default function GalaxyGraphModal({
               <button
                 type="button"
                 id="galaxy_filter_posts_btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setFilterType('posts');
-                }}
-                className={`min-h-[36px] sm:min-h-0 px-1.5 sm:px-2.5 py-1 land:py-0.5 text-[10.5px] sm:text-[10px] desk:text-[10.5px] uppercase font-bold cursor-pointer select-none touch-manipulation whitespace-nowrap flex items-center justify-center gap-1 truncate ${
+                onClick={() => setFilterType('posts')}
+                className={`h-8 sm:h-auto px-1.5 sm:px-2.5 sm:py-1 land:py-0.5 text-[10.5px] sm:text-[10px] desk:text-[10.5px] uppercase font-bold cursor-pointer select-none touch-manipulation whitespace-nowrap flex items-center justify-center gap-1 truncate transition-colors ${
                   filterType === 'posts'
                     ? 'bg-emerald-950 text-emerald-300 border border-emerald-500/60'
                     : 'text-editorial-muted hover:text-white border border-transparent'
@@ -1104,11 +1076,8 @@ export default function GalaxyGraphModal({
               <button
                 type="button"
                 id="galaxy_filter_tags_btn"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setFilterType('tags');
-                }}
-                className={`min-h-[36px] sm:min-h-0 px-1.5 sm:px-2.5 py-1 land:py-0.5 text-[10.5px] sm:text-[10px] desk:text-[10.5px] uppercase font-bold cursor-pointer select-none touch-manipulation whitespace-nowrap flex items-center justify-center gap-1 truncate ${
+                onClick={() => setFilterType('tags')}
+                className={`h-8 sm:h-auto px-1.5 sm:px-2.5 sm:py-1 land:py-0.5 text-[10.5px] sm:text-[10px] desk:text-[10.5px] uppercase font-bold cursor-pointer select-none touch-manipulation whitespace-nowrap flex items-center justify-center gap-1 truncate transition-colors ${
                   filterType === 'tags'
                     ? 'bg-fuchsia-950 text-fuchsia-300 border border-fuchsia-500/60'
                     : 'text-editorial-muted hover:text-white border border-transparent'
@@ -1119,8 +1088,124 @@ export default function GalaxyGraphModal({
               </button>
             </div>
 
+            {/* Mobile Portrait Fixed-Height Morphing Utility Strip (< sm): switches smoothly in-place between Search and Timeline */}
+            <div className="flex sm:hidden items-center gap-1.5 h-9 w-full min-w-0">
+              {mobileBarMode === 'search' ? (
+                <>
+                  <div className="relative flex-1 h-9 min-w-0">
+                    <Search size={13} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-cyan-400/80 pointer-events-none" />
+                    <input
+                      type="text"
+                      id="galaxy_mobile_search_input"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
+                      placeholder={lang === 'en' ? 'Search posts or tags...' : 'Szukaj wpisów lub tagów...'}
+                      className="w-full h-9 bg-neutral-950 border border-editorial-border pl-8 pr-8 text-xs text-white font-mono placeholder:text-neutral-500 focus:border-cyan-400 outline-none"
+                    />
+                    {searchQuery && (
+                      <button
+                        type="button"
+                        onClick={() => setSearchQuery('')}
+                        className="absolute right-1.5 top-1/2 -translate-y-1/2 w-6 h-6 flex items-center justify-center text-neutral-400 hover:text-white cursor-pointer touch-manipulation"
+                        aria-label={lang === 'en' ? 'Clear search' : 'Wyczyść wyszukiwanie'}
+                      >
+                        <X size={13} />
+                      </button>
+                    )}
+                  </div>
+                  <button
+                    type="button"
+                    id="galaxy_morph_to_timeline_btn"
+                    onClick={() => setMobileBarMode('timeline')}
+                    className={`h-9 px-2.5 flex items-center gap-1.5 border text-[10.5px] font-bold uppercase tracking-wider shrink-0 cursor-pointer touch-manipulation transition-colors ${
+                      isPlayingTimeline || timelineProgress < 0.99
+                        ? 'bg-cyan-950/70 border-cyan-500 text-cyan-300'
+                        : 'bg-neutral-950 border-editorial-border text-zinc-300 hover:text-white hover:border-cyan-500/60'
+                    }`}
+                    aria-label={lang === 'en' ? 'Switch bar to timeline' : 'Przełącz pasek na oś czasu'}
+                  >
+                    <Clock size={13} className="text-cyan-400 shrink-0" />
+                    <span className="whitespace-nowrap">
+                      {new Date(minTime + (maxTime - minTime) * timelineProgress).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                    </span>
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div className="flex-1 h-9 flex items-center gap-2 bg-[#0E131F] border border-cyan-500/50 px-2.5 min-w-0">
+                    <button
+                      type="button"
+                      onClick={() => setIsPlayingTimeline(prev => !prev)}
+                      className="w-6 h-6 flex items-center justify-center bg-cyan-950 hover:bg-cyan-900 border border-cyan-500/60 text-cyan-300 hover:text-white transition-colors cursor-pointer touch-manipulation shrink-0"
+                      aria-label={isPlayingTimeline ? 'Pause timeline' : 'Play timeline'}
+                    >
+                      {isPlayingTimeline ? <Pause size={11} /> : <Play size={11} />}
+                    </button>
+
+                    <div className="relative flex-1 flex items-center h-6 cursor-pointer min-w-0">
+                      <div className="w-full h-1.5 bg-neutral-800 relative rounded-full overflow-hidden">
+                        <div
+                          className="h-full bg-gradient-to-r from-emerald-500 via-cyan-400 to-fuchsia-500"
+                          style={{ width: `${timelineProgress * 100}%` }}
+                        />
+                      </div>
+                      <div className="absolute inset-0 flex items-center justify-between pointer-events-none px-1">
+                        {sortedPosts.map((p) => {
+                          const norm = (p.t - minTime) / (maxTime - minTime || 1);
+                          return (
+                            <div
+                              key={p.id}
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                norm <= timelineProgress ? 'bg-emerald-400' : 'bg-neutral-600'
+                              }`}
+                              style={{ position: 'absolute', left: `${norm * 96 + 2}%` }}
+                            />
+                          );
+                        })}
+                      </div>
+                      <input
+                        type="range"
+                        min="0"
+                        max="1"
+                        step="0.01"
+                        value={timelineProgress}
+                        onChange={(e) => {
+                          setTimelineProgress(parseFloat(e.target.value));
+                          setIsPlayingTimeline(false);
+                        }}
+                        aria-label="Timeline scrubber"
+                        className="absolute inset-0 opacity-0 cursor-ew-resize w-full"
+                      />
+                    </div>
+
+                    <span className="text-[10px] text-cyan-300 font-bold tracking-wider shrink-0 whitespace-nowrap min-w-[44px] text-right">
+                      {new Date(minTime + (maxTime - minTime) * timelineProgress).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' })}
+                    </span>
+                  </div>
+
+                  <button
+                    type="button"
+                    id="galaxy_morph_to_search_btn"
+                    onClick={() => setMobileBarMode('search')}
+                    className={`relative h-9 px-2.5 flex items-center gap-1.5 border text-[10.5px] font-bold uppercase tracking-wider shrink-0 cursor-pointer touch-manipulation transition-colors ${
+                      searchQuery.trim()
+                        ? 'bg-cyan-950/70 border-cyan-500 text-cyan-300'
+                        : 'bg-neutral-950 border-editorial-border text-zinc-300 hover:text-white hover:border-cyan-500/60'
+                    }`}
+                    aria-label={lang === 'en' ? 'Switch bar to search' : 'Przełącz pasek na wyszukiwanie'}
+                  >
+                    <Search size={13} className="text-cyan-400 shrink-0" />
+                    <span>{lang === 'en' ? 'Search' : 'Szukaj'}</span>
+                    {searchQuery.trim() && (
+                      <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 shrink-0" />
+                    )}
+                  </button>
+                </>
+              )}
+            </div>
+
             {/* Search Input & Toolbar Zoom (Inline on sm+: landscape, tablet, desktop) */}
-            <div className={`${isMobileSearchOpen ? 'flex' : 'hidden sm:flex'} items-center gap-1.5 sm:gap-2 w-full sm:w-auto sm:flex-1 sm:justify-end min-w-0`}>
+            <div className="hidden sm:flex items-center gap-2 w-auto flex-1 justify-end min-w-0">
               <div className="relative w-full flex-1 sm:max-w-[200px] md:max-w-xs min-w-0">
                 <Search size={12} className="absolute left-2.5 top-1/2 -translate-y-1/2 text-editorial-muted" />
                 <input
@@ -1129,7 +1214,7 @@ export default function GalaxyGraphModal({
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder={lang === 'en' ? 'Search galaxy nodes...' : 'Szukaj węzłów...'}
-                  className="w-full h-9 sm:h-7 desk:h-auto bg-neutral-950 border border-editorial-border pl-7 pr-7 py-1 land:py-0.5 text-xs sm:text-[11px] text-white font-mono placeholder:text-neutral-600 focus:border-cyan-400 outline-none uppercase"
+                  className="w-full h-7 desk:h-auto bg-neutral-950 border border-editorial-border pl-7 pr-7 py-1 land:py-0.5 text-[11px] text-white font-mono placeholder:text-neutral-600 focus:border-cyan-400 outline-none uppercase"
                 />
                 {searchQuery && (
                   <button 
@@ -1144,12 +1229,13 @@ export default function GalaxyGraphModal({
               </div>
 
               {/* Toolbar Zoom Buttons (sm+: landscape, tablet, desktop) */}
-              <div className="hidden sm:flex items-center gap-1 bg-neutral-950 p-0.5 border border-editorial-border shrink-0">
+              <div className="flex items-center gap-1 bg-neutral-950 p-0.5 border border-editorial-border shrink-0">
                 <button
                   type="button"
                   onClick={handleZoomIn}
                   className="p-1 flex items-center justify-center text-editorial-muted hover:text-white hover:bg-neutral-900 transition-colors cursor-pointer"
                   title="Zoom in"
+                  aria-label="Zoom in"
                 >
                   <ZoomIn size={14} />
                 </button>
@@ -1158,6 +1244,7 @@ export default function GalaxyGraphModal({
                   onClick={handleZoomOut}
                   className="p-1 flex items-center justify-center text-editorial-muted hover:text-white hover:bg-neutral-900 transition-colors cursor-pointer"
                   title="Zoom out"
+                  aria-label="Zoom out"
                 >
                   <ZoomOut size={14} />
                 </button>
@@ -1166,6 +1253,7 @@ export default function GalaxyGraphModal({
                   onClick={handleResetView}
                   className="p-1 flex items-center justify-center text-editorial-muted hover:text-white hover:bg-neutral-900 transition-colors cursor-pointer"
                   title="Reset galaxy coordinate center"
+                  aria-label="Reset view"
                 >
                   <RotateCcw size={14} />
                 </button>
@@ -1294,12 +1382,12 @@ export default function GalaxyGraphModal({
                       onMouseLeave={() => setHoveredNodeId(null)}
                       onClick={(e) => {
                         e.stopPropagation();
-                        handleNodeSelect(node.id);
+                        handleNodeSelect(node.id, false);
                       }}
                       onTouchEnd={(e) => {
                         if (touchMovedRef.current) return;
                         e.stopPropagation();
-                        handleNodeSelect(node.id);
+                        handleNodeSelect(node.id, true);
                       }}
                       className="cursor-pointer transition-opacity duration-150"
                       opacity={isDimmed ? 0.25 : 1}

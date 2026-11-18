@@ -197,12 +197,12 @@ export default function DeveloperStatsModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.12 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-0 desk:p-4 md:desk:p-6 overflow-hidden overscroll-contain"
+          className="modal-portal-viewport z-50 flex items-center justify-center p-0 desk:p-4 md:desk:p-6 overflow-hidden overscroll-contain"
         >
           {/* Backdrop */}
           <div
             onClick={onClose}
-            className="fixed inset-0 bg-black/80"
+            className="fixed inset-0 bg-black/80 touch-none overscroll-none"
           />
 
           {/* Modal Window Container: Fullscreen on portrait & rotated landscape mobile, centered window on desk+ */}
@@ -213,7 +213,7 @@ export default function DeveloperStatsModal({
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.12 }}
-            className="relative z-10 bg-editorial-bg border-0 desk:border-2 desk:border-editorial-border w-full h-full max-h-full desk:w-[92vw] md:desk:w-[88vw] desk:max-w-4xl desk:h-[88vh] desk:max-h-[780px] rounded-none shadow-2xl flex flex-col overflow-hidden desk:my-auto min-w-0 font-mono text-xs select-text"
+            className="relative z-10 bg-editorial-bg border-0 desk:border-2 desk:border-editorial-border w-full h-full max-h-[100dvh] desk:w-[92vw] md:desk:w-[88vw] desk:max-w-4xl desk:h-[88dvh] desk:max-h-[min(780px,calc(100dvh-2rem))] rounded-none shadow-2xl flex flex-col overflow-hidden desk:my-auto min-w-0 font-mono text-xs select-text"
           >
           {/* 1. Modal Top Header */}
           <div className="shrink-0 px-3.5 sm:px-6 py-2.5 land:py-1.5 desk:py-3.5 border-b border-editorial-border bg-editorial-sidebar-bg flex items-center justify-between gap-2 min-w-0">
@@ -305,7 +305,7 @@ export default function DeveloperStatsModal({
           {/* 4. Tab Body Content */}
           <div 
             ref={modalBodyRef}
-            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden p-3 sm:p-5 land:p-2.5 space-y-3 land:space-y-2 bg-editorial-bg min-w-0 w-full scrollbar-thin scrollbar-thumb-neutral-800 overscroll-contain"
+            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden modal-scroll-safe p-3 sm:p-5 land:p-2.5 space-y-3 land:space-y-2 bg-editorial-bg min-w-0 w-full scrollbar-thin scrollbar-thumb-neutral-800"
           >
             {activeTab === 'new_plugins' && (
               <div className="space-y-3 sm:space-y-4 land:space-y-2">

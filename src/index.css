@@ -19,7 +19,6 @@
 html, body {
   background-color: #050505;
   color-scheme: dark;
-  overscroll-behavior-y: none;
   -webkit-tap-highlight-color: transparent;
   scrollbar-gutter: stable;
 }
@@ -219,20 +218,44 @@ input[type="range"].range-slider-thumb::-moz-range-thumb:active {
   }
 }
 
-/* Firefox Mobile specific adaptation for dynamic sliding bottom toolbar */
+/* Strict fallback cascade so modal portals never exceed visible dynamic viewport height (Firefox Android bottom toolbar) */
+.modal-portal-viewport {
+  position: fixed;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 100vh;
+  height: 100dvh;
+}
+
+/* Touch-friendly modal inner scroll container (prevents ancestor touch-action/overscroll lock on Firefox Android) */
+.modal-scroll-safe {
+  touch-action: pan-y;
+  -webkit-overflow-scrolling: touch;
+  overscroll-behavior-y: contain;
+}
+
+/* Firefox Mobile specific adaptation for dynamic/persistent bottom toolbar */
 @supports (-moz-appearance: none) {
   .bottom-dock-container {
     padding-bottom: max(0.75rem, calc(env(safe-area-inset-bottom, 0px) + 0.45rem));
   }
 
   .app-footer-safe {
-    /* Generous buffer so Android Firefox sliding bottom toolbar never clips footer text or page end */
+    /* Generous buffer so Android Firefox bottom search toolbar never clips footer text or page end */
     padding-bottom: max(7rem, calc(env(safe-area-inset-bottom, 0px) + 6.75rem));
+  }
+
+  @media (pointer: coarse), (max-width: 1024px), (max-height: 539px) {
+    .modal-scroll-safe {
+      padding-bottom: max(3.75rem, calc(env(safe-area-inset-bottom, 0px) + 3.25rem)) !important;
+      scroll-padding-bottom: 3.75rem;
+    }
   }
 
   @media (min-width: 768px) {
     .sidebar-scroll-safe {
-      padding-bottom: max(7.5rem, calc(env(safe-area-inset-bottom, 0px) + 7rem));
+      padding-bottom: 1.5rem;
     }
   }
 

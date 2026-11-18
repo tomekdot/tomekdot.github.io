@@ -90,19 +90,47 @@ export function sanitizeRepo(raw: Partial<Repository> & { name?: string }): Repo
 }
 
 /**
- * Wraps React.lazy with automatic retry on transient dynamic-import failures.
+ * Checks whether an error came from a failed dynamic ES module or chunk load.
+ */
+function isDynamicImportError(err: unknown): boolean {
+  const msg = err instanceof Error ? err.message : String(err || '');
+  return /dynamically imported module|loading chunk|failed to fetch|importing a module script failed/i.test(msg);
+}
+
+/**
+ * Wraps React.lazy with automatic retry and loop-guarded page refresh when a dev/deploy chunk hash expires.
  */
 export function lazyWithRetry<T extends React.ComponentType<any>>(
   factory: () => Promise<{ default: T }>
 ): React.LazyExoticComponent<T> {
   return React.lazy(async () => {
     try {
-      return await factory();
+      const mod = await factory();
+      if (typeof window !== 'undefined') {
+        try {
+          window.sessionStorage.removeItem('app_chunk_reload_ts');
+        } catch {
+          // ignore storage errors
+        }
+      }
+      return mod;
     } catch (firstErr) {
       await new Promise((r) => setTimeout(r, 250));
       try {
         return await factory();
-      } catch {
+      } catch (secondErr) {
+        if (typeof window !== 'undefined' && isDynamicImportError(secondErr)) {
+          try {
+            const lastReload = Number(window.sessionStorage.getItem('app_chunk_reload_ts') || '0');
+            if (!lastReload || Date.now() - lastReload > 10000) {
+              window.sessionStorage.setItem('app_chunk_reload_ts', String(Date.now()));
+              window.location.reload();
+              return new Promise<{ default: T }>(() => {});
+            }
+          } catch {
+            // fall through and surface error to ErrorBoundary
+          }
+        }
         throw firstErr;
       }
     }

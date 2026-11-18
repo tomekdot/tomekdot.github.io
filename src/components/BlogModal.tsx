@@ -154,13 +154,13 @@ export default function BlogModal({
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.16 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-2 short:p-1 overflow-hidden pointer-events-auto"
+          className="modal-portal-viewport z-50 flex items-center justify-center p-2 short:p-1 overflow-hidden pointer-events-auto"
         >
           {/* Backdrop overlay */}
           <div
             id="blog_modal_backdrop"
             onClick={onClose}
-            className="fixed inset-0 bg-black/80"
+            className="fixed inset-0 bg-black/80 touch-none overscroll-none"
           />
 
           {/* Modal Window Container with native Framer Motion drag to minimize */}
@@ -176,7 +176,7 @@ export default function BlogModal({
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: 10 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-            className="relative z-10 bg-editorial-bg border-2 border-editorial-border w-[95vw] sm:w-[90vw] md:w-[85vw] max-w-3xl lg:max-w-4xl h-[86vh] max-h-[760px] land:h-[calc(100vh-1rem)] short:h-[calc(100vh-1rem)] rounded-none shadow-2xl flex flex-col overflow-hidden min-w-0 my-auto"
+            className="relative z-10 bg-editorial-bg border-2 border-editorial-border w-[95vw] sm:w-[90vw] md:w-[85vw] max-w-3xl lg:max-w-4xl h-[86dvh] max-h-[min(760px,calc(100dvh-1rem))] land:h-[calc(100dvh-1rem)] short:h-[calc(100dvh-1rem)] rounded-none shadow-2xl flex flex-col overflow-hidden min-w-0 my-auto"
           >
             {/* iOS/iPhone-style pull-down handle (shown on portrait mobile & desk+, hidden on rotated landscape/short screens to maximize reading space) */}
             <div 
@@ -256,7 +256,7 @@ export default function BlogModal({
           {/* Scrollable Blog Content Block */}
           <div 
             ref={modalBodyRef}
-            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain p-3.5 sm:p-5 land:px-4 land:py-2.5 short:px-3.5 short:py-2 bg-editorial-bg select-text scrollbar-thin scrollbar-thumb-neutral-800 min-w-0 w-full"
+            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden modal-scroll-safe p-3.5 sm:p-5 land:px-4 land:py-2.5 short:px-3.5 short:py-2 bg-editorial-bg select-text scrollbar-thin scrollbar-thumb-neutral-800 min-w-0 w-full"
           >
             {/* Tags line */}
             <div className="flex flex-wrap gap-1.5 mb-3 sm:mb-4 short:hidden land:hidden desk:flex">
@@ -272,7 +272,7 @@ export default function BlogModal({
             </div>
 
             {/* Main Article Body */}
-            <div className="markdown-body text-zinc-200 font-sans text-[13.5px] sm:text-[15px] land:text-[13.5px] leading-relaxed sm:leading-7 land:leading-relaxed prose prose-invert max-w-none space-y-3 sm:space-y-4 land:space-y-2.5 min-w-0 max-w-full overflow-hidden [&_ol]:pl-5 sm:[&_ol]:pl-8 [&_ul]:pl-5 sm:[&_ul]:pl-8 [&_ol]:list-outside [&_ul]:list-outside [&>*:first-child]:!mt-0">
+            <div className="markdown-body text-zinc-200 font-sans text-[13.5px] sm:text-[15px] land:text-[13.5px] leading-relaxed sm:leading-7 land:leading-relaxed prose prose-invert max-w-none space-y-3 sm:space-y-4 land:space-y-2.5 min-w-0 max-w-full overflow-x-hidden [&_ol]:pl-5 sm:[&_ol]:pl-8 [&_ul]:pl-5 sm:[&_ul]:pl-8 [&_ol]:list-outside [&_ul]:list-outside [&>*:first-child]:!mt-0">
               <Markdown
                 remarkPlugins={[remarkGfm]}
                 components={{

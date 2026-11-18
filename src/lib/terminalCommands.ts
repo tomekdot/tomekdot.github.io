@@ -77,6 +77,7 @@ export const TERMINAL_I18N = {
     helpGit: "  git <cmd> [args]      - Git tools: status, remote, log, clone <repo>, search <query>, open <repo>",
     helpAi: "  ai <prompt|explain>   - Ask AI about repositories, architecture or plugins (Esc / Ctrl+C to cancel)",
     helpAiKey: "  ai key <set|clear|status> - Configure private Gemini API key or local LLM engine",
+    helpDecide: "  decide <query>        - Calibrated zero-token routing & scoring (Gemini Decision 1)",
     helpClear: "  clear                 - Clears terminal output logs",
     
     unknownCmd: (cmd: string) => `Command not recognized: '${cmd}'. Type 'help' for available instructions.`,
@@ -150,6 +151,11 @@ export const TERMINAL_I18N = {
     aiError: (msg: string) => `❌ [AI-AGENT Error]: ${msg}`,
     aiNoResponse: "No response generated.",
     aiKnowledgeSources: "Knowledge Sources Used",
+    decideUsage: "Usage: decide <question or topic>. Example: 'decide How does PyPlanet ClanSpirits scoring work?'",
+    decideInit: "🎯 [DECISION-1] Evaluating calibrated probabilities (v1beta • 0 output tokens)...",
+    decideError: (msg: string) => `❌ [DECISION-1 Error]: ${msg}`,
+    decideCancelled: "⚡ [DECISION-1] Classification cancelled by user.",
+    decideQuotaExhausted: "❌ [DECISION-1]: Session token limit reached. Reset tokens in AI Config to continue.",
   },
   pl: {
     welcome: "System tomekdot v1.0.0 zainicjalizowany. Wpisz 'help', aby zobaczyć listę komend.",
@@ -164,6 +170,7 @@ export const TERMINAL_I18N = {
     helpGit: "  git <cmd> [args]      - Narzędzia Git: status, remote, log, clone <repo>, search <fraza>, open <repo>",
     helpAi: "  ai <pytanie|explain>  - Zapytaj AI o repozytorium, architekturę lub wtyczki (Esc / Ctrl+C aby anulować)",
     helpAiKey: "  ai key <set|clear|status> - Konfiguracja prywatnego klucza Gemini lub silnika lokalnego",
+    helpDecide: "  decide <pytanie>      - Kalibrowany routing i ocena bez tokenów wyj. (Gemini Decision 1)",
     helpClear: "  clear                 - Czyści logi konsoli",
     
     unknownCmd: (cmd: string) => `Nieznana komenda: '${cmd}'. Wpisz 'help', aby wyświetlić instrukcję.`,
@@ -237,6 +244,11 @@ export const TERMINAL_I18N = {
     aiError: (msg: string) => `❌ [Błąd AI-AGENT]: ${msg}`,
     aiNoResponse: "Brak wygenerowanej odpowiedzi.",
     aiKnowledgeSources: "Użyte źródła wiedzy",
+    decideUsage: "Użycie: decide <pytanie lub temat>. Przykład: 'decide Jak działa punktacja w ClanSpirits?'",
+    decideInit: "🎯 [DECISION-1] Obliczanie kalibrowanych prawdopodobieństw (v1beta • 0 tokenów wyj.)...",
+    decideError: (msg: string) => `❌ [Błąd DECISION-1]: ${msg}`,
+    decideCancelled: "⚡ [DECISION-1] Klasyfikacja anulowana przez użytkownika.",
+    decideQuotaExhausted: "❌ [DECISION-1]: Wyczerpano limit tokenów sesji. Zresetuj licznik w Konfiguracji AI, aby kontynuować.",
   }
 };
 
@@ -346,7 +358,7 @@ export function getTabCompletion(currentVal: string, repos: Repository[]): strin
   if (rawParts.length === 1) {
     const commands = [
       'help', 'about', 'bio', 'cat', 'ls', 'list', 'filter', 
-      'pomodoro', 'pyplanet-simulate', 'git', 'ai', 'open', 'clear'
+      'pomodoro', 'pyplanet-simulate', 'git', 'ai', 'decide', 'route', 'open', 'clear'
     ];
     const match = commands.find(c => c.startsWith(currentWordLower) && c !== currentWordLower);
     if (match) return match + ' ';
@@ -428,6 +440,7 @@ export async function executeTerminalCommand(rawInput: string, ctx: TerminalCont
       ctx.addOutput(t.helpGit);
       ctx.addOutput(t.helpAi);
       ctx.addOutput(t.helpAiKey);
+      ctx.addOutput(t.helpDecide);
       ctx.addOutput(t.helpClear);
       break;
     }
@@ -850,6 +863,115 @@ export async function executeTerminalCommand(rawInput: string, ctx: TerminalCont
             }
           }
         });
+      break;
+    }
+
+    case 'decide':
+    case 'route': {
+      const query = rawParts.slice(1).join(' ').trim();
+      if (!query) {
+        ctx.addOutput(t.decideUsage, 'comment');
+        break;
+      }
+
+      if (isSessionQuotaExhausted()) {
+        ctx.addOutput(t.decideQuotaExhausted, 'error');
+        break;
+      }
+
+      ctx.addOutput(t.decideInit, 'comment');
+
+      if (ctx.abortControllerRef.current) {
+        ctx.abortControllerRef.current.abort();
+      }
+      const controller = new AbortController();
+      ctx.abortControllerRef.current = controller;
+      ctx.setIsAiLoading(true);
+
+      try {
+        const { classifyWithDecisionModel } = await import('./clientAi');
+        const candidates = ctx.repos.map(r => ({
+          name: r.name,
+          lang: r.lang,
+          cat: r.cat,
+          desc: ctx.lang === 'en' ? r.desc : (r.descPl || r.desc),
+        }));
+
+        const res = await classifyWithDecisionModel({
+          query,
+          candidates,
+          siteLang: ctx.lang,
+          signal: controller.signal,
+          timeoutMs: 20000,
+        });
+
+        if (controller.signal.aborted) {
+          ctx.addOutput(t.decideCancelled, 'comment');
+          break;
+        }
+
+        const lines: string[] = [
+          `🎯 [GEMINI-DECISION-1 // ${res.apiVersion}] (${res.usage.inputTokens} in tok • ${res.usage.outputTokens} out tok)`,
+        ];
+
+        if (res.inScope) {
+          const p = res.inScope.probability;
+          const conf = Math.round(res.inScope.confidence * 100);
+          const scopeTag = res.inScope.allowed
+            ? (ctx.lang === 'en' ? 'IN-SCOPE' : 'W ZAKRESIE')
+            : (ctx.lang === 'en' ? 'OFF-TOPIC' : 'POZA ZAKRESEM');
+          lines.push(`• in_scope (noul)   : ${scopeTag} — P(yes)=${p.toFixed(2)} (${conf}% conf)`);
+        }
+
+        if (res.intent) {
+          const topIntentProbs = Object.entries(res.intent.probabilities || {})
+            .sort(([, a], [, b]) => b - a)
+            .slice(0, 3)
+            .map(([k, v]) => `${k}:${Math.round(v * 100)}%`)
+            .join(', ');
+          lines.push(
+            `• intent (choice)   : ${res.intent.choice.toUpperCase()} (${Math.round(res.intent.confidence * 100)}% conf) [${topIntentProbs}]`
+          );
+        }
+
+        if (res.complexity) {
+          lines.push(
+            `• complexity (score): ${res.complexity.score.toFixed(2)} / 2.00 — ${res.complexity.topLevelLabel}`
+          );
+        }
+
+        if (res.bestRepo) {
+          const bestLabel = res.bestRepo.repoName
+            ? `${res.bestRepo.repoName} (${Math.round(res.bestRepo.confidence * 100)}%)`
+            : (ctx.lang === 'en' ? 'General / No single repo match' : 'Ogólne / brak jednego dopasowania');
+          const runnersUp = res.bestRepo.topMatches
+            .map(m => `${m.repoName} (${Math.round(m.probability * 100)}%)`)
+            .join(' • ');
+          lines.push(`• best_repo (choice): ${bestLabel}`);
+          if (runnersUp) {
+            lines.push(`• top candidates    : ${runnersUp}`);
+          }
+        }
+
+        ctx.addOutput(lines.join('\n'), 'success');
+        if (res.bestRepo?.repoName) {
+          ctx.addOutput(
+            ctx.lang === 'en'
+              ? `💡 Tip: run 'open ${res.bestRepo.repoName}' or 'ai explain ${res.bestRepo.repoName}'`
+              : `💡 Wskazówka: wpisz 'open ${res.bestRepo.repoName}' lub 'ai explain ${res.bestRepo.repoName}'`,
+            'comment'
+          );
+        }
+      } catch (err: any) {
+        if (err?.name === 'AbortError' || controller.signal.aborted) {
+          ctx.addOutput(t.decideCancelled, 'comment');
+        } else {
+          const hintPart = err?.hint ? `\n   💡 ${err.hint}` : '';
+          ctx.addOutput(`${t.decideError(err?.message || String(err))}${hintPart}`, 'error');
+        }
+      } finally {
+        ctx.setIsAiLoading(false);
+      }
       break;
     }
 

@@ -838,12 +838,12 @@ Instructions:
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.14 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-0 desk:p-4 md:desk:p-6 overflow-hidden overscroll-contain"
+          className="modal-portal-viewport z-50 flex items-center justify-center p-0 desk:p-4 md:desk:p-6 overflow-hidden overscroll-contain"
         >
           {/* Backdrop */}
           <div
             onClick={onClose}
-            className="fixed inset-0 bg-black/80"
+            className="fixed inset-0 bg-black/80 touch-none overscroll-none"
           />
 
           {/* Modal Window Container: Fullscreen on mobile portrait & rotated landscape, centered window on desk+ */}
@@ -854,7 +854,7 @@ Instructions:
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             transition={{ duration: 0.12 }}
-            className="relative z-10 bg-editorial-bg border-0 desk:border-2 desk:border-editorial-border w-full h-full max-h-full desk:w-[92vw] md:desk:w-[88vw] max-w-3xl lg:max-w-4xl desk:h-[90vh] desk:max-h-[820px] rounded-none shadow-2xl flex flex-col overflow-hidden desk:my-auto min-w-0 font-mono text-xs select-text"
+            className="relative z-10 bg-editorial-bg border-0 desk:border-2 desk:border-editorial-border w-full h-full max-h-[100dvh] desk:w-[92vw] md:desk:w-[88vw] max-w-3xl lg:max-w-4xl desk:h-[90dvh] desk:max-h-[min(820px,calc(100dvh-2rem))] rounded-none shadow-2xl flex flex-col overflow-hidden desk:my-auto min-w-0 font-mono text-xs select-text"
           >
           {/* Pull-down bar shown only on desk+ */}
           <div 
@@ -964,7 +964,7 @@ Instructions:
           {/* Body: messenger flex layout on Chat tab (scrolls only if min-heights exceed viewport); single-scroll on Synthesis & Index */}
           <div 
             ref={modalBodyRef}
-            className={`flex-1 min-h-0 min-w-0 w-full bg-editorial-bg overscroll-contain ${
+            className={`flex-1 min-h-0 min-w-0 w-full bg-editorial-bg modal-scroll-safe ${
               activeTab === 'interactive_chat'
                 ? 'overflow-y-auto overflow-x-hidden flex flex-col p-2.5 desk:p-3 short:p-1.5 scrollbar-thin scrollbar-thumb-neutral-800'
                 : 'overflow-y-auto overflow-x-hidden p-3 desk:p-5 short:p-2 space-y-3 short:space-y-1.5 scrollbar-thin scrollbar-thumb-neutral-800'
@@ -1380,7 +1380,7 @@ Instructions:
                     <div
                       onMouseUp={handleArticleSelectionCheck}
                       onTouchEnd={handleArticleSelectionCheck}
-                      className="bg-[#0e1015] p-3.5 desk:p-6 short:p-2.5 border border-editorial-border/80 desk:max-h-[66vh] min-h-[160px] short:min-h-[120px] desk:min-h-[340px] desk:overflow-y-auto select-text scrollbar-thin scrollbar-thumb-neutral-700"
+                      className="bg-[#0e1015] p-3.5 desk:p-6 short:p-2.5 border border-editorial-border/80 desk:max-h-[66dvh] min-h-[160px] short:min-h-[120px] desk:min-h-[340px] desk:overflow-y-auto select-text scrollbar-thin scrollbar-thumb-neutral-700"
                     >
                       {versionMode === 'diff' ? (() => {
                         const rawLines = activeDraftContent
@@ -1716,7 +1716,7 @@ Instructions:
 
                 {/* Collapsible Local & Google AI Configuration Box (scrollable so it fits mobile screens) */}
                 {showApiKeyConfig && (
-                  <div className="shrink-0 max-h-[48vh] short:max-h-[55vh] overflow-y-auto overscroll-contain p-3 desk:p-3.5 short:p-2 bg-neutral-950 border border-cyan-500/60 space-y-3 animate-fadeIn text-xs font-sans scrollbar-thin scrollbar-thumb-neutral-800">
+                  <div className="shrink-0 max-h-[48dvh] short:max-h-[55dvh] overflow-y-auto modal-scroll-safe p-3 desk:p-3.5 short:p-2 bg-neutral-950 border border-cyan-500/60 space-y-3 animate-fadeIn text-xs font-sans scrollbar-thin scrollbar-thumb-neutral-800">
                     <div className="flex items-start justify-between gap-2 border-b border-editorial-border/60 pb-2">
                       <div className="flex items-center gap-2 text-cyan-300 font-mono font-bold uppercase text-[11px]">
                         <ShieldCheck size={14} className="text-emerald-400 shrink-0" />
@@ -2162,7 +2162,7 @@ Instructions:
                 {/* Chat Stream Window: guaranteed readable height even with long pasted text */}
                 <div 
                   ref={chatContainerRef}
-                  className="relative z-0 flex-1 min-h-[150px] land:min-h-[84px] desk:min-h-[200px] bg-neutral-950 border border-editorial-border p-3 land:p-2 desk:p-3.5 overflow-y-auto space-y-3 land:space-y-2 min-w-0 overscroll-contain scrollbar-thin scrollbar-thumb-neutral-800"
+                  className="relative z-0 flex-1 min-h-[150px] land:min-h-[84px] desk:min-h-[200px] bg-neutral-950 border border-editorial-border p-3 land:p-2 desk:p-3.5 overflow-y-auto modal-scroll-safe space-y-3 land:space-y-2 min-w-0 scrollbar-thin scrollbar-thumb-neutral-800"
                 >
                   {chatMessages.map(msg => (
                     <ChatMessageView

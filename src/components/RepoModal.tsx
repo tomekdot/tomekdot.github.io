@@ -89,6 +89,8 @@ import {
   localizeQuotaCheckStatus,
   streamAiChat,
   StreamAiError,
+  classifyWithDecisionModel,
+  DecisionRouteResult,
   TokenUsage,
   HAS_BACKEND 
 } from '../lib/clientAi';
@@ -1073,6 +1075,35 @@ export default function RepoModal({
     }
 
     const streamMsgId = `stream_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
+    let decisionRoute: DecisionRouteResult | null = null;
+    const canTryDecisionPreRoute =
+      activeProvider === 'gemini' &&
+      !isChatLocalEngine &&
+      !activeKey?.startsWith('sk-') &&
+      !activeKey?.startsWith('gsk_') &&
+      textToSend.length >= 3;
+
+    // Run Decision-1 classification in parallel so chat streaming starts immediately with 0ms added latency
+    const decisionPromise: Promise<DecisionRouteResult | null> = canTryDecisionPreRoute
+      ? classifyWithDecisionModel({
+          query: textToSend,
+          repoName: repo.name,
+          repoDescription: repo.desc || repo.descPl,
+          repoLang: repo.lang,
+          siteLang: lang,
+          apiKey: activeKey,
+          provider: activeProvider,
+          baseUrl: activeBaseUrl,
+          signal: controller.signal,
+          timeoutMs: 18000,
+        })
+          .then((res) => {
+            decisionRoute = res;
+            return res;
+          })
+          .catch(() => null)
+      : Promise.resolve(null);
+
     const systemInstruction = `You are tomekdot AI Assistant on Tomasz Kaczak's (@tomekdot) GitHub Portfolio.
 Repository: "${repo.name}" (${repo.lang || 'Code'}, category: ${repo.cat?.join(', ') || 'Software'}).
 Description: ${repo.desc || repo.descPl || 'Software engineering repository.'}
@@ -1188,10 +1219,18 @@ Instructions:
         return localized;
       });
 
+      const formatDecisionBadge = (res: DecisionRouteResult | null) =>
+        res?.intent
+          ? `🎯 Decision-1: ${res.intent.choice.toUpperCase()} (${Math.round(res.intent.confidence * 100)}% • 0 out tok)`
+          : null;
+
+      const decisionBadge = formatDecisionBadge(decisionRoute);
+
       const finalSources = [
         repo.name,
         sanitizedReadme ? 'README.md' : 'Repository Metadata',
         `Google ${streamResult.endpointMode === 'vertex' ? 'Vertex AI Express' : 'Gemini API'} (${streamResult.model || activeModelToUse})`,
+        ...(decisionBadge ? [decisionBadge] : []),
       ];
 
       setChatMessages(prev => {
@@ -1223,6 +1262,21 @@ Instructions:
           },
         ];
       });
+
+      // If Decision-1 was still running when chat finished, append the calibrated badge cleanly once it settles
+      if (!decisionBadge && canTryDecisionPreRoute) {
+        decisionPromise.then((lateDecision) => {
+          const lateBadge = formatDecisionBadge(lateDecision);
+          if (!lateBadge || controller.signal.aborted) return;
+          setChatMessages(prev =>
+            prev.map(m =>
+              m.id === streamMsgId && m.sourcesUsed && !m.sourcesUsed.some(s => s.startsWith('🎯 Decision-1:'))
+                ? { ...m, sourcesUsed: [...m.sourcesUsed, lateBadge] }
+                : m
+            )
+          );
+        });
+      }
     } catch (err: any) {
       if (err?.name === 'AbortError' && controller.signal.aborted) {
         chatAbortControllerRef.current = null;
@@ -1607,13 +1661,13 @@ Instructions:
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={{ duration: 0.16 }}
-          className="fixed inset-0 z-50 flex items-center justify-center p-2 short:p-1 overflow-hidden pointer-events-auto"
+          className="modal-portal-viewport z-50 flex items-center justify-center p-2 short:p-1 overflow-hidden pointer-events-auto"
         >
           {/* Backdrop overlay */}
           <div
             id="modal_backdrop"
             onClick={onClose}
-            className="fixed inset-0 bg-black/80"
+            className="fixed inset-0 bg-black/80 touch-none overscroll-none"
           />
 
           {/* Modal Window Container with native Framer Motion drag to minimize */}
@@ -1629,7 +1683,7 @@ Instructions:
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.98, y: 8 }}
             transition={{ duration: 0.18, ease: [0.16, 1, 0.3, 1] }}
-            className="relative z-10 bg-editorial-bg border-2 border-editorial-border shadow-2xl flex flex-col overflow-hidden min-w-0 w-[95vw] sm:w-[90vw] md:w-[85vw] max-w-3xl lg:max-w-4xl h-[86vh] max-h-[760px] land:h-[calc(100vh-1rem)] short:h-[calc(100vh-1rem)] rounded-none my-auto"
+            className="relative z-10 bg-editorial-bg border-2 border-editorial-border shadow-2xl flex flex-col overflow-hidden min-w-0 w-[95vw] sm:w-[90vw] md:w-[85vw] max-w-3xl lg:max-w-4xl h-[86dvh] max-h-[min(760px,calc(100dvh-1rem))] land:h-[calc(100dvh-1rem)] short:h-[calc(100dvh-1rem)] rounded-none my-auto"
           >
             {/* iOS/iPhone-style pull-down handle (clean pill bar, no text) */}
             <div 
@@ -1852,7 +1906,7 @@ Instructions:
           {/* Body Content */}
           <div 
             ref={modalBodyRef}
-            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden overscroll-contain p-3 sm:p-5 short:p-2 space-y-3 sm:space-y-4 short:space-y-2 scrollbar-thin scrollbar-thumb-neutral-800 min-w-0 w-full"
+            className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden modal-scroll-safe p-3 sm:p-5 short:p-2 space-y-3 sm:space-y-4 short:space-y-2 scrollbar-thin scrollbar-thumb-neutral-800 min-w-0 w-full"
           >
             {activeTab === 'info' ? (
               <div className="space-y-3 sm:space-y-6 animate-fadeIn font-sans">
@@ -3074,7 +3128,7 @@ Instructions:
                 {/* Chat conversation history window */}
                 <div 
                   ref={chatMessagesContainerRef}
-                  className="bg-neutral-950 border border-editorial-border p-3 sm:p-4 short:p-2 min-h-[160px] sm:min-h-[220px] short:min-h-[120px] max-h-[360px] short:max-h-[45dvh] overflow-y-auto space-y-3 sm:space-y-3.5 short:space-y-2 scrollbar-thin scrollbar-thumb-neutral-800"
+                  className="bg-neutral-950 border border-editorial-border p-3 sm:p-4 short:p-2 min-h-[160px] sm:min-h-[220px] short:min-h-[120px] max-h-[360px] short:max-h-[45dvh] overflow-y-auto modal-scroll-safe space-y-3 sm:space-y-3.5 short:space-y-2 scrollbar-thin scrollbar-thumb-neutral-800"
                 >
                   {chatMessages.map((msg, index) => (
                     <ChatMessageView
